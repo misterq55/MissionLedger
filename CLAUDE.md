@@ -18,9 +18,18 @@ The main project file is located at `MissionLedger/MissionLedger.vcxproj`.
 
 ## Dependencies
 
-- **wxWidgets**: GUI framework (requires WXWIN environment variable)
+- **wxWidgets 3.2.8**: GUI framework (requires WXWIN environment variable)
 - **Visual Studio 2022**: Windows 10 SDK
 - **Platform**: Windows (Win32/x64)
+
+### wxWidgets Setup
+
+1. **Installation**: wxWidgets should be installed at `C:\wxWidgets-3.2.8`
+2. **Building**: Use Visual Studio 2022 to build wxWidgets libraries
+   - Open `C:\wxWidgets-3.2.8\build\msw\wx_vc17.sln` in Visual Studio 2022
+   - Build for Release x64 configuration
+   - Libraries will be generated in `C:\wxWidgets-3.2.8\lib\vc_x64_lib`
+3. **Environment**: WXWIN environment variable must be set to `C:\wxWidgets-3.2.8`
 
 ## Architecture
 
@@ -75,6 +84,32 @@ MissionLedger/
 - Korean language comments are present throughout the codebase
 - The project includes placeholder folders for controller and view implementations
 - Transaction management is the core functionality with stub implementations
+
+### Current Implementation Status
+
+- **Model**: `MLModel` class implemented with basic CRUD operations
+- **Controller**: `IMLController` interface defined, implementation pending
+- **View**: `IMLView` interface defined, implementation pending
+- **Observer**: `MLModelObserver` well-designed with specific transaction events
+
+### Future Development Considerations
+
+#### Transaction Filtering System
+When implementing transaction filtering (by date, category, type, amount, etc.):
+
+1. **Filtering Location**: Implement filtering logic in Model layer (`MLModel`) for proper MVC separation
+2. **Data Transfer**: Use DTO/ViewModel pattern for View data to avoid MVC violations
+   - Create `SMLTransactionViewData` struct for UI-specific data representation
+   - Controller converts `CMLTransaction` to `SMLTransactionViewData`
+3. **Performance Strategies**:
+   - Start with simple approach: full data filtering on demand
+   - Consider caching for frequently used filters
+   - Use wxWidgets Virtual List for large datasets
+   - Implement Iterator pattern for memory-efficient data access
+4. **Observer Integration**:
+   - Existing Observer pattern provides granular transaction events
+   - Avoid passing Model objects directly to maintain MVC boundaries
+   - Consider ID-based notifications with on-demand data retrieval
 
 ## Coding Conventions
 

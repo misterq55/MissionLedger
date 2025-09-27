@@ -13,5 +13,5 @@ public:
     virtual int GetTransactionId() override;
     
 private:
-    std::map<int, std::shared_ptr<CMLTransaction>> transactions;
+    std::map<int, std::shared_ptr<CMLTransaction>> Transactions;
 };
