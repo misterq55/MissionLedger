@@ -35,12 +35,13 @@ The main project file is located at `MissionLedger/MissionLedger.vcxproj`.
 
 ### MVC Pattern Implementation
 
-The codebase follows a strict MVC architecture:
+The codebase follows a strict MVC architecture with centralized component management:
 
 - **Model**: `CMLModel` class manages transaction data using `std::map<int, std::shared_ptr<CMLTransaction>>`
 - **View**: Interface defined by `IMLView` (currently minimal)
 - **Controller**: Interface defined by `IMLController` for transaction operations
 - **Observer Pattern**: `MLModelObserver` provides event notifications for data changes
+- **MVC Holder**: `CMLMVCHolder` singleton pattern for global MVC component access
 
 ### Core Data Structure
 
@@ -56,6 +57,7 @@ The main entity is `CMLTransaction` representing financial transactions with:
 - `IMLController`: Business logic interface for transaction handling
 - `IMLView`: UI interface (placeholder for future implementation)
 - `MLModelObserver`: Observer pattern for data change notifications
+- `CMLMVCHolder`: Singleton holder for centralized MVC component access
 
 ## Code Organization
 
@@ -69,7 +71,11 @@ MissionLedger/
     │   ├── IMLModel.h          # Model interface
     │   └── IMLView.h           # View interface
     └── module/
-        ├── common/observer/    # Observer pattern implementation
+        ├── common/             # Common utilities and patterns
+        │   ├── holder/         # MVC Holder singleton pattern
+        │   │   ├── CMLMVCHolder.*      # MVC component holder
+        │   │   └── MLMVCHolderExample.h # Usage examples
+        │   └── observer/       # Observer pattern implementation
         └── mvc/
             ├── model/          # Model implementation
             │   ├── CMLModel.*  # Main model class
@@ -91,6 +97,56 @@ MissionLedger/
 - **Controller**: `IMLController` interface defined, implementation pending
 - **View**: `IMLView` interface defined, implementation pending
 - **Observer**: `MLModelObserver` well-designed with specific transaction events
+- **MVC Holder**: `CMLMVCHolder` singleton implemented for centralized component access
+
+### MVC Holder Usage
+
+The `CMLMVCHolder` singleton provides centralized access to MVC components throughout the application:
+
+#### Initialization (in main.cpp):
+```cpp
+#include "module/common/holder/MLMVCHolder.h"
+
+class MyApp : public wxApp {
+    virtual bool OnInit() override {
+        // Create MVC components
+        auto model = std::make_shared<CMLModel>();
+        auto view = std::make_shared<CMLView>();
+        auto controller = std::make_shared<CMLController>();
+
+        // Register with holder
+        auto& holder = CMLMVCHolder::GetInstance();
+        holder.SetModel(model);
+        holder.SetView(view);
+        holder.SetController(controller);
+
+        // Connect observer
+        model->AddObserver(view);
+
+        return true;
+    }
+
+    virtual int OnExit() override {
+        CMLMVCHolder::DestroyInstance();
+        return wxApp::OnExit();
+    }
+};
+```
+
+#### Usage in wxWidgets Windows/Dialogs:
+```cpp
+// In menu handlers
+void OnMenuSave(wxCommandEvent& event) {
+    auto model = CMLMVCHolder::GetInstance().GetModel();
+    if (model) model->Save();
+}
+
+// In dialog OK handlers
+void AddTransactionDialog::OnOK(wxCommandEvent& event) {
+    auto controller = CMLMVCHolder::GetInstance().GetController();
+    if (controller) controller->AddTransaction(transactionData);
+}
+```
 
 ### Future Development Considerations
 
