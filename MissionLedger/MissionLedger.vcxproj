@@ -140,7 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="src\module\mvc\model\CMLModel.cpp" />
+    <ClCompile Include="src\module\mvc\model\MLModel.cpp" />
     <ClCompile Include="src\module\mvc\model\transaction\MLTransaction.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -149,7 +149,7 @@
     <ClInclude Include="src\interface\IMLView.h" />
     <ClInclude Include="src\MLDefine.h" />
     <ClInclude Include="src\module\common\observer\MLModelObserver.h" />
-    <ClInclude Include="src\module\mvc\model\CMLModel.h" />
+    <ClInclude Include="src\module\mvc\model\MLModel.h" />
     <ClInclude Include="src\module\mvc\model\transaction\MLTransaction.h" />
   </ItemGroup>
   <ItemGroup>
