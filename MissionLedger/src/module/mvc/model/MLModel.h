@@ -5,7 +5,7 @@
 #include "interface/IMLModel.h"
 
 class CMLTransaction;
-class MLModel : public IMLModel
+class CMLModel : public IMLModel
 {
 public:
     virtual void AddTransaction(const SMLTransactionData& transactionData) override;

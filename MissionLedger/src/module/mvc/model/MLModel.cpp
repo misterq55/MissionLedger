@@ -1,15 +1,15 @@
 ﻿#include "MLModel.h"
 
-void MLModel::AddTransaction(const SMLTransactionData& transactionData)
+void CMLModel::AddTransaction(const SMLTransactionData& transactionData)
 {
 }
 
-bool MLModel::RemoveTransaction(const int transactionId)
+bool CMLModel::RemoveTransaction(const int transactionId)
 {
     return true;
 }
 
-int MLModel::GetTransactionId()
+int CMLModel::GetTransactionId()
 {
     return 0;
 }

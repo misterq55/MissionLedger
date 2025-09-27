@@ -13,10 +13,78 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Interface">
+      <UniqueIdentifier>{8F8B3C6C-7A9B-4D8E-9F5C-2B1A3C4D5E6F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module">
+      <UniqueIdentifier>{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\Common">
+      <UniqueIdentifier>{2B3C4D5E-6F7A-8B9C-0D1E-2F3A4B5C6D7E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\Common\Holder">
+      <UniqueIdentifier>{3C4D5E6F-7A8B-9C0D-1E2F-3A4B5C6D7E8F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\Common\Observer">
+      <UniqueIdentifier>{4D5E6F7A-8B9C-0D1E-2F3A-4B5C6D7E8F9A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\MVC">
+      <UniqueIdentifier>{5E6F7A8B-9C0D-1E2F-3A4B-5C6D7E8F9A0B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\MVC\Model">
+      <UniqueIdentifier>{6F7A8B9C-0D1E-2F3A-4B5C-6D7E8F9A0B1C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\MVC\Model\Transaction">
+      <UniqueIdentifier>{7A8B9C0D-1E2F-3A4B-5C6D-7E8F9A0B1C2D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\MVC\View">
+      <UniqueIdentifier>{8B9C0D1E-2F3A-4B5C-6D7E-8F9A0B1C2D3E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\MVC\Controller">
+      <UniqueIdentifier>{9C0D1E2F-3A4B-5C6D-7E8F-9A0B1C2D3E4F}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="src\module\common\holder\MLMVCHolder.cpp">
+      <Filter>Module\Common\Holder</Filter>
+    </ClCompile>
+    <ClCompile Include="src\module\mvc\model\MLModel.cpp">
+      <Filter>Module\MVC\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="src\module\mvc\model\transaction\MLTransaction.cpp">
+      <Filter>Module\MVC\Model\Transaction</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\interface\IMLContoller.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="src\interface\IMLModel.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="src\interface\IMLView.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MLDefine.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="src\module\common\holder\MLMVCHolder.h">
+      <Filter>Module\Common\Holder</Filter>
+    </ClInclude>
+    <ClInclude Include="src\module\common\holder\MLMVCHolderExample.h">
+      <Filter>Module\Common\Holder</Filter>
+    </ClInclude>
+    <ClInclude Include="src\module\common\observer\MLModelObserver.h">
+      <Filter>Module\Common\Observer</Filter>
+    </ClInclude>
+    <ClInclude Include="src\module\mvc\model\MLModel.h">
+      <Filter>Module\MVC\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\module\mvc\model\transaction\MLTransaction.h">
+      <Filter>Module\MVC\Model\Transaction</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

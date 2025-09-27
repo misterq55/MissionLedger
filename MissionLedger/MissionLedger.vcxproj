@@ -140,20 +140,24 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\module\common\holder\MLMVCHolder.cpp" />
     <ClCompile Include="src\module\mvc\model\MLModel.cpp" />
     <ClCompile Include="src\module\mvc\model\transaction\MLTransaction.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\interface\IMLContoller.h" />
+    <ClInclude Include="src\interface\IMLController.h" />
     <ClInclude Include="src\interface\IMLModel.h" />
     <ClInclude Include="src\interface\IMLView.h" />
     <ClInclude Include="src\MLDefine.h" />
+    <ClInclude Include="src\module\common\holder\MLMVCHolder.h" />
+    <ClInclude Include="src\module\common\holder\MLMVCHolderExample.h" />
     <ClInclude Include="src\module\common\observer\MLModelObserver.h" />
     <ClInclude Include="src\module\mvc\model\MLModel.h" />
     <ClInclude Include="src\module\mvc\model\transaction\MLTransaction.h" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="src\module\common\" />
+    <Folder Include="src\module\common\holder\" />
     <Folder Include="src\module\mvc\controller\" />
     <Folder Include="src\module\mvc\view\" />
   </ItemGroup>

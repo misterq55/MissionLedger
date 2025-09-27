@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(set WXWIN)",
+      "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/Module/MVC/View/**)",
+      "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/Module/MVC/Model/Char/**)",
+      "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
