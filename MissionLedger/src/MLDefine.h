@@ -8,10 +8,11 @@ enum class E_MLTransactionType
 };
 
 struct SMLTransactionData {
+    int TransactionId = -1;
     E_MLTransactionType Type;
     std::string Category;
     std::string Item;
     std::string Description;
     double Amount;
-    std::string ReceiptNumber = "";
+    std::string ReceiptNumber;
 };

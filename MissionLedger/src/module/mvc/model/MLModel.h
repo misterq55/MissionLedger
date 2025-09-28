@@ -14,4 +14,5 @@ public:
     
 private:
     std::map<int, std::shared_ptr<CMLTransaction>> Transactions;
+    int TransactionIdIndex = 0;
 };
