@@ -4,7 +4,9 @@
       "Bash(set WXWIN)",
       "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/Module/MVC/View/**)",
       "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/Module/MVC/Model/Char/**)",
-      "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/**)"
+      "Read(//c/Work/UE/QSGame/QSGame/Source/QSGame/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
