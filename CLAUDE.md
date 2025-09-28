@@ -167,6 +167,51 @@ When implementing transaction filtering (by date, category, type, amount, etc.):
    - Avoid passing Model objects directly to maintain MVC boundaries
    - Consider ID-based notifications with on-demand data retrieval
 
+#### GUI Implementation Guidelines
+
+**wxListCtrl Row-Data Association:**
+```cpp
+// Standard approach: Associate transaction ID with list rows
+listCtrl->SetItemData(rowIndex, transactionId);
+
+// Retrieve ID on user interaction
+void OnListItemSelected(wxListEvent& event) {
+    long selectedRow = event.GetIndex();
+    int transactionId = listCtrl->GetItemData(selectedRow);
+    // Use transactionId to fetch data from Controller/Model
+}
+```
+
+**MVC-Compliant View Design:**
+- Views should not store business data directly
+- Use `wxListCtrl::SetItemData()` to associate row indices with entity IDs
+- Controller manages current display state and filtering
+- Views request data from Controller using IDs, never directly from Model
+
+**Advanced Filtering Implementation:**
+For improved performance with large datasets, consider ID-based filtering with differential updates:
+
+```cpp
+class TransactionView {
+private:
+    std::vector<int> m_PrevFilteredIds;  // Cache previous filter results
+
+public:
+    void ApplyFilter(const FilterCriteria& criteria) {
+        auto controller = CMLMVCHolder::GetInstance().GetController();
+        std::vector<int> currentIds = controller->GetFilteredTransactionIds(criteria);
+
+        // Calculate difference and update only changed rows
+        auto diff = CalculateDifference(m_PrevFilteredIds, currentIds);
+        UpdateUIWithDiff(diff);
+
+        m_PrevFilteredIds = std::move(currentIds);
+    }
+};
+```
+
+This approach minimizes UI updates and preserves user selection/scroll state during filtering operations.
+
 ## Coding Conventions
 
 This project follows specific naming conventions:
