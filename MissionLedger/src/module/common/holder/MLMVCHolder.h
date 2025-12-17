@@ -13,24 +13,24 @@ class IMLController;
  * 싱글톤 패턴을 사용하여 애플리케이션 전체에서 Model, View, Controller에 접근 가능
  * wxWidgets의 여러 윈도우/다이얼로그에서 동일한 MVC 컴포넌트를 사용할 때 필요
  */
-class CMLMVCHolder
+class FMLMVCHolder
 {
 private:
-    static CMLMVCHolder* Instance;
+    static FMLMVCHolder* Instance;
 
     std::shared_ptr<IMLModel> Model;
     std::shared_ptr<IMLView> View;
     std::shared_ptr<IMLController> Controller;
 
     // 생성자를 private으로 하여 외부에서 직접 생성 불가
-    CMLMVCHolder() = default;
+    FMLMVCHolder() = default;
 
 public:
     /**
      * @brief 싱글톤 인스턴스 반환
-     * @return CMLMVCHolder& 유일한 인스턴스의 참조
+     * @return FMLMVCHolder& 유일한 인스턴스의 참조
      */
-    static CMLMVCHolder& GetInstance();
+    static FMLMVCHolder& GetInstance();
 
     /**
      * @brief 싱글톤 인스턴스 해제 (애플리케이션 종료 시 호출)
@@ -38,8 +38,8 @@ public:
     static void DestroyInstance();
 
     // 복사 생성자와 대입 연산자 삭제 (싱글톤 패턴)
-    CMLMVCHolder(const CMLMVCHolder&) = delete;
-    CMLMVCHolder& operator=(const CMLMVCHolder&) = delete;
+    FMLMVCHolder(const FMLMVCHolder&) = delete;
+    FMLMVCHolder& operator=(const FMLMVCHolder&) = delete;
 
     /**
      * @brief Model 컴포넌트 설정
@@ -92,5 +92,5 @@ private:
     /**
      * @brief 소멸자 (private으로 외부에서 직접 delete 불가)
      */
-    ~CMLMVCHolder() = default;
+    ~FMLMVCHolder() = default;
 };

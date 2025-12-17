@@ -2,9 +2,9 @@
 
 /**
  * @file MLMVCHolderExample.h
- * @brief CMLMVCHolder 사용 예시 및 가이드
+ * @brief FMLMVCHolder 사용 예시 및 가이드
  *
- * 이 파일은 CMLMVCHolder를 실제 프로젝트에서 어떻게 사용하는지 보여주는 예시입니다.
+ * 이 파일은 FMLMVCHolder를 실제 프로젝트에서 어떻게 사용하는지 보여주는 예시입니다.
  */
 
 #include "MLMVCHolder.h"
@@ -24,12 +24,12 @@
  *     virtual bool OnInit() override
  *     {
  *         // MVC 컴포넌트 생성
- *         auto model = std::make_shared<CMLModel>();
- *         auto view = std::make_shared<CMLView>();
- *         auto controller = std::make_shared<CMLController>();
+ *         auto model = std::make_shared<FMLModel>();
+ *         auto view = std::make_shared<FMLView>();
+ *         auto controller = std::make_shared<FMLController>();
  *
  *         // 홀더에 등록
- *         auto& holder = CMLMVCHolder::GetInstance();
+ *         auto& holder = FMLMVCHolder::GetInstance();
  *         holder.SetModel(model);
  *         holder.SetView(view);
  *         holder.SetController(controller);
@@ -52,7 +52,7 @@
  *     virtual int OnExit() override
  *     {
  *         // 애플리케이션 종료 시 홀더 해제
- *         CMLMVCHolder::DestroyInstance();
+ *         FMLMVCHolder::DestroyInstance();
  *         return wxApp::OnExit();
  *     }
  * };
@@ -77,7 +77,7 @@
  *     void OnMenuFileOpen(wxCommandEvent& event)
  *     {
  *         // 홀더를 통해 Controller 접근
- *         auto controller = CMLMVCHolder::GetInstance().GetController();
+ *         auto controller = FMLMVCHolder::GetInstance().GetController();
  *         if (controller) {
  *             // 파일 열기 로직...
  *         }
@@ -86,7 +86,7 @@
  *     void OnMenuFileSave(wxCommandEvent& event)
  *     {
  *         // 홀더를 통해 Model 접근
- *         auto model = CMLMVCHolder::GetInstance().GetModel();
+ *         auto model = FMLMVCHolder::GetInstance().GetModel();
  *         if (model) {
  *             model->Save();
  *         }
@@ -113,11 +113,11 @@
  *     void OnOK(wxCommandEvent& event)
  *     {
  *         // 사용자 입력 데이터 수집
- *         SMLTransactionData transactionData;
+ *         FMLTransactionData transactionData;
  *         // ... 데이터 설정
  *
  *         // 홀더를 통해 Controller 접근하여 거래 추가
- *         auto controller = CMLMVCHolder::GetInstance().GetController();
+ *         auto controller = FMLMVCHolder::GetInstance().GetController();
  *         if (controller) {
  *             controller->AddTransaction(transactionData);
  *         }
@@ -145,14 +145,14 @@
  *         mockModel = std::make_shared<MockMLModel>();
  *
  *         // 홀더에 Mock 객체 주입
- *         auto& holder = CMLMVCHolder::GetInstance();
+ *         auto& holder = FMLMVCHolder::GetInstance();
  *         holder.SetModel(mockModel);
  *     }
  *
  *     void TearDown() override
  *     {
  *         // 테스트 후 홀더 초기화
- *         CMLMVCHolder::GetInstance().Reset();
+ *         FMLMVCHolder::GetInstance().Reset();
  *     }
  *
  *     std::shared_ptr<MockMLModel> mockModel;
@@ -160,7 +160,7 @@
  *
  * TEST_F(MLMVCHolderTest, TestModelAccess)
  * {
- *     auto model = CMLMVCHolder::GetInstance().GetModel();
+ *     auto model = FMLMVCHolder::GetInstance().GetModel();
  *     ASSERT_NE(model, nullptr);
  *     ASSERT_EQ(model, mockModel);
  * }

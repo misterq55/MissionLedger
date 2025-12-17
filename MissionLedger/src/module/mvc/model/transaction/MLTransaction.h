@@ -3,11 +3,11 @@
 #include <string>
 #include <chrono>
 
-class CMLTransaction
+class FMLTransaction
 {
 public:
-    CMLTransaction();
-    CMLTransaction(int id, E_MLTransactionType type, const std::string& category,
+    FMLTransaction();
+    FMLTransaction(int id, E_MLTransactionType type, const std::string& category,
                    const std::string& item, const std::string& description,
                    double amount, const std::string& receiptNumber = "");
 

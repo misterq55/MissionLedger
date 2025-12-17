@@ -1,23 +1,23 @@
 ﻿#include "MLModel.h"
 #include "module/mvc/model/transaction/MLTransaction.h"
 
-void CMLModel::AddTransaction(const SMLTransactionData& transactionData)
+void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 {
     Transactions.emplace(TransactionIdIndex,
-                         std::make_shared<CMLTransaction>(TransactionIdIndex, transactionData.Type,
+                         std::make_shared<FMLTransaction>(TransactionIdIndex, transactionData.Type,
                                                           transactionData.Category, transactionData.Item,
                                                           transactionData.Description, transactionData.Amount,
                                                           transactionData.ReceiptNumber));
     TransactionIdIndex++;
 }
 
-bool CMLModel::RemoveTransaction(const int transactionId)
+bool FMLModel::RemoveTransaction(const int transactionId)
 {
     Transactions.erase(TransactionIdIndex);
     return true;
 }
 
-int CMLModel::GetTransactionId()
+int FMLModel::GetTransactionId()
 {
     return 0;
 }

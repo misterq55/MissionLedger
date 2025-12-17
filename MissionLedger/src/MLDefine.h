@@ -7,7 +7,7 @@ enum class E_MLTransactionType
     Expense    // 지출/출금
 };
 
-struct SMLTransactionData {
+struct FMLTransactionData {
     int TransactionId = -1;
     E_MLTransactionType Type;
     std::string Category;

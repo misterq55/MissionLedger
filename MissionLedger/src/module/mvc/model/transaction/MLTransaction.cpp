@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iomanip>
 
-CMLTransaction::CMLTransaction()
+FMLTransaction::FMLTransaction()
     : Id(0)
     , Type(E_MLTransactionType::Income)
     , Category("")
@@ -14,7 +14,7 @@ CMLTransaction::CMLTransaction()
 {
 }
 
-CMLTransaction::CMLTransaction(int id, E_MLTransactionType type, const std::string& category,
+FMLTransaction::FMLTransaction(int id, E_MLTransactionType type, const std::string& category,
                                const std::string& item, const std::string& description,
                                double amount, const std::string& receiptNumber)
     : Id(id)
@@ -29,89 +29,89 @@ CMLTransaction::CMLTransaction(int id, E_MLTransactionType type, const std::stri
 }
 
 // Getters
-int CMLTransaction::GetId() const
+int FMLTransaction::GetId() const
 {
     return Id;
 }
 
-E_MLTransactionType CMLTransaction::GetType() const
+E_MLTransactionType FMLTransaction::GetType() const
 {
     return Type;
 }
 
-double CMLTransaction::GetAmount() const
+double FMLTransaction::GetAmount() const
 {
     return Amount;
 }
 
-const std::string& CMLTransaction::GetCategory() const
+const std::string& FMLTransaction::GetCategory() const
 {
     return Category;
 }
 
-const std::string& CMLTransaction::GetItem() const
+const std::string& FMLTransaction::GetItem() const
 {
     return Item;
 }
 
-const std::string& CMLTransaction::GetDescription() const
+const std::string& FMLTransaction::GetDescription() const
 {
     return Description;
 }
 
-const std::string& CMLTransaction::GetReceiptNumber() const
+const std::string& FMLTransaction::GetReceiptNumber() const
 {
     return ReceiptNumber;
 }
 
-const std::chrono::system_clock::time_point& CMLTransaction::GetDateTime() const
+const std::chrono::system_clock::time_point& FMLTransaction::GetDateTime() const
 {
     return DateTime;
 }
 
 // Setters
-void CMLTransaction::SetId(int id)
+void FMLTransaction::SetId(int id)
 {
     Id = id;
 }
 
-void CMLTransaction::SetType(E_MLTransactionType type)
+void FMLTransaction::SetType(E_MLTransactionType type)
 {
     Type = type;
 }
 
-void CMLTransaction::SetAmount(double amount)
+void FMLTransaction::SetAmount(double amount)
 {
     Amount = amount;
 }
 
-void CMLTransaction::SetCategory(const std::string& category)
+void FMLTransaction::SetCategory(const std::string& category)
 {
     Category = category;
 }
 
-void CMLTransaction::SetItem(const std::string& item)
+void FMLTransaction::SetItem(const std::string& item)
 {
     Item = item;
 }
 
-void CMLTransaction::SetDescription(const std::string& description)
+void FMLTransaction::SetDescription(const std::string& description)
 {
     Description = description;
 }
 
-void CMLTransaction::SetReceiptNumber(const std::string& receiptNumber)
+void FMLTransaction::SetReceiptNumber(const std::string& receiptNumber)
 {
     ReceiptNumber = receiptNumber;
 }
 
-void CMLTransaction::SetDateTime(const std::chrono::system_clock::time_point& dateTime)
+void FMLTransaction::SetDateTime(const std::chrono::system_clock::time_point& dateTime)
 {
     DateTime = dateTime;
 }
 
 // Utility methods
-std::string CMLTransaction::GetDateTimeString() const
+std::string FMLTransaction::GetDateTimeString() const
 {
     auto time_t = std::chrono::system_clock::to_time_t(DateTime);
     struct tm timeInfo;
@@ -127,7 +127,7 @@ std::string CMLTransaction::GetDateTimeString() const
     return ss.str();
 }
 
-std::string CMLTransaction::GetTypeString() const
+std::string FMLTransaction::GetTypeString() const
 {
     switch (Type)
     {
@@ -140,12 +140,12 @@ std::string CMLTransaction::GetTypeString() const
     }
 }
 
-bool CMLTransaction::IsIncome() const
+bool FMLTransaction::IsIncome() const
 {
     return Type == E_MLTransactionType::Income;
 }
 
-bool CMLTransaction::IsExpense() const
+bool FMLTransaction::IsExpense() const
 {
     return Type == E_MLTransactionType::Expense;
 }

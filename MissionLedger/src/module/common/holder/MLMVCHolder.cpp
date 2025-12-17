@@ -4,18 +4,18 @@
 #include "interface/IMLController.h"
 
 // 정적 멤버 초기화
-CMLMVCHolder* CMLMVCHolder::Instance = nullptr;
+FMLMVCHolder* FMLMVCHolder::Instance = nullptr;
 
-CMLMVCHolder& CMLMVCHolder::GetInstance()
+FMLMVCHolder& FMLMVCHolder::GetInstance()
 {
     if (Instance == nullptr)
     {
-        Instance = new CMLMVCHolder();
+        Instance = new FMLMVCHolder();
     }
     return *Instance;
 }
 
-void CMLMVCHolder::DestroyInstance()
+void FMLMVCHolder::DestroyInstance()
 {
     if (Instance != nullptr)
     {
@@ -24,42 +24,42 @@ void CMLMVCHolder::DestroyInstance()
     }
 }
 
-void CMLMVCHolder::SetModel(std::shared_ptr<IMLModel> model)
+void FMLMVCHolder::SetModel(std::shared_ptr<IMLModel> model)
 {
     Model = model;
 }
 
-void CMLMVCHolder::SetView(std::shared_ptr<IMLView> view)
+void FMLMVCHolder::SetView(std::shared_ptr<IMLView> view)
 {
     View = view;
 }
 
-void CMLMVCHolder::SetController(std::shared_ptr<IMLController> controller)
+void FMLMVCHolder::SetController(std::shared_ptr<IMLController> controller)
 {
     Controller = controller;
 }
 
-std::shared_ptr<IMLModel> CMLMVCHolder::GetModel() const
+std::shared_ptr<IMLModel> FMLMVCHolder::GetModel() const
 {
     return Model;
 }
 
-std::shared_ptr<IMLView> CMLMVCHolder::GetView() const
+std::shared_ptr<IMLView> FMLMVCHolder::GetView() const
 {
     return View;
 }
 
-std::shared_ptr<IMLController> CMLMVCHolder::GetController() const
+std::shared_ptr<IMLController> FMLMVCHolder::GetController() const
 {
     return Controller;
 }
 
-bool CMLMVCHolder::IsInitialized() const
+bool FMLMVCHolder::IsInitialized() const
 {
     return Model != nullptr && View != nullptr && Controller != nullptr;
 }
 
-void CMLMVCHolder::Reset()
+void FMLMVCHolder::Reset()
 {
     Model.reset();
     View.reset();
