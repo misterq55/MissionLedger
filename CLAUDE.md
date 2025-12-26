@@ -37,15 +37,15 @@ The main project file is located at `MissionLedger/MissionLedger.vcxproj`.
 
 The codebase follows a strict MVC architecture with centralized component management:
 
-- **Model**: `CMLModel` class manages transaction data using `std::map<int, std::shared_ptr<CMLTransaction>>`
+- **Model**: `FMLModel` class manages transaction data using `std::map<int, std::shared_ptr<FMLTransaction>>`
 - **View**: Interface defined by `IMLView` (currently minimal)
 - **Controller**: Interface defined by `IMLController` for transaction operations
 - **Observer Pattern**: `MLModelObserver` provides event notifications for data changes
-- **MVC Holder**: `CMLMVCHolder` singleton pattern for global MVC component access
+- **MVC Holder**: `FMLMVCHolder` singleton pattern for global MVC component access
 
 ### Core Data Structure
 
-The main entity is `CMLTransaction` representing financial transactions with:
+The main entity is `FMLTransaction` representing financial transactions with:
 - Transaction type (Income/Expense) via `E_MLTransactionType` enum
 - Categories, items, descriptions, amounts
 - Timestamps using `std::chrono::system_clock::time_point`
@@ -56,8 +56,9 @@ The main entity is `CMLTransaction` representing financial transactions with:
 - `IMLModel`: Data management interface with Add/Remove/Save/Load operations
 - `IMLController`: Business logic interface for transaction handling
 - `IMLView`: UI interface (placeholder for future implementation)
+- `IMLStorageProvider`: Storage abstraction interface using Strategy Pattern for pluggable persistence
 - `MLModelObserver`: Observer pattern for data change notifications
-- `CMLMVCHolder`: Singleton holder for centralized MVC component access
+- `FMLMVCHolder`: Singleton holder for centralized MVC component access
 
 ## Code Organization
 
@@ -69,16 +70,21 @@ MissionLedger/
     ├── interface/              # Abstract interfaces
     │   ├── IMLController.h     # Controller interface
     │   ├── IMLModel.h          # Model interface
+    │   ├── IMLStorageProvider.h # Storage provider interface
     │   └── IMLView.h           # View interface
     └── module/
         ├── common/             # Common utilities and patterns
         │   ├── holder/         # MVC Holder singleton pattern
-        │   │   ├── CMLMVCHolder.*      # MVC component holder
+        │   │   ├── FMLMVCHolder.*      # MVC component holder
         │   │   └── MLMVCHolderExample.h # Usage examples
         │   └── observer/       # Observer pattern implementation
+        ├── storage/            # Storage implementations (planned)
+        │   ├── MLSQLiteStorage.*   # SQLite storage provider
+        │   ├── MLJsonStorage.*     # JSON storage provider
+        │   └── MLXmlStorage.*      # XML storage provider
         └── mvc/
             ├── model/          # Model implementation
-            │   ├── CMLModel.*  # Main model class
+            │   ├── FMLModel.*  # Main model class
             │   └── transaction/# Transaction entity
             ├── controller/     # (Placeholder for future implementation)
             └── view/           # (Placeholder for future implementation)
@@ -96,12 +102,13 @@ MissionLedger/
 - **Model**: `MLModel` class implemented with basic CRUD operations
 - **Controller**: `IMLController` interface defined, implementation pending
 - **View**: `IMLView` interface defined, implementation pending
+- **Storage Provider**: `IMLStorageProvider` interface defined, concrete implementations pending (SQLite/JSON/XML)
 - **Observer**: `MLModelObserver` well-designed with specific transaction events
-- **MVC Holder**: `CMLMVCHolder` singleton implemented for centralized component access
+- **MVC Holder**: `FMLMVCHolder` singleton implemented for centralized component access
 
 ### MVC Holder Usage
 
-The `CMLMVCHolder` singleton provides centralized access to MVC components throughout the application:
+The `FMLMVCHolder` singleton provides centralized access to MVC components throughout the application:
 
 #### Initialization (in main.cpp):
 ```cpp
@@ -110,12 +117,12 @@ The `CMLMVCHolder` singleton provides centralized access to MVC components throu
 class MyApp : public wxApp {
     virtual bool OnInit() override {
         // Create MVC components
-        auto model = std::make_shared<CMLModel>();
-        auto view = std::make_shared<CMLView>();
-        auto controller = std::make_shared<CMLController>();
+        auto model = std::make_shared<FMLModel>();
+        auto view = std::make_shared<FMLView>();
+        auto controller = std::make_shared<FMLController>();
 
         // Register with holder
-        auto& holder = CMLMVCHolder::GetInstance();
+        auto& holder = FMLMVCHolder::GetInstance();
         holder.SetModel(model);
         holder.SetView(view);
         holder.SetController(controller);
@@ -127,7 +134,7 @@ class MyApp : public wxApp {
     }
 
     virtual int OnExit() override {
-        CMLMVCHolder::DestroyInstance();
+        FMLMVCHolder::DestroyInstance();
         return wxApp::OnExit();
     }
 };
@@ -137,15 +144,60 @@ class MyApp : public wxApp {
 ```cpp
 // In menu handlers
 void OnMenuSave(wxCommandEvent& event) {
-    auto model = CMLMVCHolder::GetInstance().GetModel();
+    auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model) model->Save();
 }
 
 // In dialog OK handlers
 void AddTransactionDialog::OnOK(wxCommandEvent& event) {
-    auto controller = CMLMVCHolder::GetInstance().GetController();
+    auto controller = FMLMVCHolder::GetInstance().GetController();
     if (controller) controller->AddTransaction(transactionData);
 }
+```
+
+### Storage Provider Pattern
+
+The project uses Strategy Pattern for data persistence, allowing flexible storage backend selection:
+
+#### Design Principles
+- **Abstraction**: `IMLStorageProvider` interface decouples Model from storage implementation
+- **Pluggability**: Storage backend can be changed at runtime without modifying Model code
+- **Testability**: Mock storage providers enable unit testing without file I/O
+- **Extensibility**: New storage types can be added without touching existing code
+
+#### Interface Overview
+```cpp
+class IMLStorageProvider {
+    virtual bool Initialize(const std::string& filePath) = 0;
+    virtual bool SaveTransaction(const FMLTransaction& transaction) = 0;
+    virtual bool SaveAllTransactions(const std::vector<std::shared_ptr<FMLTransaction>>& transactions) = 0;
+    virtual bool LoadAllTransactions(std::vector<std::shared_ptr<FMLTransaction>>& outTransactions) = 0;
+    virtual bool DeleteTransaction(int transactionId) = 0;
+    virtual bool UpdateTransaction(const FMLTransaction& transaction) = 0;
+    virtual int GetLastTransactionId() = 0;
+    virtual E_MLStorageType GetStorageType() const = 0;
+    virtual bool IsReady() const = 0;
+};
+```
+
+#### Planned Implementations
+- **SQLite**: Recommended for production (ACID compliance, efficient querying, data integrity)
+- **JSON**: Good for prototyping and human-readable data
+- **XML**: Compatible with external tools, wxWidgets built-in support
+
+#### Usage Example
+```cpp
+// Create storage provider
+auto storage = std::make_shared<FMLSQLiteStorage>();
+storage->Initialize("transactions.db");
+
+// Inject into model
+auto model = std::make_shared<FMLModel>();
+model->SetStorageProvider(storage);
+
+// Model uses storage transparently
+model->Save();  // Delegates to storage->SaveAllTransactions()
+model->Load();  // Delegates to storage->LoadAllTransactions()
 ```
 
 ### Future Development Considerations
@@ -155,8 +207,8 @@ When implementing transaction filtering (by date, category, type, amount, etc.):
 
 1. **Filtering Location**: Implement filtering logic in Model layer (`MLModel`) for proper MVC separation
 2. **Data Transfer**: Use DTO/ViewModel pattern for View data to avoid MVC violations
-   - Create `SMLTransactionViewData` struct for UI-specific data representation
-   - Controller converts `CMLTransaction` to `SMLTransactionViewData`
+   - Create `FMLTransactionViewData` struct for UI-specific data representation
+   - Controller converts `FMLTransaction` to `FMLTransactionViewData`
 3. **Performance Strategies**:
    - Start with simple approach: full data filtering on demand
    - Consider caching for frequently used filters
@@ -198,7 +250,7 @@ private:
 
 public:
     void ApplyFilter(const FilterCriteria& criteria) {
-        auto controller = CMLMVCHolder::GetInstance().GetController();
+        auto controller = FMLMVCHolder::GetInstance().GetController();
         std::vector<int> currentIds = controller->GetFilteredTransactionIds(criteria);
 
         // Calculate difference and update only changed rows
@@ -216,8 +268,8 @@ This approach minimizes UI updates and preserves user selection/scroll state dur
 
 This project follows specific naming conventions:
 
-- **Classes**: Prefix with `CML` (e.g., `CMLModel`, `CMLTransaction`)
-- **Structs**: Prefix with `SML` (e.g., `SMLTransactionData`)
+- **Classes**: Prefix with `FML` (e.g., `FMLModel`, `FMLTransaction`)
+- **Structs**: Prefix with `FML` (e.g., `FMLTransactionData`)
 - **Enums**: Prefix with `E_ML` (e.g., `E_MLTransactionType`)
 - **Member variables**: PascalCase convention (e.g., `TransactionId`, `Amount`)
 - **Local variables/parameters**: camelCase convention (e.g., `transactionData`, `userId`)
