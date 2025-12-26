@@ -1,6 +1,14 @@
 ﻿#include "MLModel.h"
 #include "module/mvc/model/transaction/MLTransaction.h"
 
+FMLModel::FMLModel()
+{
+}
+
+FMLModel::~FMLModel()
+{
+}
+
 void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 {
     Transactions.emplace(TransactionIdIndex,
@@ -20,4 +28,18 @@ bool FMLModel::RemoveTransaction(const int transactionId)
 int FMLModel::GetTransactionId()
 {
     return 0;
+}
+
+bool FMLModel::Save()
+{
+    bool result = false;
+
+    return result;
+}
+
+bool FMLModel::Load()
+{
+    bool result = false;
+
+    return result;
 }
