@@ -60,6 +60,94 @@ The main entity is `FMLTransaction` representing financial transactions with:
 - `MLModelObserver`: Observer pattern for data change notifications
 - `FMLMVCHolder`: Singleton holder for centralized MVC component access
 
+## Design Approach
+
+### Model First Strategy
+
+This project adopts a **Model First** design approach for MVC implementation. This strategy prioritizes establishing a solid data foundation before building controller logic and UI components.
+
+#### Rationale for Model First
+
+**Why Model First?**
+- **Data-Centric Application**: Financial transaction management is fundamentally about data integrity and business rules
+- **Clear Domain Model**: Transaction entities and their relationships are well-defined from requirements
+- **Stable Foundation**: Data structures change less frequently than UI/UX requirements
+- **Testability**: Business logic can be validated independently without UI dependencies
+- **Domain Complexity**: Financial calculations, validations, and aggregations require careful design
+
+**Alternative Approaches Considered:**
+1. **View First**: Better for UI-heavy apps with unclear requirements - not suitable for this project
+2. **Controller First (Use Case Driven)**: Good for feature-centric design - viable but Model First provides better data integrity
+
+#### Implementation Phases
+
+**Phase 1: Model Layer (Priority)**
+1. **Storage Provider Integration**
+   - Implement `IMLStorageProvider` concrete classes (SQLite/JSON)
+   - Connect storage to `FMLModel` via dependency injection
+   - Implement persistence for all CRUD operations
+
+2. **Observer Pattern Integration**
+   - Add observer registration/removal to `FMLModel`
+   - Emit events on data changes (Add/Remove/Update/Load/Save)
+   - Maintain observer list with weak pointers
+
+3. **Model Interface Enhancement**
+   - Data retrieval methods (`GetTransaction`, `GetAllTransactions`)
+   - Filtering capabilities (by date range, category, type, amount)
+   - Aggregation methods (total income/expense, balance, category summaries)
+   - Business logic (validation, calculations, tax computations)
+
+**Phase 2: Controller Layer**
+1. **FMLController Implementation**
+   - Create concrete controller class implementing `IMLController`
+   - Define use cases (Add/Edit/Delete transaction, Apply filters, Get reports)
+   - Implement DTO conversion (`FMLTransaction` → `FMLTransactionViewData`)
+   - Connect to Model layer
+
+2. **Extended Controller Interface**
+   - Transaction update operations
+   - Filter management (`GetFilteredTransactionIds`)
+   - View data preparation methods
+   - Command pattern for undo/redo (future consideration)
+
+**Phase 3: View Layer**
+1. **Main Window Implementation**
+   - wxFrame-based main window with wxListCtrl
+   - Menu bar (File, Edit, View, Reports)
+   - Toolbar for common operations
+
+2. **View Integration**
+   - Implement `IMLView` interface
+   - Inherit from `MLModelObserver` for automatic updates
+   - Use MVCHolder for accessing Model/Controller
+   - ID-based data association with UI controls
+
+3. **Dialog Windows**
+   - Add/Edit Transaction dialog
+   - Filter configuration dialog
+   - Report generation views
+
+#### Design Principles
+
+- **Separation of Concerns**: Strict MVC boundaries - View never accesses Model directly
+- **Dependency Direction**: View → Controller → Model (never reversed)
+- **Data Flow**: Model notifies via Observer, View requests via Controller
+- **Testing Strategy**: Unit test Model logic → Integration test Controller → UI test View
+
+#### Current Status
+
+As of the latest commit, the project has:
+- ✅ Basic Model structure (`FMLModel`, `FMLTransaction`)
+- ✅ All interface definitions (Model, View, Controller, Storage, Observer)
+- ✅ MVC Holder infrastructure
+- ⏳ Storage Provider (interface defined, implementations pending)
+- ⏳ Observer integration (interface defined, Model connection pending)
+- ⏳ Controller implementation (interface defined, concrete class pending)
+- ⏳ View implementation (interface defined, UI pending)
+
+**Next Steps**: Complete Phase 1 (Model Layer) before proceeding to Controller and View implementations.
+
 ## Code Organization
 
 ```
