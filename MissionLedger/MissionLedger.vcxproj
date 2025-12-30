@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\module\common\holder\MLMVCHolder.cpp" />
+    <ClCompile Include="src\module\mvc\controller\MLController.cpp" />
     <ClCompile Include="src\module\mvc\model\MLModel.cpp" />
     <ClCompile Include="src\module\mvc\model\transaction\MLTransaction.cpp" />
   </ItemGroup>
@@ -152,7 +153,8 @@
     <ClInclude Include="src\MLDefine.h" />
     <ClInclude Include="src\module\common\holder\MLMVCHolder.h" />
     <ClInclude Include="src\module\common\holder\MLMVCHolderExample.h" />
-    <ClInclude Include="src\module\common\observer\MLModelObserver.h" />
+    <ClInclude Include="src\module\common\observer\IMLModelObserver.h" />
+    <ClInclude Include="src\module\mvc\controller\MLController.h" />
     <ClInclude Include="src\module\mvc\model\MLModel.h" />
     <ClInclude Include="src\module\mvc\model\transaction\MLTransaction.h" />
   </ItemGroup>

@@ -15,4 +15,5 @@ struct FMLTransactionData {
     std::string Description;
     double Amount;
     std::string ReceiptNumber;
+    std::string DateTime;  // 입력 시 빈 문자열, 출력 시 포맷된 날짜/시간 문자열
 };

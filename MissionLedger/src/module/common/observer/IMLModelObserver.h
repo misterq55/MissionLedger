@@ -3,10 +3,10 @@
 
 class FMLTransaction;
 
-class MLModelObserver
+class IMLModelObserver
 {
 public:
-    virtual ~MLModelObserver() = default;
+    virtual ~IMLModelObserver() = default;
 
     // Transaction events
     virtual void OnTransactionAdded(std::shared_ptr<FMLTransaction> transaction) = 0;

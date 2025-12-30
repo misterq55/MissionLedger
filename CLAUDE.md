@@ -141,12 +141,14 @@ As of the latest commit, the project has:
 - ✅ Basic Model structure (`FMLModel`, `FMLTransaction`)
 - ✅ All interface definitions (Model, View, Controller, Storage, Observer)
 - ✅ MVC Holder infrastructure
+- ✅ Controller implementation (`FMLController` using MVCHolder pattern)
+- ✅ DTO-based data access (Model provides `GetTransactionData` returning `FMLTransactionData`)
+- ✅ Enhanced Model interface (CRUD operations, DTO conversion, business logic)
 - ⏳ Storage Provider (interface defined, implementations pending)
 - ⏳ Observer integration (interface defined, Model connection pending)
-- ⏳ Controller implementation (interface defined, concrete class pending)
 - ⏳ View implementation (interface defined, UI pending)
 
-**Next Steps**: Complete Phase 1 (Model Layer) before proceeding to Controller and View implementations.
+**Next Steps**: Complete Storage Provider integration and View implementation.
 
 ## Code Organization
 
@@ -174,7 +176,8 @@ MissionLedger/
             ├── model/          # Model implementation
             │   ├── FMLModel.*  # Main model class
             │   └── transaction/# Transaction entity
-            ├── controller/     # (Placeholder for future implementation)
+            ├── controller/     # Controller implementation
+            │   └── FMLController.*  # Main controller class
             └── view/           # (Placeholder for future implementation)
 ```
 
@@ -187,12 +190,13 @@ MissionLedger/
 
 ### Current Implementation Status
 
-- **Model**: `MLModel` class implemented with basic CRUD operations
-- **Controller**: `IMLController` interface defined, implementation pending
+- **Model**: `FMLModel` class implemented with enhanced CRUD operations, DTO conversion, and business logic
+- **Controller**: `FMLController` class implemented using MVCHolder pattern for Model access
 - **View**: `IMLView` interface defined, implementation pending
 - **Storage Provider**: `IMLStorageProvider` interface defined, concrete implementations pending (SQLite/JSON/XML)
-- **Observer**: `MLModelObserver` well-designed with specific transaction events
+- **Observer**: `IMLModelObserver` interface well-designed with specific transaction events
 - **MVC Holder**: `FMLMVCHolder` singleton implemented for centralized component access
+- **DTO**: `FMLTransactionData` struct serves as single DTO for both input and output
 
 ### MVC Holder Usage
 
@@ -288,15 +292,194 @@ model->Save();  // Delegates to storage->SaveAllTransactions()
 model->Load();  // Delegates to storage->LoadAllTransactions()
 ```
 
+### DTO (Data Transfer Object) Strategy
+
+This project uses a **single DTO pattern** for data exchange between layers to balance simplicity and maintainability.
+
+#### Design Decision
+
+**Single DTO Approach**: `FMLTransactionData` serves both as input and output DTO
+```cpp
+struct FMLTransactionData {
+    int TransactionId = -1;       // -1 for input (new transaction), actual ID for output
+    E_MLTransactionType Type;
+    std::string Category;
+    std::string Item;
+    std::string Description;
+    double Amount;
+    std::string ReceiptNumber;
+    std::string DateTime;          // Empty for input, formatted string for output
+};
+```
+
+**Rationale**:
+- **Simplicity**: Single structure reduces code duplication and maintenance overhead
+- **Pragmatic**: For simple CRUD applications, field overlap is typically 80%+
+- **Clear Boundaries**: View/Controller use DTO, Model uses Entity internally
+- **Flexibility**: Fields can be optional based on context (input vs output)
+
+**Alternative Considered**: Separate Input/Output DTOs
+- Would require duplicating 7+ fields across structures
+- Overhead not justified for current application complexity
+- Can refactor later if security or validation requirements grow
+
+#### DTO vs Entity Separation
+
+**What View/Controller See (DTO)**:
+```cpp
+FMLTransactionData data;  // Plain struct
+data.DateTime = "2025-12-30 15:30:45";  // Formatted string
+```
+
+**What Model Uses Internally (Entity)**:
+```cpp
+FMLTransaction transaction;  // Rich domain object
+std::chrono::system_clock::time_point dateTime;  // Native type
+std::string GetDateTimeString() const;  // Business logic
+```
+
+**Conversion**: Model provides `convertToTransactionData()` private method to transform Entity → DTO
+
+### Controller Implementation Pattern
+
+The `FMLController` class implements a **thin controller** approach using the MVCHolder pattern.
+
+#### MVCHolder-based Design
+
+Controller does not hold a direct reference to Model. Instead, it accesses Model through `FMLMVCHolder`:
+
+```cpp
+class FMLController : public IMLController {
+public:
+    FMLController() = default;  // No dependencies injected
+
+    void AddTransaction(const FMLTransactionData& data) override {
+        auto model = FMLMVCHolder::GetInstance().GetModel();  // Get on demand
+        if (model) model->AddTransaction(data);
+    }
+};
+```
+
+**Benefits**:
+- **Initialization Flexibility**: MVC components can be created in any order
+- **Global Access**: Any wxWidgets window/dialog can access Controller via MVCHolder
+- **Decoupling**: Controller lifecycle is independent of Model lifecycle
+
+**Trade-offs**:
+- Runtime dependency (Model must be registered before use)
+- Implicit coupling (dependency not visible in constructor)
+- Acceptable for single-instance desktop applications
+
+#### Controller Responsibilities
+
+**What Controller Does**:
+- Delegate operations to Model
+- Provide DTO-based interface to View
+- Validate Model availability (null checks)
+
+**What Controller Does NOT Do**:
+- Business logic (delegated to Model)
+- Data transformation (Model handles Entity ↔ DTO conversion)
+- UI updates (View's responsibility via Observer pattern)
+
+### View Architecture Design
+
+The project adopts a **composition-based View architecture** that separates wxWidgets UI from MVC logic.
+
+#### Design Pattern
+
+```
+┌─────────────────┐
+│  wxDialog/Frame │ ← Pure UI (buttons, text boxes, layout)
+│  (wxWidgets)    │
+└────────┬────────┘
+         │ has-a (member)
+         ↓
+┌─────────────────┐
+│    FMLView      │ ← MVC logic (implements IMLView + IMLModelObserver)
+│  (Custom Class) │
+└────────┬────────┘
+         │ communicates with
+         ↓
+┌─────────────────┐
+│  FMLController  │ → FMLModel
+└─────────────────┘
+```
+
+#### Separation of Concerns
+
+**wxDialog/wxFrame Responsibilities**:
+- Widget creation and layout
+- Event binding (button clicks, text input)
+- Direct UI manipulation (enable/disable, show/hide)
+- Forward user actions to attached View
+
+**FMLView Responsibilities**:
+- Implement `IMLView` interface (UI-agnostic output methods)
+- Implement `IMLModelObserver` (receive Model change notifications)
+- Communicate with Controller (send user actions, request data)
+- Hold reference to wxWidget for UI updates
+
+#### Example Structure
+
+```cpp
+class FMLTransactionView : public IMLView, public IMLModelObserver {
+public:
+    void AttachWindow(wxDialog* dialog) { Dialog = dialog; }
+
+    // IMLView implementation
+    void RefreshTransactionList() override;
+    void ShowMessage(const std::string& msg, bool isError) override;
+
+    // Observer implementation
+    void OnTransactionAdded(std::shared_ptr<FMLTransaction> transaction) override;
+
+    // Event handlers called by wxDialog
+    void OnUserAddTransaction(const FMLTransactionData& data);
+
+private:
+    wxDialog* Dialog = nullptr;
+    void updateDialogUI();
+};
+
+class wxTransactionDialog : public wxDialog {
+public:
+    wxTransactionDialog(wxWindow* parent) : wxDialog(parent, wxID_ANY, "거래") {
+        TransactionView = std::make_shared<FMLTransactionView>();
+        TransactionView->AttachWindow(this);
+        CreateControls();
+    }
+
+private:
+    std::shared_ptr<FMLTransactionView> TransactionView;
+
+    void CreateControls() {
+        addButton = new wxButton(this, wxID_ANY, "추가");
+        addButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+            FMLTransactionData data = CollectDataFromUI();
+            TransactionView->OnUserAddTransaction(data);  // Forward to View
+        });
+    }
+};
+```
+
+#### Benefits
+
+1. **Technology Independence**: `IMLView` can be implemented with CLI, GUI, or Web UI
+2. **Testability**: View logic can be tested without wxWidgets instantiation
+3. **Reusability**: Same View can work with different UI frameworks
+4. **MVC Compliance**: wxWidgets code remains unaware of Model/Controller
+5. **Clear Boundaries**: UI code vs business logic separation
+
 ### Future Development Considerations
 
 #### Transaction Filtering System
 When implementing transaction filtering (by date, category, type, amount, etc.):
 
 1. **Filtering Location**: Implement filtering logic in Model layer (`MLModel`) for proper MVC separation
-2. **Data Transfer**: Use DTO/ViewModel pattern for View data to avoid MVC violations
-   - Create `FMLTransactionViewData` struct for UI-specific data representation
-   - Controller converts `FMLTransaction` to `FMLTransactionViewData`
+2. **Data Transfer**: Use existing `FMLTransactionData` DTO for View data
+   - Model provides `GetAllTransactionData()` for filtered results
+   - Controller delegates filtering requests to Model
 3. **Performance Strategies**:
    - Start with simple approach: full data filtering on demand
    - Consider caching for frequently used filters
@@ -359,7 +542,10 @@ This project follows specific naming conventions:
 - **Classes**: Prefix with `FML` (e.g., `FMLModel`, `FMLTransaction`)
 - **Structs**: Prefix with `FML` (e.g., `FMLTransactionData`)
 - **Enums**: Prefix with `E_ML` (e.g., `E_MLTransactionType`)
+- **Interfaces**: Prefix with `IML` (e.g., `IMLModel`, `IMLController`, `IMLView`)
 - **Member variables**: PascalCase convention (e.g., `TransactionId`, `Amount`)
+- **Public functions**: PascalCase convention (e.g., `AddTransaction()`, `GetTransactionData()`)
+- **Private functions**: camelCase convention (e.g., `convertToTransactionData()`, `calculateTotal()`)
 - **Local variables/parameters**: camelCase convention (e.g., `transactionData`, `userId`)
 
 ## Communication Language
