@@ -6,10 +6,16 @@
 
 struct FMLTransactionData;
 class FMLTransaction;
+class IMLModelObserver;
 
 class IMLModel
 {
 public:
+    virtual ~IMLModel() = default;
+    
+    // Observer
+    virtual void AddObserver(std::shared_ptr<IMLModelObserver> modelObserver) = 0;
+    
     // Transaction CRUD operations
     virtual void AddTransaction(const FMLTransactionData& transactionData) = 0;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) = 0;

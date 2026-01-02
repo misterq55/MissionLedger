@@ -4,12 +4,19 @@
 #include <vector>
 #include <algorithm>
 
+#include "interface/IMLModelObserver.h"
+
 FMLModel::FMLModel()
 {
 }
 
 FMLModel::~FMLModel()
 {
+}
+
+void FMLModel::AddObserver(std::shared_ptr<IMLModelObserver> modelObserver)
+{
+    ModelObserver = modelObserver;
 }
 
 // Transaction CRUD operations
@@ -21,6 +28,11 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
                                                           transactionData.Description, transactionData.Amount,
                                                           transactionData.ReceiptNumber));
     TransactionIdIndex++;
+    
+    if (ModelObserver)
+    {
+        ModelObserver->OnTransactionAdded(transactionData);
+    }
 }
 
 bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
@@ -39,6 +51,11 @@ bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
     transaction->SetAmount(transactionData.Amount);
     transaction->SetReceiptNumber(transactionData.ReceiptNumber);
 
+    if (ModelObserver)
+    {
+        ModelObserver->OnTransactionUpdated(transactionData);
+    }
+    
     return true;
 }
 
@@ -51,6 +68,12 @@ bool FMLModel::RemoveTransaction(const int transactionId)
     }
 
     Transactions.erase(it);
+    
+    if (ModelObserver)
+    {
+        ModelObserver->OnTransactionRemoved(transactionId);
+    }
+    
     return true;
 }
 

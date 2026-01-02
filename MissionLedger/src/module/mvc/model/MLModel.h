@@ -9,9 +9,12 @@ class FMLModel : public IMLModel
 {
 public:
     FMLModel();
-    virtual ~FMLModel();
+    virtual ~FMLModel() override;
 
 public:
+    // Observer
+    virtual void AddObserver(std::shared_ptr<IMLModelObserver> modelObserver) override;
+    
     // Transaction CRUD operations
     virtual void AddTransaction(const FMLTransactionData& transactionData) override;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) override;
@@ -39,6 +42,7 @@ private:
     FMLTransactionData convertToTransactionData(const std::shared_ptr<FMLTransaction>& transaction);
 
 private:
+    std::shared_ptr<IMLModelObserver> ModelObserver;
     std::map<int, std::shared_ptr<FMLTransaction>> Transactions;
     int TransactionIdIndex = 0;
 };

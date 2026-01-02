@@ -144,25 +144,26 @@
     <ClCompile Include="src\module\mvc\controller\MLController.cpp" />
     <ClCompile Include="src\module\mvc\model\MLModel.cpp" />
     <ClCompile Include="src\module\mvc\model\transaction\MLTransaction.cpp" />
+    <ClCompile Include="src\module\mvc\view\MLGuiView.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\interface\IMLController.h" />
     <ClInclude Include="src\interface\IMLModel.h" />
+    <ClInclude Include="src\interface\IMLModelObserver.h" />
     <ClInclude Include="src\interface\IMLStorageProvider.h" />
-    <ClInclude Include="src\interface\IMLView.h" />
+    <ClInclude Include="src\interface\IMLGuiView.h" />
     <ClInclude Include="src\MLDefine.h" />
     <ClInclude Include="src\module\common\holder\MLMVCHolder.h" />
     <ClInclude Include="src\module\common\holder\MLMVCHolderExample.h" />
-    <ClInclude Include="src\module\common\observer\IMLModelObserver.h" />
     <ClInclude Include="src\module\mvc\controller\MLController.h" />
     <ClInclude Include="src\module\mvc\model\MLModel.h" />
     <ClInclude Include="src\module\mvc\model\transaction\MLTransaction.h" />
+    <ClInclude Include="src\module\mvc\view\MLGuiView.h" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="src\module\common\" />
     <Folder Include="src\module\common\holder\" />
     <Folder Include="src\module\mvc\controller\" />
-    <Folder Include="src\module\mvc\view\" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

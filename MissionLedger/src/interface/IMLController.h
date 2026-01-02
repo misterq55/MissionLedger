@@ -7,6 +7,8 @@ struct FMLTransactionData;
 class IMLController
 {
 public:
+    virtual ~IMLController() = default;
+    
     // Transaction operations
     virtual void AddTransaction(const FMLTransactionData& transactionData) = 0;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) = 0;

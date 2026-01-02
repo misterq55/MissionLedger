@@ -137,18 +137,77 @@ This project adopts a **Model First** design approach for MVC implementation. Th
 
 #### Current Status
 
-As of the latest commit, the project has:
+As of the latest commit (2026-01-02), the project has:
 - ✅ Basic Model structure (`FMLModel`, `FMLTransaction`)
-- ✅ All interface definitions (Model, View, Controller, Storage, Observer)
+- ✅ All interface definitions (Model, GuiView, Controller, Storage, Observer)
 - ✅ MVC Holder infrastructure
 - ✅ Controller implementation (`FMLController` using MVCHolder pattern)
 - ✅ DTO-based data access (Model provides `GetTransactionData` returning `FMLTransactionData`)
 - ✅ Enhanced Model interface (CRUD operations, DTO conversion, business logic)
+- ✅ UI implementation (`wxMLMainFrame` with input panel + list control in main.cpp)
+- ✅ Transaction Add functionality (working with MVCHolder)
+- ✅ View implementation (`FMLGuiView` implementing `IMLGuiView` + `IMLModelObserver`)
+- ✅ Observer pattern integration (Model has AddObserver, View connected as Observer)
+- ✅ Interface reorganization (IMLView → IMLGuiView, IMLModelObserver moved to interface/)
+- ⚠️ Observer event handlers (stubs implemented, UI update logic pending)
+- ⏳ Controller-based data access (View still accesses Model directly in some places)
 - ⏳ Storage Provider (interface defined, implementations pending)
-- ⏳ Observer integration (interface defined, Model connection pending)
-- ⏳ View implementation (interface defined, UI pending)
 
-**Next Steps**: Complete Storage Provider integration and View implementation.
+#### Development Roadmap
+
+The project follows a phased approach for implementation, prioritizing core functionality before advanced features.
+
+**Phase 1: Core Program Functionality** (Current Priority)
+
+1. **View Architecture Improvement** ✅ COMPLETED (2026-01-02)
+   - ✅ Separated wxMLMainFrame (wxWidgets UI) from FMLGuiView (MVC logic)
+   - ✅ Applied has-a composition pattern (CLAUDE.md "View Architecture Design")
+   - ✅ Implemented IMLGuiView and IMLModelObserver interfaces
+
+2. **Observer Pattern Implementation** ⚠️ IN PROGRESS
+   - ✅ Added observer management to FMLModel (AddObserver/RemoveObserver)
+   - ✅ Connected View as Observer in main.cpp (model->AddObserver(view))
+   - ⏳ Implement Observer event handlers in FMLGuiView (UI update logic)
+   - ⏳ Emit events from Model on data changes
+
+3. **Controller-based Data Access** ⏳ PENDING
+   - Add GetAllTransactionData() to IMLController
+   - Modify View to access data through Controller (not Model directly)
+   - Maintain strict MVC boundaries (View → Controller → Model)
+
+4. **Complete CRUD Operations** ⏳ IN PROGRESS
+   - ✅ Transaction Add (implemented in main.cpp)
+   - ⏳ Transaction Update (list item click → edit mode)
+   - ⏳ Transaction Delete (delete button/menu)
+   - ⏳ List selection events and detail view
+
+**Phase 2: File Persistence (.ml File Support)**
+
+5. **Storage Provider Implementation**
+   - Choose implementation: SQLite (recommended), JSON, or XML
+   - Integrate with FMLModel via dependency injection
+   - Implement Save/Load operations with IMLStorageProvider
+
+6. **File Dialog Integration**
+   - File → Open (.ml files)
+   - File → Save / Save As
+   - Recent files menu
+   - Auto-save on exit (optional)
+
+**Phase 3: File Association (Optional)**
+
+7. **.ml File Registration**
+   - Windows registry setup for file association
+   - Double-click .ml file → launch MissionLedger
+   - Icon association
+
+**Deferred Features:**
+- Multiple document interface (MDI) support
+- Advanced filtering with ID-based caching
+- Report generation and Excel export
+- Multi-language support
+
+**Current Focus**: Phase 1, Steps 1-3 (View separation and Observer pattern)
 
 ## Code Organization
 

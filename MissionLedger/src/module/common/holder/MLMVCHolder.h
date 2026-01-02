@@ -4,7 +4,7 @@
 
 // Forward declarations
 class IMLModel;
-class IMLView;
+class IMLGuiView;
 class IMLController;
 
 /**
@@ -19,7 +19,7 @@ private:
     static FMLMVCHolder* Instance;
 
     std::shared_ptr<IMLModel> Model;
-    std::shared_ptr<IMLView> View;
+    std::shared_ptr<IMLGuiView> View;
     std::shared_ptr<IMLController> Controller;
 
     // 생성자를 private으로 하여 외부에서 직접 생성 불가
@@ -51,7 +51,7 @@ public:
      * @brief View 컴포넌트 설정
      * @param view IMLView 인터페이스를 구현한 객체
      */
-    void SetView(std::shared_ptr<IMLView> view);
+    void SetView(std::shared_ptr<IMLGuiView> view);
 
     /**
      * @brief Controller 컴포넌트 설정
@@ -69,7 +69,7 @@ public:
      * @brief View 컴포넌트 반환
      * @return std::shared_ptr<IMLView> View 객체의 shared_ptr
      */
-    std::shared_ptr<IMLView> GetView() const;
+    std::shared_ptr<IMLGuiView> GetView() const;
 
     /**
      * @brief Controller 컴포넌트 반환
