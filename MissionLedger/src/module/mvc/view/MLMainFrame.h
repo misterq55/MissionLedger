@@ -2,6 +2,8 @@
 
 #include <wx/wx.h>
 #include <wx/listctrl.h>
+#include <wx/datectrl.h>
+#include <wx/valtext.h>
 #include "interface/IMLView.h"
 #include "interface/IMLModelObserver.h"
 
@@ -40,6 +42,7 @@ private:
     wxTextCtrl* descriptionText;
     wxTextCtrl* amountText;
     wxTextCtrl* receiptText;
+    wxDatePickerCtrl* datePicker;
     wxListCtrl* listCtrl;
 
 private:

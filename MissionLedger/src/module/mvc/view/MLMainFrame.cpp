@@ -1,5 +1,7 @@
 #include "MLMainFrame.h"
 #include <wx/statline.h>
+#include <wx/datectrl.h>
+#include <wx/dateevt.h>
 #include "MLDefine.h"
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
@@ -66,7 +68,7 @@ wxMLMainFrame::wxMLMainFrame()
     // 금액
     wxStaticText* amountLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("금액:"));
     inputSizer->Add(amountLabel, 0, wxLEFT | wxRIGHT, 10);
-    amountText = new wxTextCtrl(inputPanel, wxID_ANY);
+    amountText = new wxTextCtrl(inputPanel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_DIGITS));
     inputSizer->Add(amountText, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
     inputSizer->AddSpacer(5);
 
@@ -75,6 +77,14 @@ wxMLMainFrame::wxMLMainFrame()
     inputSizer->Add(receiptLabel, 0, wxLEFT | wxRIGHT, 10);
     receiptText = new wxTextCtrl(inputPanel, wxID_ANY);
     inputSizer->Add(receiptText, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
+    inputSizer->AddSpacer(5);
+
+    // 날짜
+    wxStaticText* dateLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("날짜:"));
+    inputSizer->Add(dateLabel, 0, wxLEFT | wxRIGHT, 10);
+    datePicker = new wxDatePickerCtrl(inputPanel, wxID_ANY, wxDefaultDateTime,
+        wxDefaultPosition, wxDefaultSize, wxDP_DEFAULT | wxDP_DROPDOWN);
+    inputSizer->Add(datePicker, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
     inputSizer->AddSpacer(15);
 
     // 추가 버튼
@@ -127,7 +137,7 @@ void wxMLMainFrame::DisplayTransaction(const FMLTransactionData& data)
         data.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
     listCtrl->SetItem(index, 1, wxString::FromUTF8(data.Category.c_str()));
     listCtrl->SetItem(index, 2, wxString::FromUTF8(data.Item.c_str()));
-    listCtrl->SetItem(index, 3, wxString::Format("%.2f", data.Amount));
+    listCtrl->SetItem(index, 3, wxString::Format("%ld", static_cast<long>(data.Amount)));
     listCtrl->SetItem(index, 4, wxString::FromUTF8(data.ReceiptNumber.c_str()));
     listCtrl->SetItem(index, 5, wxString::FromUTF8(data.DateTime.c_str()));
     listCtrl->SetItemData(index, data.TransactionId);
@@ -155,6 +165,10 @@ void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
         return;
     }
     data.Amount = amount;
+
+    // 날짜 가져오기
+    wxDateTime selectedDate = datePicker->GetValue();
+    data.DateTime = selectedDate.Format("%Y-%m-%d").ToStdString();
 
     AddTransaction(data);
 }
@@ -190,6 +204,7 @@ void wxMLMainFrame::ClearInputFields()
     descriptionText->Clear();
     amountText->Clear();
     receiptText->Clear();
+    datePicker->SetValue(wxDateTime::Now());
 }
 
 // IMLModelObserver 인터페이스 구현
