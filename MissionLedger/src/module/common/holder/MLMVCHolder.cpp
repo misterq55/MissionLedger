@@ -1,6 +1,6 @@
 ﻿#include "MLMVCHolder.h"
 #include "interface/IMLModel.h"
-#include "interface/IMLGuiView.h"
+#include "interface/IMLView.h"
 #include "interface/IMLController.h"
 
 // 정적 멤버 초기화
@@ -29,7 +29,7 @@ void FMLMVCHolder::SetModel(std::shared_ptr<IMLModel> model)
     Model = model;
 }
 
-void FMLMVCHolder::SetView(std::shared_ptr<IMLGuiView> view)
+void FMLMVCHolder::SetView(std::shared_ptr<IMLView> view)
 {
     View = view;
 }
@@ -44,7 +44,7 @@ std::shared_ptr<IMLModel> FMLMVCHolder::GetModel() const
     return Model;
 }
 
-std::shared_ptr<IMLGuiView> FMLMVCHolder::GetView() const
+std::shared_ptr<IMLView> FMLMVCHolder::GetView() const
 {
     return View;
 }

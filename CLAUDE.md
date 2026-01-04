@@ -137,21 +137,21 @@ This project adopts a **Model First** design approach for MVC implementation. Th
 
 #### Current Status
 
-As of the latest commit (2026-01-02), the project has:
+As of 2026-01-04, the project has:
 - ✅ Basic Model structure (`FMLModel`, `FMLTransaction`)
-- ✅ All interface definitions (Model, GuiView, Controller, Storage, Observer)
+- ✅ All interface definitions (Model, View, Controller, Storage, Observer)
 - ✅ MVC Holder infrastructure
 - ✅ Controller implementation (`FMLController` using MVCHolder pattern)
 - ✅ DTO-based data access (Model provides `GetTransactionData` returning `FMLTransactionData`)
 - ✅ Enhanced Model interface (CRUD operations, DTO conversion, business logic)
-- ✅ UI implementation (`wxMLMainFrame` with input panel + list control in main.cpp)
-- ✅ Transaction Add functionality (working with MVCHolder)
-- ✅ View implementation (`FMLGuiView` implementing `IMLGuiView` + `IMLModelObserver`)
-- ✅ Observer pattern integration (Model has AddObserver, View connected as Observer)
-- ✅ Interface reorganization (IMLView → IMLGuiView, IMLModelObserver moved to interface/)
-- ⚠️ Observer event handlers (stubs implemented, UI update logic pending)
-- ⏳ Controller-based data access (View still accesses Model directly in some places)
+- ✅ **View implementation** (`wxMLMainFrame` in separate files implementing `IMLView` + `IMLModelObserver`)
+- ✅ **Is-a architecture** (wxMLMainFrame directly inherits IMLView and IMLModelObserver)
+- ✅ Transaction Add functionality (working with MVCHolder and Observer pattern)
+- ✅ **Observer pattern fully implemented** (Model → Observer → View UI updates)
+- ✅ **UTF-8 encoding support** (wxString::FromUTF8 for Korean text, /utf-8 compiler flag)
+- ✅ Clean UI (ID column removed, user-friendly display)
 - ⏳ Storage Provider (interface defined, implementations pending)
+- ⏳ Transaction Update/Delete functionality (pending)
 
 #### Development Roadmap
 
@@ -159,25 +159,26 @@ The project follows a phased approach for implementation, prioritizing core func
 
 **Phase 1: Core Program Functionality** (Current Priority)
 
-1. **View Architecture Improvement** ✅ COMPLETED (2026-01-02)
-   - ✅ Separated wxMLMainFrame (wxWidgets UI) from FMLGuiView (MVC logic)
-   - ✅ Applied has-a composition pattern (CLAUDE.md "View Architecture Design")
-   - ✅ Implemented IMLGuiView and IMLModelObserver interfaces
+1. **View Architecture Improvement** ✅ COMPLETED (2026-01-04)
+   - ✅ wxMLMainFrame directly implements IMLView and IMLModelObserver (is-a pattern)
+   - ✅ Separated wxMLMainFrame to MLMainFrame.h/cpp files
+   - ✅ Removed FMLGuiView intermediate layer (simplified architecture)
+   - ✅ Applied is-a inheritance pattern for wxWidgets integration
 
-2. **Observer Pattern Implementation** ⚠️ IN PROGRESS
+2. **Observer Pattern Implementation** ✅ COMPLETED (2026-01-04)
    - ✅ Added observer management to FMLModel (AddObserver/RemoveObserver)
-   - ✅ Connected View as Observer in main.cpp (model->AddObserver(view))
-   - ⏳ Implement Observer event handlers in FMLGuiView (UI update logic)
-   - ⏳ Emit events from Model on data changes
+   - ✅ Connected wxMLMainFrame as Observer (model->AddObserver(frame))
+   - ✅ Implemented Observer event handlers (OnTransactionAdded, OnTransactionRemoved, etc.)
+   - ✅ Observer events trigger automatic UI updates
 
-3. **Controller-based Data Access** ⏳ PENDING
-   - Add GetAllTransactionData() to IMLController
-   - Modify View to access data through Controller (not Model directly)
-   - Maintain strict MVC boundaries (View → Controller → Model)
+3. **UTF-8 Encoding Support** ✅ COMPLETED (2026-01-04)
+   - ✅ Added /utf-8 compiler flag to project settings
+   - ✅ All Korean strings use wxString::FromUTF8() wrapper
+   - ✅ Proper display of Korean text in UI
 
-4. **Complete CRUD Operations** ⏳ IN PROGRESS
-   - ✅ Transaction Add (implemented in main.cpp)
-   - ⏳ Transaction Update (list item click → edit mode)
+4. **Complete CRUD Operations** ⚠️ IN PROGRESS
+   - ✅ Transaction Add (implemented with Observer pattern)
+   - ⏳ Transaction Update (list item click → edit dialog)
    - ⏳ Transaction Delete (delete button/menu)
    - ⏳ List selection events and detail view
 
@@ -207,55 +208,59 @@ The project follows a phased approach for implementation, prioritizing core func
 - Report generation and Excel export
 - Multi-language support
 
-**Current Focus**: Phase 1, Steps 1-3 (View separation and Observer pattern)
+**Current Focus**: Phase 1, Step 4 (Complete CRUD Operations) and Phase 2 (File Persistence)
 
 ## Code Organization
 
 ```
 MissionLedger/
-├── main.cpp                     # wxWidgets application entry point
+├── main.cpp                     # Application entry point (MissionLedger class)
 └── src/
     ├── MLDefine.h              # Core enums and data structures
     ├── interface/              # Abstract interfaces
     │   ├── IMLController.h     # Controller interface
     │   ├── IMLModel.h          # Model interface
+    │   ├── IMLModelObserver.h  # Observer interface for Model events
     │   ├── IMLStorageProvider.h # Storage provider interface
     │   └── IMLView.h           # View interface
     └── module/
         ├── common/             # Common utilities and patterns
-        │   ├── holder/         # MVC Holder singleton pattern
-        │   │   ├── FMLMVCHolder.*      # MVC component holder
-        │   │   └── MLMVCHolderExample.h # Usage examples
-        │   └── observer/       # Observer pattern implementation
+        │   └── holder/         # MVC Holder singleton pattern
+        │       ├── FMLMVCHolder.*      # MVC component holder
+        │       └── MLMVCHolderExample.h # Usage examples
         ├── storage/            # Storage implementations (planned)
-        │   ├── MLSQLiteStorage.*   # SQLite storage provider
-        │   ├── MLJsonStorage.*     # JSON storage provider
-        │   └── MLXmlStorage.*      # XML storage provider
+        │   ├── MLSQLiteStorage.*   # SQLite storage provider (TODO)
+        │   ├── MLJsonStorage.*     # JSON storage provider (TODO)
+        │   └── MLXmlStorage.*      # XML storage provider (TODO)
         └── mvc/
             ├── model/          # Model implementation
             │   ├── FMLModel.*  # Main model class
             │   └── transaction/# Transaction entity
+            │       └── FMLTransaction.*
             ├── controller/     # Controller implementation
             │   └── FMLController.*  # Main controller class
-            └── view/           # (Placeholder for future implementation)
+            └── view/           # View implementation
+                └── MLMainFrame.*    # Main window (wxFrame + IMLView + IMLModelObserver)
 ```
 
 ## Development Notes
 
-- Include paths: Source files use `$(ProjectDir)src` as additional include directory
-- Korean language comments are present throughout the codebase
-- The project includes placeholder folders for controller and view implementations
-- Transaction management is the core functionality with stub implementations
+- **Include paths**: Source files use `$(ProjectDir)src` as additional include directory
+- **UTF-8 Encoding**: Project uses `/utf-8` compiler flag for proper Korean text handling
+- **Korean Strings**: All Korean text uses `wxString::FromUTF8("한글")` wrapper for display
+- **Observer Pattern**: Model automatically notifies View of data changes via IMLModelObserver
+- **MVC Holder**: Centralized singleton access to Model, View, and Controller components
 
 ### Current Implementation Status
 
 - **Model**: `FMLModel` class implemented with enhanced CRUD operations, DTO conversion, and business logic
 - **Controller**: `FMLController` class implemented using MVCHolder pattern for Model access
-- **View**: `IMLView` interface defined, implementation pending
+- **View**: `wxMLMainFrame` class implemented (MLMainFrame.h/cpp) with IMLView and IMLModelObserver
 - **Storage Provider**: `IMLStorageProvider` interface defined, concrete implementations pending (SQLite/JSON/XML)
-- **Observer**: `IMLModelObserver` interface well-designed with specific transaction events
+- **Observer**: `IMLModelObserver` interface fully implemented with automatic UI updates
 - **MVC Holder**: `FMLMVCHolder` singleton implemented for centralized component access
 - **DTO**: `FMLTransactionData` struct serves as single DTO for both input and output
+- **UI**: Transaction list display with Korean text support, Add functionality working
 
 ### MVC Holder Usage
 
@@ -264,23 +269,27 @@ The `FMLMVCHolder` singleton provides centralized access to MVC components throu
 #### Initialization (in main.cpp):
 ```cpp
 #include "module/common/holder/MLMVCHolder.h"
+#include "module/mvc/view/MLMainFrame.h"
 
-class MyApp : public wxApp {
+class MissionLedger : public wxApp {
     virtual bool OnInit() override {
         // Create MVC components
+        auto& mvcHolder = FMLMVCHolder::GetInstance();
         auto model = std::make_shared<FMLModel>();
-        auto view = std::make_shared<FMLView>();
         auto controller = std::make_shared<FMLController>();
 
+        // Create main frame (wxWidgets manages memory)
+        wxMLMainFrame* frame = new wxMLMainFrame();
+
         // Register with holder
-        auto& holder = FMLMVCHolder::GetInstance();
-        holder.SetModel(model);
-        holder.SetView(view);
-        holder.SetController(controller);
+        mvcHolder.SetModel(model);
+        mvcHolder.SetController(controller);
+        mvcHolder.SetView(std::shared_ptr<IMLView>(frame, [](IMLView*){})); // No-op deleter
 
-        // Connect observer
-        model->AddObserver(view);
+        // Connect observer (frame implements IMLModelObserver)
+        model->AddObserver(std::shared_ptr<IMLModelObserver>(frame, [](IMLModelObserver*){}));
 
+        frame->Show();
         return true;
     }
 
@@ -443,21 +452,19 @@ public:
 
 ### View Architecture Design
 
-The project adopts a **composition-based View architecture** that separates wxWidgets UI from MVC logic.
+The project uses an **is-a inheritance pattern** where wxWidgets frames directly implement MVC interfaces.
 
-#### Design Pattern
+#### Design Pattern (Is-a)
 
 ```
-┌─────────────────┐
-│  wxDialog/Frame │ ← Pure UI (buttons, text boxes, layout)
-│  (wxWidgets)    │
-└────────┬────────┘
-         │ has-a (member)
-         ↓
-┌─────────────────┐
-│    FMLView      │ ← MVC logic (implements IMLView + IMLModelObserver)
-│  (Custom Class) │
-└────────┬────────┘
+┌─────────────────────────────────────────┐
+│         wxMLMainFrame                   │
+│  (wxFrame + IMLView + IMLModelObserver) │
+│                                         │
+│  - wxWidgets UI (buttons, layout)      │
+│  - MVC logic (Observer handlers)       │
+│  - Direct Controller/Model access      │
+└────────┬────────────────────────────────┘
          │ communicates with
          ↓
 ┌─────────────────┐
@@ -465,70 +472,59 @@ The project adopts a **composition-based View architecture** that separates wxWi
 └─────────────────┘
 ```
 
-#### Separation of Concerns
+**Rationale for Is-a Pattern:**
+- **Simplicity**: No intermediate layer between UI and MVC logic
+- **wxWidgets Convention**: Standard pattern for wxWidgets applications
+- **Direct Event Handling**: Observer events directly update UI
+- **Single Responsibility**: One class manages both UI and View logic for this desktop-only application
 
-**wxDialog/wxFrame Responsibilities**:
-- Widget creation and layout
-- Event binding (button clicks, text input)
-- Direct UI manipulation (enable/disable, show/hide)
-- Forward user actions to attached View
-
-**FMLView Responsibilities**:
-- Implement `IMLView` interface (UI-agnostic output methods)
-- Implement `IMLModelObserver` (receive Model change notifications)
-- Communicate with Controller (send user actions, request data)
-- Hold reference to wxWidget for UI updates
-
-#### Example Structure
+#### Implementation Structure
 
 ```cpp
-class FMLTransactionView : public IMLView, public IMLModelObserver {
+// MLMainFrame.h
+class wxMLMainFrame : public wxFrame, public IMLView, public IMLModelObserver {
 public:
-    void AttachWindow(wxDialog* dialog) { Dialog = dialog; }
+    wxMLMainFrame();
 
-    // IMLView implementation
-    void RefreshTransactionList() override;
-    void ShowMessage(const std::string& msg, bool isError) override;
+    // IMLView interface
+    void AddTransaction(const FMLTransactionData& data) override;
+    void DisplayTransaction(const FMLTransactionData& data) override;
+    void DisplayTransactions() override;
 
-    // Observer implementation
-    void OnTransactionAdded(std::shared_ptr<FMLTransaction> transaction) override;
-
-    // Event handlers called by wxDialog
-    void OnUserAddTransaction(const FMLTransactionData& data);
+    // IMLModelObserver interface
+    void OnTransactionAdded(const FMLTransactionData& data) override;
+    void OnTransactionRemoved(int transactionId) override;
+    void OnTransactionUpdated(const FMLTransactionData& data) override;
+    void OnTransactionsCleared() override;
+    void OnDataLoaded() override;
+    void OnDataSaved() override;
 
 private:
-    wxDialog* Dialog = nullptr;
-    void updateDialogUI();
-};
+    // UI Controls
+    wxListCtrl* listCtrl;
+    wxTextCtrl* categoryText;
+    // ...
 
-class wxTransactionDialog : public wxDialog {
-public:
-    wxTransactionDialog(wxWindow* parent) : wxDialog(parent, wxID_ANY, "거래") {
-        TransactionView = std::make_shared<FMLTransactionView>();
-        TransactionView->AttachWindow(this);
-        CreateControls();
-    }
-
-private:
-    std::shared_ptr<FMLTransactionView> TransactionView;
-
-    void CreateControls() {
-        addButton = new wxButton(this, wxID_ANY, "추가");
-        addButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
-            FMLTransactionData data = CollectDataFromUI();
-            TransactionView->OnUserAddTransaction(data);  // Forward to View
-        });
-    }
+    // Event Handlers
+    void OnAddTransaction(wxCommandEvent& event);
+    void RefreshTransactionList();
+    void ClearInputFields();
 };
 ```
 
 #### Benefits
 
-1. **Technology Independence**: `IMLView` can be implemented with CLI, GUI, or Web UI
-2. **Testability**: View logic can be tested without wxWidgets instantiation
-3. **Reusability**: Same View can work with different UI frameworks
-4. **MVC Compliance**: wxWidgets code remains unaware of Model/Controller
-5. **Clear Boundaries**: UI code vs business logic separation
+1. **Simplicity**: Single class handles both UI and MVC logic
+2. **Direct Updates**: Observer events directly manipulate wxWidgets controls
+3. **wxWidgets Standard**: Follows conventional wxWidgets patterns
+4. **Less Boilerplate**: No additional View wrapper classes needed
+5. **MVC Compliance**: Still maintains strict Model-View-Controller boundaries
+
+#### Trade-offs
+
+- **Technology Lock-in**: Tightly coupled to wxWidgets (acceptable for desktop-only app)
+- **Testing**: Requires wxWidgets instantiation for testing (mitigated by using wxWidgets test framework)
+- **Has-a Alternative**: Previously considered composition pattern, but deemed over-engineered for this use case
 
 ### Future Development Considerations
 
