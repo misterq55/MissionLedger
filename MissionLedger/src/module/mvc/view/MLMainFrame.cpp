@@ -177,9 +177,9 @@ void wxMLMainFrame::RefreshTransactionList()
 {
     listCtrl->DeleteAllItems();
 
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (model) {
-        auto transactions = model->GetAllTransactionData();
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        auto transactions = controller->GetAllTransactionData();
 
         for (const auto& trans : transactions) {
             long index = listCtrl->InsertItem(listCtrl->GetItemCount(),

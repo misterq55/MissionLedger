@@ -52,4 +52,7 @@ private:
     // UI 헬퍼 메서드
     void RefreshTransactionList();
     void ClearInputFields();
+    
+private:
+    std::vector<int> transactionIds;
 };
