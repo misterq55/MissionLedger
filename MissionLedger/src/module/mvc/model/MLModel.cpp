@@ -22,16 +22,21 @@ void FMLModel::AddObserver(std::shared_ptr<IMLModelObserver> modelObserver)
 // Transaction CRUD operations
 void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 {
-    Transactions.emplace(TransactionIdIndex,
-                         std::make_shared<FMLTransaction>(TransactionIdIndex, transactionData.Type,
-                                                          transactionData.Category, transactionData.Item,
-                                                          transactionData.Description, transactionData.Amount,
-                                                          transactionData.ReceiptNumber));
+    int newId = TransactionIdIndex;
+
+    auto newTransaction = std::make_shared<FMLTransaction>(
+        newId, transactionData.Type,
+        transactionData.Category, transactionData.Item,
+        transactionData.Description, transactionData.Amount,
+        transactionData.ReceiptNumber);
+
+    Transactions.emplace(newId, newTransaction);
     TransactionIdIndex++;
-    
+
     if (ModelObserver)
     {
-        ModelObserver->OnTransactionAdded(transactionData);
+        // Entity에서 변환하여 완전한 Output DTO 전달
+        ModelObserver->OnTransactionAdded(convertToTransactionData(newTransaction));
     }
 }
 

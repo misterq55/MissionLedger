@@ -44,15 +44,24 @@ private:
     wxTextCtrl* receiptText;
     wxDatePickerCtrl* datePicker;
     wxListCtrl* listCtrl;
+    wxButton* addButton;
+    wxButton* updateButton;
+    wxButton* deleteButton;
 
 private:
     // 이벤트 핸들러
     void OnAddTransaction(wxCommandEvent& event);
+    void OnUpdateTransaction(wxCommandEvent& event);
+    void OnDeleteTransaction(wxCommandEvent& event);
+    void OnListItemSelected(wxListEvent& event);
+    void OnListItemDeselected(wxListEvent& event);
 
     // UI 헬퍼 메서드
     void RefreshTransactionList();
     void ClearInputFields();
-    
+    void LoadTransactionToInput(int transactionId);
+    void UpdateButtonStates();
+
 private:
-    std::vector<int> transactionIds;
+    int selectedTransactionId = -1;
 };

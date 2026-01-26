@@ -87,9 +87,22 @@ wxMLMainFrame::wxMLMainFrame()
     inputSizer->Add(datePicker, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
     inputSizer->AddSpacer(15);
 
-    // 추가 버튼
-    wxButton* addButton = new wxButton(inputPanel, wxID_ANY, wxString::FromUTF8("거래 추가"));
-    inputSizer->Add(addButton, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
+    // 버튼 패널 (추가, 수정, 삭제)
+    wxBoxSizer* buttonSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    addButton = new wxButton(inputPanel, wxID_ANY, wxString::FromUTF8("추가"));
+    updateButton = new wxButton(inputPanel, wxID_ANY, wxString::FromUTF8("수정"));
+    deleteButton = new wxButton(inputPanel, wxID_ANY, wxString::FromUTF8("삭제"));
+
+    // 초기 상태: 수정/삭제 버튼 비활성화
+    updateButton->Enable(false);
+    deleteButton->Enable(false);
+
+    buttonSizer->Add(addButton, 1, wxRIGHT, 5);
+    buttonSizer->Add(updateButton, 1, wxRIGHT, 5);
+    buttonSizer->Add(deleteButton, 1, 0, 0);
+
+    inputSizer->Add(buttonSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
     inputPanel->SetSizer(inputSizer);
 
@@ -110,8 +123,14 @@ wxMLMainFrame::wxMLMainFrame()
 
     mainPanel->SetSizer(mainSizer);
 
-    // 이벤트 바인딩
+    // 버튼 이벤트 바인딩
     addButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnAddTransaction, this);
+    updateButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnUpdateTransaction, this);
+    deleteButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnDeleteTransaction, this);
+
+    // 리스트 선택 이벤트 바인딩
+    listCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &wxMLMainFrame::OnListItemSelected, this);
+    listCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnListItemDeselected, this);
 }
 
 void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
@@ -256,4 +275,133 @@ void wxMLMainFrame::OnDataSaved()
 {
     // 저장 완료 메시지 (선택사항)
     // wxMessageBox("데이터가 저장되었습니다.", "저장 완료", wxOK | wxICON_INFORMATION);
+}
+
+// 리스트 항목 선택 이벤트
+void wxMLMainFrame::OnListItemSelected(wxListEvent& event)
+{
+    long selectedIndex = event.GetIndex();
+    selectedTransactionId = static_cast<int>(listCtrl->GetItemData(selectedIndex));
+
+    LoadTransactionToInput(selectedTransactionId);
+    UpdateButtonStates();
+}
+
+void wxMLMainFrame::OnListItemDeselected(wxListEvent& event)
+{
+    selectedTransactionId = -1;
+    UpdateButtonStates();
+}
+
+// 수정 버튼 핸들러
+void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
+{
+    if (selectedTransactionId < 0) {
+        wxMessageBox(wxString::FromUTF8("수정할 거래를 선택하세요."), wxString::FromUTF8("알림"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 입력 데이터 수집
+    FMLTransactionData data;
+    data.TransactionId = selectedTransactionId;
+    data.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
+    data.Category = categoryText->GetValue().ToStdString();
+    data.Item = itemText->GetValue().ToStdString();
+    data.Description = descriptionText->GetValue().ToStdString();
+    data.ReceiptNumber = receiptText->GetValue().ToStdString();
+
+    // 금액 파싱
+    wxString amountStr = amountText->GetValue();
+    double amount = 0.0;
+    if (!amountStr.ToDouble(&amount)) {
+        wxMessageBox(wxString::FromUTF8("올바른 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
+        return;
+    }
+    data.Amount = amount;
+
+    // 날짜 가져오기
+    wxDateTime selectedDate = datePicker->GetValue();
+    data.DateTime = selectedDate.Format("%Y-%m-%d").ToStdString();
+
+    // Controller를 통해 수정
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        if (controller->UpdateTransaction(data)) {
+            ClearInputFields();
+            selectedTransactionId = -1;
+            listCtrl->SetItemState(-1, 0, wxLIST_STATE_SELECTED);  // 선택 해제
+            UpdateButtonStates();
+        } else {
+            wxMessageBox(wxString::FromUTF8("거래 수정에 실패했습니다."), wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+// 삭제 버튼 핸들러
+void wxMLMainFrame::OnDeleteTransaction(wxCommandEvent& event)
+{
+    if (selectedTransactionId < 0) {
+        wxMessageBox(wxString::FromUTF8("삭제할 거래를 선택하세요."), wxString::FromUTF8("알림"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 삭제 확인
+    int result = wxMessageBox(
+        wxString::FromUTF8("선택한 거래를 삭제하시겠습니까?"),
+        wxString::FromUTF8("삭제 확인"),
+        wxYES_NO | wxICON_QUESTION
+    );
+
+    if (result != wxYES) {
+        return;
+    }
+
+    // Controller를 통해 삭제
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        if (controller->RemoveTransaction(selectedTransactionId)) {
+            ClearInputFields();
+            selectedTransactionId = -1;
+            UpdateButtonStates();
+        } else {
+            wxMessageBox(wxString::FromUTF8("거래 삭제에 실패했습니다."), wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+// 선택된 거래 데이터를 입력 필드에 로드
+void wxMLMainFrame::LoadTransactionToInput(int transactionId)
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
+
+    FMLTransactionData data = controller->GetTransactionData(transactionId);
+
+    // 거래 유형
+    if (data.Type == E_MLTransactionType::Income) {
+        incomeRadio->SetValue(true);
+    } else {
+        expenseRadio->SetValue(true);
+    }
+
+    // 텍스트 필드
+    categoryText->SetValue(wxString::FromUTF8(data.Category.c_str()));
+    itemText->SetValue(wxString::FromUTF8(data.Item.c_str()));
+    descriptionText->SetValue(wxString::FromUTF8(data.Description.c_str()));
+    amountText->SetValue(wxString::Format("%ld", static_cast<long>(data.Amount)));
+    receiptText->SetValue(wxString::FromUTF8(data.ReceiptNumber.c_str()));
+
+    // 날짜 파싱 (YYYY-MM-DD 형식)
+    wxDateTime date;
+    if (date.ParseFormat(wxString::FromUTF8(data.DateTime.c_str()), "%Y-%m-%d")) {
+        datePicker->SetValue(date);
+    }
+}
+
+// 버튼 활성화 상태 업데이트
+void wxMLMainFrame::UpdateButtonStates()
+{
+    bool hasSelection = (selectedTransactionId >= 0);
+    updateButton->Enable(hasSelection);
+    deleteButton->Enable(hasSelection);
 }
