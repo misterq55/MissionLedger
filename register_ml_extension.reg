@@ -1,0 +1,20 @@
+Windows Registry Editor Version 5.00
+
+; MissionLedger .ml 파일 연결 등록
+; 사용 전 EXE_PATH를 실제 경로로 수정하세요
+
+[HKEY_CURRENT_USER\Software\Classes\.ml]
+@="MissionLedger.Document"
+
+[HKEY_CURRENT_USER\Software\Classes\MissionLedger.Document]
+@="MissionLedger Document"
+
+[HKEY_CURRENT_USER\Software\Classes\MissionLedger.Document\DefaultIcon]
+@="C:\\Work\\Projects\\Others\\MissionLedger\\x64\\Debug\\MissionLedger.exe,0"
+
+[HKEY_CURRENT_USER\Software\Classes\MissionLedger.Document\shell]
+
+[HKEY_CURRENT_USER\Software\Classes\MissionLedger.Document\shell\open]
+
+[HKEY_CURRENT_USER\Software\Classes\MissionLedger.Document\shell\open\command]
+@="\"C:\\Work\\Projects\\Others\\MissionLedger\\x64\\Debug\\MissionLedger.exe\" \"%1\""

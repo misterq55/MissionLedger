@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "interface/IMLModelObserver.h"
+#include "interface/IMLStorageProvider.h"
 
 FMLModel::FMLModel()
 {
@@ -32,6 +33,7 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 
     Transactions.emplace(newId, newTransaction);
     TransactionIdIndex++;
+    UnsavedChanges = true;
 
     if (ModelObserver)
     {
@@ -55,12 +57,13 @@ bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
     transaction->SetDescription(transactionData.Description);
     transaction->SetAmount(transactionData.Amount);
     transaction->SetReceiptNumber(transactionData.ReceiptNumber);
+    UnsavedChanges = true;
 
     if (ModelObserver)
     {
         ModelObserver->OnTransactionUpdated(transactionData);
     }
-    
+
     return true;
 }
 
@@ -73,12 +76,13 @@ bool FMLModel::RemoveTransaction(const int transactionId)
     }
 
     Transactions.erase(it);
-    
+    UnsavedChanges = true;
+
     if (ModelObserver)
     {
         ModelObserver->OnTransactionRemoved(transactionId);
     }
-    
+
     return true;
 }
 
@@ -165,21 +169,160 @@ int FMLModel::GetNextTransactionId()
 // Persistence
 bool FMLModel::Save()
 {
-    // TODO: StorageProvider 연동
-    bool result = false;
-    return result;
+    return SaveFile();
 }
 
 bool FMLModel::Load()
 {
-    // TODO: StorageProvider 연동
-    bool result = false;
-    return result;
+    if (CurrentFilePath.empty()) return false;
+    return OpenFile(CurrentFilePath);
 }
 
 void FMLModel::ExportToExcel()
 {
     // TODO: Excel export 구현
+}
+
+// File Operations
+void FMLModel::SetStorageProvider(std::shared_ptr<IMLStorageProvider> storageProvider)
+{
+    StorageProvider = storageProvider;
+}
+
+bool FMLModel::OpenFile(const std::string& filePath)
+{
+    if (!StorageProvider) return false;
+
+    if (!StorageProvider->Initialize(filePath))
+    {
+        return false;
+    }
+
+    // 기존 데이터 정리
+    clearAllTransactions();
+
+    // 파일에서 거래 로드
+    std::vector<std::shared_ptr<FMLTransaction>> loadedTransactions;
+    if (!StorageProvider->LoadAllTransactions(loadedTransactions))
+    {
+        StorageProvider->Close();
+        return false;
+    }
+
+    // 메모리에 로드
+    for (const auto& transaction : loadedTransactions)
+    {
+        Transactions.emplace(transaction->GetId(), transaction);
+    }
+
+    // TransactionIdIndex 갱신
+    int lastId = StorageProvider->GetLastTransactionId();
+    TransactionIdIndex = (lastId >= 0) ? lastId + 1 : 0;
+
+    CurrentFilePath = filePath;
+    UnsavedChanges = false;
+
+    // Observer에게 데이터 로드 알림
+    if (ModelObserver)
+    {
+        ModelObserver->OnDataLoaded();
+    }
+
+    return true;
+}
+
+bool FMLModel::SaveFile()
+{
+    if (CurrentFilePath.empty() || !StorageProvider)
+    {
+        return false;
+    }
+
+    if (!StorageProvider->IsReady())
+    {
+        if (!StorageProvider->Initialize(CurrentFilePath))
+        {
+            return false;
+        }
+    }
+
+    // 모든 거래를 벡터로 변환
+    std::vector<std::shared_ptr<FMLTransaction>> transactionList;
+    transactionList.reserve(Transactions.size());
+    for (const auto& pair : Transactions)
+    {
+        transactionList.push_back(pair.second);
+    }
+
+    if (!StorageProvider->SaveAllTransactions(transactionList))
+    {
+        return false;
+    }
+
+    UnsavedChanges = false;
+
+    // Observer에게 저장 완료 알림
+    if (ModelObserver)
+    {
+        ModelObserver->OnDataSaved();
+    }
+
+    return true;
+}
+
+bool FMLModel::SaveFileAs(const std::string& filePath)
+{
+    if (!StorageProvider) return false;
+
+    // 기존 연결 닫기
+    StorageProvider->Close();
+
+    // 새 파일 경로로 초기화
+    if (!StorageProvider->Initialize(filePath))
+    {
+        return false;
+    }
+
+    CurrentFilePath = filePath;
+    return SaveFile();
+}
+
+void FMLModel::NewFile()
+{
+    // 기존 데이터 정리
+    clearAllTransactions();
+
+    // 스토리지 연결 닫기
+    if (StorageProvider)
+    {
+        StorageProvider->Close();
+    }
+
+    CurrentFilePath.clear();
+    TransactionIdIndex = 0;
+    UnsavedChanges = false;
+
+    // Observer에게 데이터 클리어 알림
+    if (ModelObserver)
+    {
+        ModelObserver->OnTransactionsCleared();
+    }
+}
+
+const std::string& FMLModel::GetCurrentFilePath() const
+{
+    return CurrentFilePath;
+}
+
+bool FMLModel::HasUnsavedChanges() const
+{
+    return UnsavedChanges;
+}
+
+void FMLModel::clearAllTransactions()
+{
+    Transactions.clear();
+    TransactionIdIndex = 0;
 }
 
 // Private helper

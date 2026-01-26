@@ -2,10 +2,22 @@
 #include <wx/statline.h>
 #include <wx/datectrl.h>
 #include <wx/dateevt.h>
+#include <wx/filedlg.h>
+#include <wx/filename.h>
 #include "MLDefine.h"
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
 #include "interface/IMLModel.h"
+
+// 메뉴 ID 정의
+enum
+{
+    ID_NEW_FILE = wxID_NEW,
+    ID_OPEN_FILE = wxID_OPEN,
+    ID_SAVE_FILE = wxID_SAVE,
+    ID_SAVE_FILE_AS = wxID_SAVEAS,
+    ID_EXIT = wxID_EXIT
+};
 
 wxMLMainFrame::wxMLMainFrame()
     : wxFrame(nullptr, wxID_ANY, wxString::FromUTF8("MissionLedger - 거래 관리"), wxDefaultPosition, wxSize(900, 600))
@@ -131,6 +143,12 @@ wxMLMainFrame::wxMLMainFrame()
     // 리스트 선택 이벤트 바인딩
     listCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &wxMLMainFrame::OnListItemSelected, this);
     listCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnListItemDeselected, this);
+
+    // 메뉴바 생성
+    CreateMenuBar();
+
+    // 창 닫기 이벤트 바인딩
+    Bind(wxEVT_CLOSE_WINDOW, &wxMLMainFrame::OnClose, this);
 }
 
 void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
@@ -404,4 +422,197 @@ void wxMLMainFrame::UpdateButtonStates()
     bool hasSelection = (selectedTransactionId >= 0);
     updateButton->Enable(hasSelection);
     deleteButton->Enable(hasSelection);
+}
+
+// 메뉴바 생성
+void wxMLMainFrame::CreateMenuBar()
+{
+    wxMenuBar* menuBar = new wxMenuBar();
+
+    // 파일 메뉴
+    wxMenu* fileMenu = new wxMenu();
+    fileMenu->Append(ID_NEW_FILE, wxString::FromUTF8("새 파일(&N)\tCtrl+N"));
+    fileMenu->Append(ID_OPEN_FILE, wxString::FromUTF8("열기(&O)...\tCtrl+O"));
+    fileMenu->AppendSeparator();
+    fileMenu->Append(ID_SAVE_FILE, wxString::FromUTF8("저장(&S)\tCtrl+S"));
+    fileMenu->Append(ID_SAVE_FILE_AS, wxString::FromUTF8("다른 이름으로 저장(&A)...\tCtrl+Shift+S"));
+    fileMenu->AppendSeparator();
+    fileMenu->Append(ID_EXIT, wxString::FromUTF8("종료(&X)\tAlt+F4"));
+
+    menuBar->Append(fileMenu, wxString::FromUTF8("파일(&F)"));
+
+    SetMenuBar(menuBar);
+
+    // 메뉴 이벤트 바인딩
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnNewFile, this, ID_NEW_FILE);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnOpenFile, this, ID_OPEN_FILE);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnSaveFile, this, ID_SAVE_FILE);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnSaveFileAs, this, ID_SAVE_FILE_AS);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnExit, this, ID_EXIT);
+}
+
+// 파일 메뉴 핸들러
+void wxMLMainFrame::OnNewFile(wxCommandEvent& event)
+{
+    if (!CheckUnsavedChanges()) return;
+
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        model->NewFile();
+        UpdateTitle();
+    }
+}
+
+void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
+{
+    if (!CheckUnsavedChanges()) return;
+
+    wxFileDialog openDialog(this,
+        wxString::FromUTF8("파일 열기"),
+        wxEmptyString,
+        wxEmptyString,
+        wxString::FromUTF8("MissionLedger 파일 (*.ml)|*.ml|모든 파일 (*.*)|*.*"),
+        wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+
+    if (openDialog.ShowModal() == wxID_CANCEL) return;
+
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        if (model->OpenFile(openDialog.GetPath().ToStdString()))
+        {
+            UpdateTitle();
+        }
+        else
+        {
+            wxMessageBox(wxString::FromUTF8("파일을 열 수 없습니다."),
+                wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+void wxMLMainFrame::OnSaveFile(wxCommandEvent& event)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (!model) return;
+
+    if (model->GetCurrentFilePath().empty())
+    {
+        OnSaveFileAs(event);
+        return;
+    }
+
+    if (!model->SaveFile())
+    {
+        wxMessageBox(wxString::FromUTF8("파일 저장에 실패했습니다."),
+            wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+    }
+    else
+    {
+        UpdateTitle();
+    }
+}
+
+void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
+{
+    wxFileDialog saveDialog(this,
+        wxString::FromUTF8("다른 이름으로 저장"),
+        wxEmptyString,
+        wxEmptyString,
+        wxString::FromUTF8("MissionLedger 파일 (*.ml)|*.ml"),
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+    if (saveDialog.ShowModal() == wxID_CANCEL) return;
+
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        wxString filePath = saveDialog.GetPath();
+        // .ml 확장자 추가
+        if (!filePath.EndsWith(".ml"))
+        {
+            filePath += ".ml";
+        }
+
+        if (model->SaveFileAs(filePath.ToStdString()))
+        {
+            UpdateTitle();
+        }
+        else
+        {
+            wxMessageBox(wxString::FromUTF8("파일 저장에 실패했습니다."),
+                wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+void wxMLMainFrame::OnExit(wxCommandEvent& event)
+{
+    Close(false);
+}
+
+void wxMLMainFrame::OnClose(wxCloseEvent& event)
+{
+    if (!CheckUnsavedChanges())
+    {
+        event.Veto();
+        return;
+    }
+    event.Skip();
+}
+
+void wxMLMainFrame::UpdateTitle()
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    wxString title = wxString::FromUTF8("MissionLedger");
+
+    if (model)
+    {
+        const std::string& filePath = model->GetCurrentFilePath();
+        if (!filePath.empty())
+        {
+            wxFileName fileName(filePath);
+            title = fileName.GetFullName() + " - " + title;
+        }
+        else
+        {
+            title = wxString::FromUTF8("새 파일 - ") + title;
+        }
+
+        if (model->HasUnsavedChanges())
+        {
+            title = "* " + title;
+        }
+    }
+
+    SetTitle(title);
+}
+
+bool wxMLMainFrame::CheckUnsavedChanges()
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (!model || !model->HasUnsavedChanges())
+    {
+        return true;
+    }
+
+    int result = wxMessageBox(
+        wxString::FromUTF8("저장되지 않은 변경 사항이 있습니다.\n저장하시겠습니까?"),
+        wxString::FromUTF8("저장 확인"),
+        wxYES_NO | wxCANCEL | wxICON_QUESTION);
+
+    if (result == wxCANCEL)
+    {
+        return false;
+    }
+
+    if (result == wxYES)
+    {
+        wxCommandEvent dummyEvent;
+        OnSaveFile(dummyEvent);
+        return !model->HasUnsavedChanges();
+    }
+
+    return true;
 }

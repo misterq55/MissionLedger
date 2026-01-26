@@ -3,6 +3,7 @@
 #include "module/mvc/model/MLModel.h"
 #include "module/mvc/controller/MLController.h"
 #include "module/mvc/view/MLMainFrame.h"
+#include "module/storage/MLSQLiteStorage.h"
 
 class MissionLedger : public wxApp {
 public:
@@ -11,6 +12,10 @@ public:
     auto& mvcHolder = FMLMVCHolder::GetInstance();
     std::shared_ptr<FMLModel> model = std::make_shared<FMLModel>();
     std::shared_ptr<FMLController> controller = std::make_shared<FMLController>();
+
+    // Storage Provider 생성 및 설정
+    auto storageProvider = std::make_shared<FMLSQLiteStorage>();
+    model->SetStorageProvider(storageProvider);
 
     // Frame 생성 (wxWidgets는 new로 생성, wxWidgets가 메모리 관리)
     wxMLMainFrame* frame = new wxMLMainFrame();
@@ -24,6 +29,15 @@ public:
     model->AddObserver(std::shared_ptr<IMLModelObserver>(frame, [](IMLModelObserver*){}));
 
     frame->Show();
+
+    // 명령줄 인수로 파일이 전달된 경우 열기
+    if (argc > 1) {
+      wxString filePath = argv[1];
+      if (wxFileExists(filePath) && filePath.EndsWith(".ml")) {
+        model->OpenFile(filePath.ToStdString());
+      }
+    }
+
     return true;
   }
 };

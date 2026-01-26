@@ -38,4 +38,12 @@ public:
     virtual bool Save() = 0;
     virtual bool Load() = 0;
     virtual void ExportToExcel() = 0;
+
+    // File Operations
+    virtual bool OpenFile(const std::string& filePath) = 0;
+    virtual bool SaveFile() = 0;
+    virtual bool SaveFileAs(const std::string& filePath) = 0;
+    virtual void NewFile() = 0;
+    virtual const std::string& GetCurrentFilePath() const = 0;
+    virtual bool HasUnsavedChanges() const = 0;
 };

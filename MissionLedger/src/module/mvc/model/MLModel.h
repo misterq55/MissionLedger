@@ -1,10 +1,13 @@
 ﻿#pragma once
 #include <map>
 #include <memory>
+#include <string>
 
 #include "interface/IMLModel.h"
 
 class FMLTransaction;
+class IMLStorageProvider;
+
 class FMLModel : public IMLModel
 {
 public:
@@ -14,7 +17,7 @@ public:
 public:
     // Observer
     virtual void AddObserver(std::shared_ptr<IMLModelObserver> modelObserver) override;
-    
+
     // Transaction CRUD operations
     virtual void AddTransaction(const FMLTransactionData& transactionData) override;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) override;
@@ -38,11 +41,26 @@ public:
     virtual bool Load() override;
     virtual void ExportToExcel() override;
 
+    // File Operations
+    virtual bool OpenFile(const std::string& filePath) override;
+    virtual bool SaveFile() override;
+    virtual bool SaveFileAs(const std::string& filePath) override;
+    virtual void NewFile() override;
+    virtual const std::string& GetCurrentFilePath() const override;
+    virtual bool HasUnsavedChanges() const override;
+
+    // Storage Provider (구현 전용)
+    void SetStorageProvider(std::shared_ptr<IMLStorageProvider> storageProvider);
+
 private:
     FMLTransactionData convertToTransactionData(const std::shared_ptr<FMLTransaction>& transaction);
+    void clearAllTransactions();
 
 private:
     std::shared_ptr<IMLModelObserver> ModelObserver;
+    std::shared_ptr<IMLStorageProvider> StorageProvider;
     std::map<int, std::shared_ptr<FMLTransaction>> Transactions;
+    std::string CurrentFilePath;
     int TransactionIdIndex = 0;
+    bool UnsavedChanges = false;
 };

@@ -49,18 +49,31 @@ private:
     wxButton* deleteButton;
 
 private:
-    // 이벤트 핸들러
+    // 이벤트 핸들러 - 거래
     void OnAddTransaction(wxCommandEvent& event);
     void OnUpdateTransaction(wxCommandEvent& event);
     void OnDeleteTransaction(wxCommandEvent& event);
     void OnListItemSelected(wxListEvent& event);
     void OnListItemDeselected(wxListEvent& event);
 
+    // 이벤트 핸들러 - 파일 메뉴
+    void OnNewFile(wxCommandEvent& event);
+    void OnOpenFile(wxCommandEvent& event);
+    void OnSaveFile(wxCommandEvent& event);
+    void OnSaveFileAs(wxCommandEvent& event);
+    void OnExit(wxCommandEvent& event);
+    void OnClose(wxCloseEvent& event);
+
     // UI 헬퍼 메서드
     void RefreshTransactionList();
     void ClearInputFields();
     void LoadTransactionToInput(int transactionId);
     void UpdateButtonStates();
+    void UpdateTitle();
+    bool CheckUnsavedChanges();
+
+private:
+    void CreateMenuBar();
 
 private:
     int selectedTransactionId = -1;
