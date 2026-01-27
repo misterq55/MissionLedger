@@ -24,6 +24,7 @@ public:
     // Data retrieval for View
     virtual FMLTransactionData GetTransactionData(const int transactionId) override;
     virtual std::vector<FMLTransactionData> GetAllTransactionData() override;
+    virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) override;
 
     // Business logic delegation
     virtual float GetCategoryTotal(const std::string& category) override;

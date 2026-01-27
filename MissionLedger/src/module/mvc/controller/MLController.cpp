@@ -60,6 +60,18 @@ std::vector<FMLTransactionData> FMLController::GetAllTransactionData()
     return std::vector<FMLTransactionData>();
 }
 
+std::vector<FMLTransactionData> FMLController::GetFilteredTransactionData(const FMLFilterCriteria& criteria)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetFilteredTransactionData(criteria);
+    }
+
+    // Model이 없으면 빈 벡터 반환
+    return std::vector<FMLTransactionData>();
+}
+
 // Business logic delegation
 float FMLController::GetCategoryTotal(const std::string& category)
 {

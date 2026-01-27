@@ -143,17 +143,20 @@ As of 2026-01-27, the project has:
 - ✅ MVC Holder infrastructure
 - ✅ Controller implementation (`FMLController` using MVCHolder pattern)
 - ✅ DTO-based data access (Model provides `GetTransactionData` returning `FMLTransactionData`)
-- ✅ Enhanced Model interface (CRUD operations, DTO conversion, business logic)
+- ✅ Enhanced Model interface (CRUD operations, DTO conversion, business logic, filtering)
 - ✅ **View implementation** (`wxMLMainFrame` in separate files implementing `IMLView` + `IMLModelObserver`)
 - ✅ **Is-a architecture** (wxMLMainFrame directly inherits IMLView and IMLModelObserver)
 - ✅ **Full CRUD functionality** (Add/Update/Delete with Observer pattern)
 - ✅ **Observer pattern fully implemented** (Model → Observer → View UI updates)
-- ✅ **UTF-8 encoding support** (wxString::FromUTF8 for Korean text, /utf-8 compiler flag)
+- ✅ **UTF-8 encoding support** (wxString::FromUTF8 for Korean text, /utf-8 compiler flag, ToUTF8() for data storage)
 - ✅ Clean UI (ID column removed, user-friendly display)
 - ✅ **Enhanced input controls** (wxDatePickerCtrl for date selection, wxTextValidator for numeric amount input)
 - ✅ **SQLite Storage Provider** (`FMLSQLiteStorage` with DI pattern)
 - ✅ **File menu** (New/Open/Save/SaveAs with keyboard shortcuts)
 - ✅ **Command line file opening** (supports .ml file association)
+- ✅ **Transaction Filtering** (Date range, transaction type, category with differential update)
+- ✅ **MVC Architecture Refinement** (View → Controller → Model boundaries strictly enforced)
+- ⏳ Excel/CSV Export
 - ⏳ Installer (file association registration)
 
 #### Development Roadmap
@@ -200,21 +203,56 @@ The project follows a phased approach for implementation, prioritizing core func
    - ✅ Unsaved changes confirmation on close
    - ✅ Command line argument for file association
 
-**Phase 3: File Association & Distribution** ⏳ PENDING
+**Phase 3: Data Management Features** ✅ COMPLETED (2026-01-27)
 
-7. **.ml File Registration**
-   - ⏳ Installer creation (Inno Setup / NSIS)
-   - ⏳ Windows registry setup for file association
-   - ⏳ Double-click .ml file → launch MissionLedger
-   - ⏳ Icon association
+7. **Transaction Filtering** ✅ COMPLETED
+   - ✅ Filter UI panel (date range, transaction type, category)
+   - ✅ `FMLFilterCriteria` data structure
+   - ✅ Model layer filtering (`GetFilteredTransactionData`)
+   - ✅ Controller layer delegation
+   - ✅ Differential update pattern (Single Source of Truth)
+   - ✅ Auto-update category filter on data changes
+   - ✅ Apply/Clear filter buttons
+
+8. **Differential Update Implementation** ✅ COMPLETED
+   - ✅ Single Source of Truth pattern (read from UI, not cached state)
+   - ✅ `GetCurrentListIds()` helper method
+   - ✅ Incremental UI updates (add/remove only changed items)
+   - ✅ Eliminated state synchronization bugs
+   - ✅ Scroll position preservation during filtering
+
+9. **MVC Architecture Refinement** ✅ COMPLETED
+   - ✅ Removed direct Model references from View
+   - ✅ Added file operation methods to Controller interface
+   - ✅ All View operations route through Controller
+   - ✅ Strict MVC boundary enforcement
+
+10. **UTF-8 Encoding Fix** ✅ COMPLETED
+    - ✅ Fixed Korean text storage issue (CP949 → UTF-8)
+    - ✅ Applied `wxString::ToUTF8().data()` for all string conversions
+    - ✅ Proper SQLite UTF-8 encoding
+
+**Phase 4: Data Export & Distribution** ⏳ IN PROGRESS
+
+11. **Excel/CSV Export** ⏳ PENDING
+    - ⏳ CSV export with UTF-8 BOM (Korean support)
+    - ⏳ Export current view (respects active filter)
+    - ⏳ File menu integration
+    - ⏳ Column headers and formatting
+
+12. **.ml File Registration** ⏳ PENDING
+    - ⏳ Installer creation (Inno Setup / NSIS)
+    - ⏳ Windows registry setup for file association
+    - ⏳ Double-click .ml file → launch MissionLedger
+    - ⏳ Icon association
 
 **Deferred Features:**
 - Multiple document interface (MDI) support
-- Advanced filtering with ID-based caching
-- Report generation and Excel export
+- Report generation (charts, summaries)
 - Multi-language support
+- Undo/Redo functionality
 
-**Current Focus**: Phase 3 (Installer and file association) when ready for distribution
+**Current Focus**: Phase 4 - Excel/CSV Export (essential for practical use)
 
 ## Code Organization
 
@@ -541,24 +579,52 @@ private:
 - **Testing**: Requires wxWidgets instantiation for testing (mitigated by using wxWidgets test framework)
 - **Has-a Alternative**: Previously considered composition pattern, but deemed over-engineered for this use case
 
-### Future Development Considerations
+### Implemented Design Patterns
 
-#### Transaction Filtering System
-When implementing transaction filtering (by date, category, type, amount, etc.):
+#### Transaction Filtering System (✅ Implemented)
 
-1. **Filtering Location**: Implement filtering logic in Model layer (`MLModel`) for proper MVC separation
-2. **Data Transfer**: Use existing `FMLTransactionData` DTO for View data
-   - Model provides `GetAllTransactionData()` for filtered results
-   - Controller delegates filtering requests to Model
-3. **Performance Strategies**:
-   - Start with simple approach: full data filtering on demand
-   - Consider caching for frequently used filters
-   - Use wxWidgets Virtual List for large datasets
-   - Implement Iterator pattern for memory-efficient data access
-4. **Observer Integration**:
-   - Existing Observer pattern provides granular transaction events
-   - Avoid passing Model objects directly to maintain MVC boundaries
-   - Consider ID-based notifications with on-demand data retrieval
+The filtering system uses a **differential update pattern** with **Single Source of Truth** principle:
+
+**Architecture**:
+1. **Filtering Location**: Model layer (`FMLModel::GetFilteredTransactionData()`)
+2. **Filter Criteria**: `FMLFilterCriteria` struct in `MLDefine.h`
+   - Date range filter (start/end date)
+   - Transaction type filter (Income/Expense/All)
+   - Category filter (specific category or all)
+   - Amount range filter (optional, not currently used)
+3. **Data Flow**: View → Controller → Model (strict MVC boundaries)
+
+**Differential Update Implementation**:
+```cpp
+// Single Source of Truth: Read from UI, not cached state
+std::set<int> GetCurrentListIds() {
+    std::set<int> ids;
+    for (long i = 0; i < listCtrl->GetItemCount(); i++) {
+        ids.insert(listCtrl->GetItemData(i));
+    }
+    return ids;
+}
+
+void ApplyCurrentFilter() {
+    std::set<int> previousIds = GetCurrentListIds();  // From UI
+    std::set<int> currentIds = /* filtered results */;
+
+    // Calculate diff and update only changed items
+    RemoveItems(previousIds - currentIds);
+    AddItems(currentIds - previousIds);
+}
+```
+
+**Key Benefits**:
+- ✅ No state synchronization bugs (UI is the single source of truth)
+- ✅ Incremental updates preserve scroll position
+- ✅ Minimal UI operations (only changed items)
+- ✅ Automatic category list updates on data changes
+
+**Observer Integration**:
+- Filter-aware Observer handlers check `filterActive` flag
+- When filter active: reapply filter on data changes
+- When filter inactive: direct UI manipulation for performance
 
 #### GUI Implementation Guidelines
 
@@ -581,29 +647,25 @@ void OnListItemSelected(wxListEvent& event) {
 - Controller manages current display state and filtering
 - Views request data from Controller using IDs, never directly from Model
 
-**Advanced Filtering Implementation:**
-For improved performance with large datasets, consider ID-based filtering with differential updates:
+### Future Development Considerations
 
-```cpp
-class TransactionView {
-private:
-    std::vector<int> m_PrevFilteredIds;  // Cache previous filter results
+#### Potential Enhancements
 
-public:
-    void ApplyFilter(const FilterCriteria& criteria) {
-        auto controller = FMLMVCHolder::GetInstance().GetController();
-        std::vector<int> currentIds = controller->GetFilteredTransactionIds(criteria);
+**Filtering System**:
+- Consider unified filtering approach (all operations through filter, even "show all")
+- Amount range filter UI (currently defined in criteria but not exposed)
+- Filter presets/favorites
+- Filter history
 
-        // Calculate difference and update only changed rows
-        auto diff = CalculateDifference(m_PrevFilteredIds, currentIds);
-        UpdateUIWithDiff(diff);
+**Performance Optimization**:
+- For datasets >10,000 items: consider wxListCtrl virtual mode
+- Database-level filtering (push filter to SQL query)
+- Lazy loading with pagination
 
-        m_PrevFilteredIds = std::move(currentIds);
-    }
-};
-```
-
-This approach minimizes UI updates and preserves user selection/scroll state during filtering operations.
+**Export Features**:
+- Excel export with formatting and formulas
+- PDF report generation
+- Chart visualization
 
 ## Coding Conventions
 
@@ -621,3 +683,15 @@ This project follows specific naming conventions:
 ## Communication Language
 
 **Important**: When working with this codebase, Claude Code should communicate in Korean (한국어) as this is the preferred language for this project. All responses, explanations, and documentation should be provided in Korean.
+
+## Compact Instructions
+
+When compacting, always preserve:
+- Build commands (msbuild configurations)
+- MVC architecture patterns and boundaries
+- Storage provider implementation details (SQLite)
+- File menu operations (New/Open/Save/SaveAs)
+- Filtering system architecture (differential update, Single Source of Truth)
+- Observer pattern integration
+- UTF-8 encoding requirements (ToUTF8() for storage)
+- Current implementation status and roadmap

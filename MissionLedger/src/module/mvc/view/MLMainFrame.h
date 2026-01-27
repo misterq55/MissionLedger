@@ -4,6 +4,8 @@
 #include <wx/listctrl.h>
 #include <wx/datectrl.h>
 #include <wx/valtext.h>
+#include <set>
+#include <map>
 #include "interface/IMLView.h"
 #include "interface/IMLModelObserver.h"
 
@@ -34,7 +36,7 @@ public:
     void OnDataSaved() override;
 
 private:
-    // UI 컨트롤들
+    // UI 컨트롤들 - 입력 패널
     wxRadioButton* incomeRadio;
     wxRadioButton* expenseRadio;
     wxTextCtrl* categoryText;
@@ -47,6 +49,14 @@ private:
     wxButton* addButton;
     wxButton* updateButton;
     wxButton* deleteButton;
+
+    // UI 컨트롤들 - 필터 패널
+    wxDatePickerCtrl* filterStartDate;
+    wxDatePickerCtrl* filterEndDate;
+    wxChoice* filterTypeChoice;
+    wxComboBox* filterCategoryCombo;
+    wxButton* applyFilterButton;
+    wxButton* clearFilterButton;
 
 private:
     // 이벤트 핸들러 - 거래
@@ -64,6 +74,10 @@ private:
     void OnExit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
 
+    // 이벤트 핸들러 - 필터
+    void OnApplyFilter(wxCommandEvent& event);
+    void OnClearFilter(wxCommandEvent& event);
+
     // UI 헬퍼 메서드
     void RefreshTransactionList();
     void ClearInputFields();
@@ -72,9 +86,21 @@ private:
     void UpdateTitle();
     bool CheckUnsavedChanges();
 
+    // 필터 헬퍼 메서드
+    void CreateFilterPanel(wxPanel* parent, wxBoxSizer* sizer);
+    void UpdateCategoryFilter();
+    void ApplyCurrentFilter();
+
+    // 리스트 증분 업데이트 헬퍼
+    std::set<int> GetCurrentListIds();
+    long FindListItemByTransactionId(int transactionId);
+    void RemoveListItemByTransactionId(int transactionId);
+    void AddListItem(const FMLTransactionData& data);
+
 private:
     void CreateMenuBar();
 
 private:
     int selectedTransactionId = -1;
+    bool filterActive = false;
 };

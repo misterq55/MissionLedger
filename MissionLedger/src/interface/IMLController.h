@@ -3,6 +3,7 @@
 #include <vector>
 
 struct FMLTransactionData;
+struct FMLFilterCriteria;
 
 class IMLController
 {
@@ -17,6 +18,7 @@ public:
     // Data retrieval for View
     virtual FMLTransactionData GetTransactionData(const int transactionId) = 0;
     virtual std::vector<FMLTransactionData> GetAllTransactionData() = 0;
+    virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) = 0;
 
     // Business logic delegation
     virtual float GetCategoryTotal(const std::string& category) = 0;

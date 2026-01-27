@@ -5,6 +5,7 @@
 #include <memory>
 
 struct FMLTransactionData;
+struct FMLFilterCriteria;
 class FMLTransaction;
 class IMLModelObserver;
 
@@ -24,6 +25,7 @@ public:
     // Data retrieval - DTO 기반 (View/Controller용)
     virtual FMLTransactionData GetTransactionData(const int transactionId) = 0;
     virtual std::vector<FMLTransactionData> GetAllTransactionData() = 0;
+    virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) = 0;
 
     // Data retrieval - Entity 기반 (내부 로직용, optional)
     virtual std::shared_ptr<FMLTransaction> GetTransaction(const int transactionId) = 0;

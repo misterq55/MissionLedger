@@ -114,6 +114,52 @@ std::vector<FMLTransactionData> FMLModel::GetAllTransactionData()
     return result;
 }
 
+std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFilterCriteria& criteria)
+{
+    std::vector<FMLTransactionData> result;
+
+    for (const auto& pair : Transactions)
+    {
+        const auto& transaction = pair.second;
+        FMLTransactionData data = convertToTransactionData(transaction);
+
+        // 거래 유형 필터
+        if (criteria.UseTypeFilter && data.Type != criteria.TypeFilter)
+        {
+            continue;
+        }
+
+        // 날짜 범위 필터
+        if (criteria.UseDateRangeFilter)
+        {
+            std::string transactionDate = data.DateTime.substr(0, 10); // YYYY-MM-DD 부분만 추출
+            if (transactionDate < criteria.StartDate || transactionDate > criteria.EndDate)
+            {
+                continue;
+            }
+        }
+
+        // 카테고리 필터
+        if (criteria.UseCategoryFilter && data.Category != criteria.CategoryFilter)
+        {
+            continue;
+        }
+
+        // 금액 범위 필터
+        if (criteria.UseAmountRangeFilter)
+        {
+            if (data.Amount < criteria.MinAmount || data.Amount > criteria.MaxAmount)
+            {
+                continue;
+            }
+        }
+
+        result.push_back(data);
+    }
+
+    return result;
+}
+
 // Data retrieval - Entity 기반
 std::shared_ptr<FMLTransaction> FMLModel::GetTransaction(const int transactionId)
 {

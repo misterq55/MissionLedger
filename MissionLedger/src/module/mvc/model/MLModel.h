@@ -26,6 +26,7 @@ public:
     // Data retrieval - DTO 기반
     virtual FMLTransactionData GetTransactionData(const int transactionId) override;
     virtual std::vector<FMLTransactionData> GetAllTransactionData() override;
+    virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) override;
 
     // Data retrieval - Entity 기반
     virtual std::shared_ptr<FMLTransaction> GetTransaction(const int transactionId) override;
