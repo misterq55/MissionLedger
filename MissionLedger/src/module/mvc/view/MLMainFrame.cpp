@@ -188,10 +188,10 @@ void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
     // 입력 데이터 수집
     FMLTransactionData data;
     data.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
-    data.Category = categoryText->GetValue().ToStdString();
-    data.Item = itemText->GetValue().ToStdString();
-    data.Description = descriptionText->GetValue().ToStdString();
-    data.ReceiptNumber = receiptText->GetValue().ToStdString();
+    data.Category = categoryText->GetValue().ToUTF8().data();
+    data.Item = itemText->GetValue().ToUTF8().data();
+    data.Description = descriptionText->GetValue().ToUTF8().data();
+    data.ReceiptNumber = receiptText->GetValue().ToUTF8().data();
 
     // 금액 파싱
     wxString amountStr = amountText->GetValue();
@@ -322,10 +322,10 @@ void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
     FMLTransactionData data;
     data.TransactionId = selectedTransactionId;
     data.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
-    data.Category = categoryText->GetValue().ToStdString();
-    data.Item = itemText->GetValue().ToStdString();
-    data.Description = descriptionText->GetValue().ToStdString();
-    data.ReceiptNumber = receiptText->GetValue().ToStdString();
+    data.Category = categoryText->GetValue().ToUTF8().data();
+    data.Item = itemText->GetValue().ToUTF8().data();
+    data.Description = descriptionText->GetValue().ToUTF8().data();
+    data.ReceiptNumber = receiptText->GetValue().ToUTF8().data();
 
     // 금액 파싱
     wxString amountStr = amountText->GetValue();
@@ -460,6 +460,7 @@ void wxMLMainFrame::OnNewFile(wxCommandEvent& event)
     {
         controller->NewFile();
         UpdateTitle();
+        ClearInputFields();
     }
 }
 
@@ -479,9 +480,10 @@ void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (controller)
     {
-        if (controller->OpenFile(openDialog.GetPath().ToStdString()))
+        if (controller->OpenFile(openDialog.GetPath().ToUTF8().data()))
         {
             UpdateTitle();
+            ClearInputFields();
         }
         else
         {
@@ -534,7 +536,7 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
             filePath += ".ml";
         }
 
-        if (controller->SaveFileAs(filePath.ToStdString()))
+        if (controller->SaveFileAs(filePath.ToUTF8().data()))
         {
             UpdateTitle();
         }
