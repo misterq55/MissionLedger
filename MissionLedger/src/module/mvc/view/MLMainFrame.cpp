@@ -7,7 +7,6 @@
 #include "MLDefine.h"
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
-#include "interface/IMLModel.h"
 
 // 메뉴 ID 정의
 enum
@@ -456,10 +455,10 @@ void wxMLMainFrame::OnNewFile(wxCommandEvent& event)
 {
     if (!CheckUnsavedChanges()) return;
 
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (model)
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller)
     {
-        model->NewFile();
+        controller->NewFile();
         UpdateTitle();
     }
 }
@@ -477,10 +476,10 @@ void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
 
     if (openDialog.ShowModal() == wxID_CANCEL) return;
 
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (model)
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller)
     {
-        if (model->OpenFile(openDialog.GetPath().ToStdString()))
+        if (controller->OpenFile(openDialog.GetPath().ToStdString()))
         {
             UpdateTitle();
         }
@@ -494,16 +493,16 @@ void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
 
 void wxMLMainFrame::OnSaveFile(wxCommandEvent& event)
 {
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (!model) return;
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
 
-    if (model->GetCurrentFilePath().empty())
+    if (controller->GetCurrentFilePath().empty())
     {
         OnSaveFileAs(event);
         return;
     }
 
-    if (!model->SaveFile())
+    if (!controller->SaveFile())
     {
         wxMessageBox(wxString::FromUTF8("파일 저장에 실패했습니다."),
             wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
@@ -525,8 +524,8 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
 
     if (saveDialog.ShowModal() == wxID_CANCEL) return;
 
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (model)
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller)
     {
         wxString filePath = saveDialog.GetPath();
         // .ml 확장자 추가
@@ -535,7 +534,7 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
             filePath += ".ml";
         }
 
-        if (model->SaveFileAs(filePath.ToStdString()))
+        if (controller->SaveFileAs(filePath.ToStdString()))
         {
             UpdateTitle();
         }
@@ -564,12 +563,12 @@ void wxMLMainFrame::OnClose(wxCloseEvent& event)
 
 void wxMLMainFrame::UpdateTitle()
 {
-    auto model = FMLMVCHolder::GetInstance().GetModel();
+    auto controller = FMLMVCHolder::GetInstance().GetController();
     wxString title = wxString::FromUTF8("MissionLedger");
 
-    if (model)
+    if (controller)
     {
-        const std::string& filePath = model->GetCurrentFilePath();
+        const std::string& filePath = controller->GetCurrentFilePath();
         if (!filePath.empty())
         {
             wxFileName fileName(filePath);
@@ -580,7 +579,7 @@ void wxMLMainFrame::UpdateTitle()
             title = wxString::FromUTF8("새 파일 - ") + title;
         }
 
-        if (model->HasUnsavedChanges())
+        if (controller->HasUnsavedChanges())
         {
             title = "* " + title;
         }
@@ -591,8 +590,8 @@ void wxMLMainFrame::UpdateTitle()
 
 bool wxMLMainFrame::CheckUnsavedChanges()
 {
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (!model || !model->HasUnsavedChanges())
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller || !controller->HasUnsavedChanges())
     {
         return true;
     }
@@ -611,7 +610,7 @@ bool wxMLMainFrame::CheckUnsavedChanges()
     {
         wxCommandEvent dummyEvent;
         OnSaveFile(dummyEvent);
-        return !model->HasUnsavedChanges();
+        return !controller->HasUnsavedChanges();
     }
 
     return true;

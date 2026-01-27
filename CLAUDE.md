@@ -38,7 +38,7 @@ The main project file is located at `MissionLedger/MissionLedger.vcxproj`.
 The codebase follows a strict MVC architecture with centralized component management:
 
 - **Model**: `FMLModel` class manages transaction data using `std::map<int, std::shared_ptr<FMLTransaction>>`
-- **View**: Interface defined by `IMLView` (currently minimal)
+- **View**: `wxMLMainFrame` class implementing `IMLView` and `IMLModelObserver` interfaces
 - **Controller**: Interface defined by `IMLController` for transaction operations
 - **Observer Pattern**: `MLModelObserver` provides event notifications for data changes
 - **MVC Holder**: `FMLMVCHolder` singleton pattern for global MVC component access
@@ -55,7 +55,7 @@ The main entity is `FMLTransaction` representing financial transactions with:
 
 - `IMLModel`: Data management interface with Add/Remove/Save/Load operations
 - `IMLController`: Business logic interface for transaction handling
-- `IMLView`: UI interface (placeholder for future implementation)
+- `IMLView`: UI interface for transaction display and user input
 - `IMLStorageProvider`: Storage abstraction interface using Strategy Pattern for pluggable persistence
 - `MLModelObserver`: Observer pattern for data change notifications
 - `FMLMVCHolder`: Singleton holder for centralized MVC component access
@@ -137,7 +137,7 @@ This project adopts a **Model First** design approach for MVC implementation. Th
 
 #### Current Status
 
-As of 2026-01-04, the project has:
+As of 2026-01-27, the project has:
 - ✅ Basic Model structure (`FMLModel`, `FMLTransaction`)
 - ✅ All interface definitions (Model, View, Controller, Storage, Observer)
 - ✅ MVC Holder infrastructure
@@ -146,12 +146,15 @@ As of 2026-01-04, the project has:
 - ✅ Enhanced Model interface (CRUD operations, DTO conversion, business logic)
 - ✅ **View implementation** (`wxMLMainFrame` in separate files implementing `IMLView` + `IMLModelObserver`)
 - ✅ **Is-a architecture** (wxMLMainFrame directly inherits IMLView and IMLModelObserver)
-- ✅ Transaction Add functionality (working with MVCHolder and Observer pattern)
+- ✅ **Full CRUD functionality** (Add/Update/Delete with Observer pattern)
 - ✅ **Observer pattern fully implemented** (Model → Observer → View UI updates)
 - ✅ **UTF-8 encoding support** (wxString::FromUTF8 for Korean text, /utf-8 compiler flag)
 - ✅ Clean UI (ID column removed, user-friendly display)
-- ⏳ Storage Provider (interface defined, implementations pending)
-- ⏳ Transaction Update/Delete functionality (pending)
+- ✅ **Enhanced input controls** (wxDatePickerCtrl for date selection, wxTextValidator for numeric amount input)
+- ✅ **SQLite Storage Provider** (`FMLSQLiteStorage` with DI pattern)
+- ✅ **File menu** (New/Open/Save/SaveAs with keyboard shortcuts)
+- ✅ **Command line file opening** (supports .ml file association)
+- ⏳ Installer (file association registration)
 
 #### Development Roadmap
 
@@ -176,31 +179,34 @@ The project follows a phased approach for implementation, prioritizing core func
    - ✅ All Korean strings use wxString::FromUTF8() wrapper
    - ✅ Proper display of Korean text in UI
 
-4. **Complete CRUD Operations** ⚠️ IN PROGRESS
+4. **Complete CRUD Operations** ✅ COMPLETED (2026-01-26)
    - ✅ Transaction Add (implemented with Observer pattern)
-   - ⏳ Transaction Update (list item click → edit dialog)
-   - ⏳ Transaction Delete (delete button/menu)
-   - ⏳ List selection events and detail view
+   - ✅ Transaction Update (list item selection → inline edit → update button)
+   - ✅ Transaction Delete (delete button with confirmation dialog)
+   - ✅ List selection events and input field population
 
-**Phase 2: File Persistence (.ml File Support)**
+**Phase 2: File Persistence (.ml File Support)** ✅ COMPLETED (2026-01-26)
 
-5. **Storage Provider Implementation**
-   - Choose implementation: SQLite (recommended), JSON, or XML
-   - Integrate with FMLModel via dependency injection
-   - Implement Save/Load operations with IMLStorageProvider
+5. **Storage Provider Implementation** ✅ COMPLETED
+   - ✅ SQLite implementation (`FMLSQLiteStorage`)
+   - ✅ Integrated with FMLModel via dependency injection
+   - ✅ Save/Load operations with IMLStorageProvider
 
-6. **File Dialog Integration**
-   - File → Open (.ml files)
-   - File → Save / Save As
-   - Recent files menu
-   - Auto-save on exit (optional)
+6. **File Dialog Integration** ✅ COMPLETED
+   - ✅ File → New (Ctrl+N)
+   - ✅ File → Open (.ml files) (Ctrl+O)
+   - ✅ File → Save (Ctrl+S)
+   - ✅ File → Save As (Ctrl+Shift+S)
+   - ✅ Unsaved changes confirmation on close
+   - ✅ Command line argument for file association
 
-**Phase 3: File Association (Optional)**
+**Phase 3: File Association & Distribution** ⏳ PENDING
 
 7. **.ml File Registration**
-   - Windows registry setup for file association
-   - Double-click .ml file → launch MissionLedger
-   - Icon association
+   - ⏳ Installer creation (Inno Setup / NSIS)
+   - ⏳ Windows registry setup for file association
+   - ⏳ Double-click .ml file → launch MissionLedger
+   - ⏳ Icon association
 
 **Deferred Features:**
 - Multiple document interface (MDI) support
@@ -208,7 +214,7 @@ The project follows a phased approach for implementation, prioritizing core func
 - Report generation and Excel export
 - Multi-language support
 
-**Current Focus**: Phase 1, Step 4 (Complete CRUD Operations) and Phase 2 (File Persistence)
+**Current Focus**: Phase 3 (Installer and file association) when ready for distribution
 
 ## Code Organization
 
@@ -228,10 +234,10 @@ MissionLedger/
         │   └── holder/         # MVC Holder singleton pattern
         │       ├── FMLMVCHolder.*      # MVC component holder
         │       └── MLMVCHolderExample.h # Usage examples
-        ├── storage/            # Storage implementations (planned)
-        │   ├── MLSQLiteStorage.*   # SQLite storage provider (TODO)
-        │   ├── MLJsonStorage.*     # JSON storage provider (TODO)
-        │   └── MLXmlStorage.*      # XML storage provider (TODO)
+        ├── storage/            # Storage implementations
+        │   └── MLSQLiteStorage.*   # SQLite storage provider
+        ├── third_party/        # Third-party libraries
+        │   └── sqlite/         # SQLite amalgamation (sqlite3.c, sqlite3.h)
         └── mvc/
             ├── model/          # Model implementation
             │   ├── FMLModel.*  # Main model class
@@ -253,14 +259,14 @@ MissionLedger/
 
 ### Current Implementation Status
 
-- **Model**: `FMLModel` class implemented with enhanced CRUD operations, DTO conversion, and business logic
+- **Model**: `FMLModel` class implemented with full CRUD operations, file operations, DTO conversion, and business logic
 - **Controller**: `FMLController` class implemented using MVCHolder pattern for Model access
-- **View**: `wxMLMainFrame` class implemented (MLMainFrame.h/cpp) with IMLView and IMLModelObserver
-- **Storage Provider**: `IMLStorageProvider` interface defined, concrete implementations pending (SQLite/JSON/XML)
+- **View**: `wxMLMainFrame` class implemented (MLMainFrame.h/cpp) with IMLView, IMLModelObserver, and file menu
+- **Storage Provider**: `FMLSQLiteStorage` implemented with SQLite amalgamation, injected via DI pattern
 - **Observer**: `IMLModelObserver` interface fully implemented with automatic UI updates
 - **MVC Holder**: `FMLMVCHolder` singleton implemented for centralized component access
 - **DTO**: `FMLTransactionData` struct serves as single DTO for both input and output
-- **UI**: Transaction list display with Korean text support, Add functionality working
+- **UI**: Full CRUD with file menu (New/Open/Save/SaveAs), keyboard shortcuts, unsaved changes detection
 
 ### MVC Holder Usage
 
@@ -270,6 +276,7 @@ The `FMLMVCHolder` singleton provides centralized access to MVC components throu
 ```cpp
 #include "module/common/holder/MLMVCHolder.h"
 #include "module/mvc/view/MLMainFrame.h"
+#include "module/storage/MLSQLiteStorage.h"
 
 class MissionLedger : public wxApp {
     virtual bool OnInit() override {
@@ -277,6 +284,10 @@ class MissionLedger : public wxApp {
         auto& mvcHolder = FMLMVCHolder::GetInstance();
         auto model = std::make_shared<FMLModel>();
         auto controller = std::make_shared<FMLController>();
+
+        // Storage Provider injection (DI pattern)
+        auto storageProvider = std::make_shared<FMLSQLiteStorage>();
+        model->SetStorageProvider(storageProvider);
 
         // Create main frame (wxWidgets manages memory)
         wxMLMainFrame* frame = new wxMLMainFrame();
@@ -290,12 +301,16 @@ class MissionLedger : public wxApp {
         model->AddObserver(std::shared_ptr<IMLModelObserver>(frame, [](IMLModelObserver*){}));
 
         frame->Show();
-        return true;
-    }
 
-    virtual int OnExit() override {
-        FMLMVCHolder::DestroyInstance();
-        return wxApp::OnExit();
+        // Open file from command line argument (for file association)
+        if (argc > 1) {
+            wxString filePath = argv[1];
+            if (wxFileExists(filePath) && filePath.EndsWith(".ml")) {
+                model->OpenFile(filePath.ToStdString());
+            }
+        }
+
+        return true;
     }
 };
 ```

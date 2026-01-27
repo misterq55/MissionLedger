@@ -101,3 +101,63 @@ bool FMLController::LoadData()
     }
     return false;
 }
+
+// File operations
+void FMLController::NewFile()
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        model->NewFile();
+    }
+}
+
+bool FMLController::OpenFile(const std::string& filePath)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->OpenFile(filePath);
+    }
+    return false;
+}
+
+bool FMLController::SaveFile()
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->SaveFile();
+    }
+    return false;
+}
+
+bool FMLController::SaveFileAs(const std::string& filePath)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->SaveFileAs(filePath);
+    }
+    return false;
+}
+
+std::string FMLController::GetCurrentFilePath() const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetCurrentFilePath();
+    }
+    return "";
+}
+
+bool FMLController::HasUnsavedChanges() const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->HasUnsavedChanges();
+    }
+    return false;
+}

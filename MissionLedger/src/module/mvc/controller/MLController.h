@@ -32,4 +32,12 @@ public:
     // Persistence
     virtual bool SaveData() override;
     virtual bool LoadData() override;
+
+    // File operations
+    virtual void NewFile() override;
+    virtual bool OpenFile(const std::string& filePath) override;
+    virtual bool SaveFile() override;
+    virtual bool SaveFileAs(const std::string& filePath) override;
+    virtual std::string GetCurrentFilePath() const override;
+    virtual bool HasUnsavedChanges() const override;
 };

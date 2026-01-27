@@ -25,4 +25,12 @@ public:
     // Persistence
     virtual bool SaveData() = 0;
     virtual bool LoadData() = 0;
+
+    // File operations
+    virtual void NewFile() = 0;
+    virtual bool OpenFile(const std::string& filePath) = 0;
+    virtual bool SaveFile() = 0;
+    virtual bool SaveFileAs(const std::string& filePath) = 0;
+    virtual std::string GetCurrentFilePath() const = 0;
+    virtual bool HasUnsavedChanges() const = 0;
 };
