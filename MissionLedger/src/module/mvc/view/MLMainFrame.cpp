@@ -20,7 +20,7 @@ enum
 };
 
 wxMLMainFrame::wxMLMainFrame()
-    : wxFrame(nullptr, wxID_ANY, wxString::FromUTF8("MissionLedger - 거래 관리"), wxDefaultPosition, wxSize(900, 600))
+    : wxFrame(nullptr, wxID_ANY, wxString::FromUTF8("MissionLedger - 거래 관리"), wxDefaultPosition, wxSize(1200, 800))
 {
     // 메인 패널
     wxPanel* mainPanel = new wxPanel(this);
@@ -321,9 +321,9 @@ void wxMLMainFrame::OnTransactionsCleared()
 
 void wxMLMainFrame::OnDataLoaded()
 {
-    // 데이터 로드 시 전체 리스트 새로고침
+    // 데이터 로드 시 증분 업데이트 (filterActive 상태 유지)
     UpdateCategoryFilter();
-    RefreshTransactionList();
+    ApplyCurrentFilter();
 }
 
 void wxMLMainFrame::OnDataSaved()
@@ -709,6 +709,29 @@ void wxMLMainFrame::CreateFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
     categorySizer->Add(filterCategoryCombo, 1, 0, 0);
     filterSizer->Add(categorySizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 
+    // 검색
+    wxStaticText* searchLabel = new wxStaticText(filterPanel, wxID_ANY, wxString::FromUTF8("검색:"));
+    filterSizer->Add(searchLabel, 0, wxLEFT | wxRIGHT, 5);
+
+    filterSearchText = new wxTextCtrl(filterPanel, wxID_ANY);
+    filterSizer->Add(filterSearchText, 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
+
+    // 검색 범위 체크박스
+    wxBoxSizer* searchFieldSizer = new wxBoxSizer(wxHORIZONTAL);
+    filterSearchInItem = new wxCheckBox(filterPanel, wxID_ANY, wxString::FromUTF8("항목"));
+    filterSearchInDescription = new wxCheckBox(filterPanel, wxID_ANY, wxString::FromUTF8("설명"));
+    filterSearchInReceipt = new wxCheckBox(filterPanel, wxID_ANY, wxString::FromUTF8("영수증"));
+
+    filterSearchInItem->SetValue(false);
+    filterSearchInDescription->SetValue(false);
+    filterSearchInReceipt->SetValue(false);
+
+    searchFieldSizer->Add(filterSearchInItem, 0, wxRIGHT, 5);
+    searchFieldSizer->Add(filterSearchInDescription, 0, wxRIGHT, 5);
+    searchFieldSizer->Add(filterSearchInReceipt, 0, 0, 0);
+
+    filterSizer->Add(searchFieldSizer, 0, wxLEFT | wxRIGHT | wxBOTTOM, 5);
+
     // 버튼
     wxBoxSizer* buttonSizer = new wxBoxSizer(wxHORIZONTAL);
     applyFilterButton = new wxButton(filterPanel, wxID_ANY, wxString::FromUTF8("적용"));
@@ -730,6 +753,7 @@ void wxMLMainFrame::CreateFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
 // 필터 적용
 void wxMLMainFrame::OnApplyFilter(wxCommandEvent& event)
 {
+    filterActive = true;
     ApplyCurrentFilter();
 }
 
@@ -737,9 +761,13 @@ void wxMLMainFrame::OnApplyFilter(wxCommandEvent& event)
 void wxMLMainFrame::OnClearFilter(wxCommandEvent& event)
 {
     filterActive = false;
+    filterSearchText->Clear();
+    filterSearchInItem->SetValue(false);
+    filterSearchInDescription->SetValue(false);
+    filterSearchInReceipt->SetValue(false);
     filterTypeChoice->SetSelection(0);
     filterCategoryCombo->SetSelection(0);
-    RefreshTransactionList();
+    ApplyCurrentFilter();  // 증분 업데이트 사용
 }
 
 // 카테고리 필터 업데이트 (거래 추가/로드 시 호출)
@@ -783,7 +811,7 @@ void wxMLMainFrame::ApplyCurrentFilter()
     if (!controller) return;
 
     FMLFilterCriteria criteria;
-
+    
     // 거래 유형 필터
     const int typeSelection = filterTypeChoice->GetSelection();
     if (typeSelection == 1) // 수입
@@ -797,10 +825,13 @@ void wxMLMainFrame::ApplyCurrentFilter()
         criteria.TypeFilter = E_MLTransactionType::Expense;
     }
 
-    // 날짜 범위 필터
-    criteria.UseDateRangeFilter = true;
-    criteria.StartDate = filterStartDate->GetValue().Format("%Y-%m-%d").ToStdString();
-    criteria.EndDate = filterEndDate->GetValue().Format("%Y-%m-%d").ToStdString();
+    // 날짜 범위 필터 (filterActive일 때만 적용)
+    if (filterActive)
+    {
+        criteria.UseDateRangeFilter = true;
+        criteria.StartDate = filterStartDate->GetValue().Format("%Y-%m-%d").ToStdString();
+        criteria.EndDate = filterEndDate->GetValue().Format("%Y-%m-%d").ToStdString();
+    }
 
     // 카테고리 필터
     const int categorySelection = filterCategoryCombo->GetSelection();
@@ -813,6 +844,27 @@ void wxMLMainFrame::ApplyCurrentFilter()
     // 현재 리스트에 표시된 ID 목록 가져오기 (Single Source of Truth)
     std::set<int> previousIds = GetCurrentListIds();
 
+    // 검색어
+    const std::string searchText = filterSearchText->GetValue().ToUTF8().data();
+    if (!searchText.empty())
+    {
+        criteria.UseTextSearch = true;
+        criteria.SearchText = searchText;
+    }
+    else
+    {
+        criteria.UseTextSearch = false;
+    }
+    
+    const bool searchInItem = filterSearchInItem->GetValue();
+    criteria.SearchInItem = searchInItem;
+    
+    const bool searchInDescription = filterSearchInDescription->GetValue();
+    criteria.SearchInDescription = searchInDescription;
+    
+    const bool searchInReceipt = filterSearchInReceipt->GetValue();
+    criteria.SearchInReceipt = searchInReceipt;
+    
     // 새로운 필터 결과 가져오기
     auto transactions = controller->GetFilteredTransactionData(criteria);
 
@@ -848,8 +900,6 @@ void wxMLMainFrame::ApplyCurrentFilter()
             DisplayTransaction(transactionMap[currentId]);
         }
     }
-
-    filterActive = true;
 }
 
 // 현재 리스트에 표시된 모든 거래 ID 가져오기 (Single Source of Truth)
