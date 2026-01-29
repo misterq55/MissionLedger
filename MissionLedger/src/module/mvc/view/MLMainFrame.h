@@ -36,29 +36,6 @@ public:
     void OnDataSaved() override;
 
 private:
-    // UI 컨트롤들 - 입력 패널
-    wxRadioButton* incomeRadio;
-    wxRadioButton* expenseRadio;
-    wxTextCtrl* categoryText;
-    wxTextCtrl* itemText;
-    wxTextCtrl* descriptionText;
-    wxTextCtrl* amountText;
-    wxTextCtrl* receiptText;
-    wxDatePickerCtrl* datePicker;
-    wxListCtrl* listCtrl;
-    wxButton* addButton;
-    wxButton* updateButton;
-    wxButton* deleteButton;
-
-    // UI 컨트롤들 - 필터 패널
-    wxDatePickerCtrl* filterStartDate;
-    wxDatePickerCtrl* filterEndDate;
-    wxChoice* filterTypeChoice;
-    wxComboBox* filterCategoryCombo;
-    wxButton* applyFilterButton;
-    wxButton* clearFilterButton;
-
-private:
     // 이벤트 핸들러 - 거래
     void OnAddTransaction(wxCommandEvent& event);
     void OnUpdateTransaction(wxCommandEvent& event);
@@ -95,11 +72,33 @@ private:
     std::set<int> GetCurrentListIds();
     long FindListItemByTransactionId(int transactionId);
     void RemoveListItemByTransactionId(int transactionId);
-    void AddListItem(const FMLTransactionData& data);
 
 private:
     void CreateMenuBar();
 
+private:
+    // UI 컨트롤들 - 입력 패널
+    wxRadioButton* incomeRadio;
+    wxRadioButton* expenseRadio;
+    wxTextCtrl* categoryText;
+    wxTextCtrl* itemText;
+    wxTextCtrl* descriptionText;
+    wxTextCtrl* amountText;
+    wxTextCtrl* receiptText;
+    wxDatePickerCtrl* datePicker;
+    wxListCtrl* listCtrl;
+    wxButton* addButton;
+    wxButton* updateButton;
+    wxButton* deleteButton;
+
+    // UI 컨트롤들 - 필터 패널
+    wxDatePickerCtrl* filterStartDate;
+    wxDatePickerCtrl* filterEndDate;
+    wxChoice* filterTypeChoice;
+    wxComboBox* filterCategoryCombo;
+    wxButton* applyFilterButton;
+    wxButton* clearFilterButton;
+    
 private:
     int selectedTransactionId = -1;
     bool filterActive = false;

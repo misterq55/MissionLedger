@@ -179,19 +179,38 @@ void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
 
 void wxMLMainFrame::DisplayTransaction(const FMLTransactionData& data)
 {
-    // 리스트에 새 항목 추가
-    long index = listCtrl->InsertItem(listCtrl->GetItemCount(),
-        data.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
+    // ID로 기존 항목 찾기
+    long index = FindListItemByTransactionId(data.TransactionId);
+
+    if (index == -1) {
+        // 새 항목 추가
+        index = listCtrl->InsertItem(listCtrl->GetItemCount(),
+            data.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
+        listCtrl->SetItemData(index, data.TransactionId);
+    } else {
+        // 기존 항목의 유형 컬럼 업데이트
+        listCtrl->SetItem(index, 0,
+            data.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
+    }
+
+    // 추가든 수정이든 공통: 나머지 컬럼 데이터 설정
     listCtrl->SetItem(index, 1, wxString::FromUTF8(data.Category.c_str()));
     listCtrl->SetItem(index, 2, wxString::FromUTF8(data.Item.c_str()));
-    listCtrl->SetItem(index, 3, wxString::Format("%ld", static_cast<long>(data.Amount)));
+    listCtrl->SetItem(index, 3, wxString::Format("%2ld", data.Amount));
     listCtrl->SetItem(index, 4, wxString::FromUTF8(data.ReceiptNumber.c_str()));
     listCtrl->SetItem(index, 5, wxString::FromUTF8(data.DateTime.c_str()));
-    listCtrl->SetItemData(index, data.TransactionId);
 }
 
 void wxMLMainFrame::DisplayTransactions()
 {
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        auto transactions = controller->GetAllTransactionData();
+
+        for (const auto& trans : transactions) {
+            DisplayTransaction(trans);
+        }
+    }
 }
 
 void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
@@ -224,23 +243,7 @@ void wxMLMainFrame::RefreshTransactionList()
 {
     listCtrl->DeleteAllItems();
 
-    auto controller = FMLMVCHolder::GetInstance().GetController();
-    if (controller) {
-        auto transactions = controller->GetAllTransactionData();
-
-        for (const auto& trans : transactions) {
-            long index = listCtrl->InsertItem(listCtrl->GetItemCount(),
-                trans.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
-            listCtrl->SetItem(index, 1, wxString::FromUTF8(trans.Category.c_str()));
-            listCtrl->SetItem(index, 2, wxString::FromUTF8(trans.Item.c_str()));
-            listCtrl->SetItem(index, 3, wxString::Format("%.2f", trans.Amount));
-            listCtrl->SetItem(index, 4, wxString::FromUTF8(trans.ReceiptNumber.c_str()));
-            listCtrl->SetItem(index, 5, wxString::FromUTF8(trans.DateTime.c_str()));
-
-            // 행에 거래 ID 저장 (내부적으로 사용)
-            listCtrl->SetItemData(index, trans.TransactionId);
-        }
-    }
+    DisplayTransactions();
 }
 
 void wxMLMainFrame::ClearInputFields()
@@ -303,17 +306,7 @@ void wxMLMainFrame::OnTransactionUpdated(const FMLTransactionData& transactionDa
     else
     {
         // 필터 비활성화 상태: 리스트에서 항목 업데이트
-        for (long i = 0; i < listCtrl->GetItemCount(); i++) {
-            if (listCtrl->GetItemData(i) == transactionData.TransactionId) {
-                listCtrl->SetItem(i, 0, transactionData.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
-                listCtrl->SetItem(i, 1, wxString::FromUTF8(transactionData.Category.c_str()));
-                listCtrl->SetItem(i, 2, wxString::FromUTF8(transactionData.Item.c_str()));
-                listCtrl->SetItem(i, 3, wxString::Format("%.2f", transactionData.Amount));
-                listCtrl->SetItem(i, 4, wxString::FromUTF8(transactionData.ReceiptNumber.c_str()));
-                listCtrl->SetItem(i, 5, wxString::FromUTF8(transactionData.DateTime.c_str()));
-                break;
-            }
-        }
+        DisplayTransaction(transactionData);
     }
 
     UpdateTitle();
@@ -342,7 +335,7 @@ void wxMLMainFrame::OnDataSaved()
 // 리스트 항목 선택 이벤트
 void wxMLMainFrame::OnListItemSelected(wxListEvent& event)
 {
-    long selectedIndex = event.GetIndex();
+    const long selectedIndex = event.GetIndex();
     selectedTransactionId = static_cast<int>(listCtrl->GetItemData(selectedIndex));
 
     LoadTransactionToInput(selectedTransactionId);
@@ -408,7 +401,7 @@ void wxMLMainFrame::OnDeleteTransaction(wxCommandEvent& event)
     }
 
     // 삭제 확인
-    int result = wxMessageBox(
+    const int result = wxMessageBox(
         wxString::FromUTF8("선택한 거래를 삭제하시겠습니까?"),
         wxString::FromUTF8("삭제 확인"),
         wxYES_NO | wxICON_QUESTION
@@ -643,7 +636,7 @@ bool wxMLMainFrame::CheckUnsavedChanges()
         return true;
     }
 
-    int result = wxMessageBox(
+    const int result = wxMessageBox(
         wxString::FromUTF8("저장되지 않은 변경 사항이 있습니다.\n저장하시겠습니까?"),
         wxString::FromUTF8("저장 확인"),
         wxYES_NO | wxCANCEL | wxICON_QUESTION);
@@ -779,7 +772,7 @@ void wxMLMainFrame::UpdateCategoryFilter()
     }
 
     // 이전 선택 복원 또는 "전체" 선택
-    int index = filterCategoryCombo->FindString(currentSelection);
+    const int index = filterCategoryCombo->FindString(currentSelection);
     filterCategoryCombo->SetSelection(index != wxNOT_FOUND ? index : 0);
 }
 
@@ -792,7 +785,7 @@ void wxMLMainFrame::ApplyCurrentFilter()
     FMLFilterCriteria criteria;
 
     // 거래 유형 필터
-    int typeSelection = filterTypeChoice->GetSelection();
+    const int typeSelection = filterTypeChoice->GetSelection();
     if (typeSelection == 1) // 수입
     {
         criteria.UseTypeFilter = true;
@@ -810,7 +803,7 @@ void wxMLMainFrame::ApplyCurrentFilter()
     criteria.EndDate = filterEndDate->GetValue().Format("%Y-%m-%d").ToStdString();
 
     // 카테고리 필터
-    int categorySelection = filterCategoryCombo->GetSelection();
+    const int categorySelection = filterCategoryCombo->GetSelection();
     if (categorySelection > 0) // "전체"가 아닌 경우
     {
         criteria.UseCategoryFilter = true;
@@ -834,25 +827,25 @@ void wxMLMainFrame::ApplyCurrentFilter()
 
     // 증분 업데이트: 제거된 항목 삭제
     std::vector<int> idsToRemove;
-    for (int prevId : previousIds)
+    for (const int& prevId : previousIds)
     {
         if (currentIds.find(prevId) == currentIds.end())
         {
             idsToRemove.push_back(prevId);
         }
     }
-    for (int idToRemove : idsToRemove)
+    for (const int& idToRemove : idsToRemove)
     {
         RemoveListItemByTransactionId(idToRemove);
     }
 
     // 증분 업데이트: 추가된 항목 삽입
-    for (int currentId : currentIds)
+    for (const int& currentId : currentIds)
     {
         if (previousIds.find(currentId) == previousIds.end())
         {
             // 새로 추가된 항목
-            AddListItem(transactionMap[currentId]);
+            DisplayTransaction(transactionMap[currentId]);
         }
     }
 
@@ -886,22 +879,10 @@ long wxMLMainFrame::FindListItemByTransactionId(int transactionId)
 // 리스트에서 거래 ID로 항목 제거
 void wxMLMainFrame::RemoveListItemByTransactionId(int transactionId)
 {
-    long index = FindListItemByTransactionId(transactionId);
+    const long index = FindListItemByTransactionId(transactionId);
     if (index != -1)
     {
         listCtrl->DeleteItem(index);
     }
 }
 
-// 리스트에 항목 추가
-void wxMLMainFrame::AddListItem(const FMLTransactionData& data)
-{
-    long index = listCtrl->InsertItem(listCtrl->GetItemCount(),
-        data.Type == E_MLTransactionType::Income ? wxString::FromUTF8("수입") : wxString::FromUTF8("지출"));
-    listCtrl->SetItem(index, 1, wxString::FromUTF8(data.Category.c_str()));
-    listCtrl->SetItem(index, 2, wxString::FromUTF8(data.Item.c_str()));
-    listCtrl->SetItem(index, 3, wxString::Format("%.2f", data.Amount));
-    listCtrl->SetItem(index, 4, wxString::FromUTF8(data.ReceiptNumber.c_str()));
-    listCtrl->SetItem(index, 5, wxString::FromUTF8(data.DateTime.c_str()));
-    listCtrl->SetItemData(index, data.TransactionId);
-}
