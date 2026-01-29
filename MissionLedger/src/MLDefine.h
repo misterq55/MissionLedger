@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <string>
+#include <cstdint>
 
 enum class E_MLTransactionType
 {
@@ -13,7 +14,7 @@ struct FMLTransactionData {
     std::string Category;
     std::string Item;
     std::string Description;
-    double Amount;
+    int64_t Amount;
     std::string ReceiptNumber;
     std::string DateTime;  // 입력 시 빈 문자열, 출력 시 포맷된 날짜/시간 문자열
 };

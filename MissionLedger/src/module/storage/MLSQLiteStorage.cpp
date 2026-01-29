@@ -61,7 +61,7 @@ bool FMLSQLiteStorage::createTable()
             category TEXT NOT NULL,
             item TEXT NOT NULL,
             description TEXT,
-            amount REAL NOT NULL,
+            amount INTEGER NOT NULL,
             datetime TEXT NOT NULL,
             receipt_number TEXT
         );
@@ -101,7 +101,7 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
     sqlite3_bind_text(stmt, 3, transaction.GetCategory().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 4, transaction.GetItem().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 5, transaction.GetDescription().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_double(stmt, 6, transaction.GetAmount());
+    sqlite3_bind_int64(stmt, 6, transaction.GetAmount());
     sqlite3_bind_text(stmt, 7, formatDateTime(transaction.GetDateTime()).c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 8, transaction.GetReceiptNumber().c_str(), -1, SQLITE_TRANSIENT);
 
@@ -161,7 +161,7 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransa
         const char* descPtr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         std::string description = descPtr ? descPtr : "";
 
-        double amount = sqlite3_column_double(stmt, 5);
+        int64_t amount = sqlite3_column_int64(stmt, 5);
         std::string dateTimeStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
 
         const char* receiptPtr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));

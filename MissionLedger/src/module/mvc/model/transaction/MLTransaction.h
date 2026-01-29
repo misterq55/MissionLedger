@@ -9,7 +9,7 @@ public:
     FMLTransaction();
     FMLTransaction(int id, E_MLTransactionType type, const std::string& category,
                    const std::string& item, const std::string& description,
-                   double amount, const std::string& receiptNumber = "");
+                   int64_t amount, const std::string& receiptNumber = "");
 
     // Getters
     int GetId() const;
@@ -17,7 +17,7 @@ public:
     const std::string& GetCategory() const;    // 구분
     const std::string& GetItem() const;        // 항목
     const std::string& GetDescription() const; // 내용
-    double GetAmount() const;                  // (수입/지출) 금액
+    int64_t GetAmount() const;                 // (수입/지출) 금액
     const std::chrono::system_clock::time_point& GetDateTime() const; // 년월일
     const std::string& GetReceiptNumber() const; // 영수증 No
 
@@ -27,7 +27,7 @@ public:
     void SetCategory(const std::string& category);
     void SetItem(const std::string& item);
     void SetDescription(const std::string& description);
-    void SetAmount(double amount);
+    void SetAmount(int64_t amount);
     void SetDateTime(const std::chrono::system_clock::time_point& dateTime);
     void SetReceiptNumber(const std::string& receiptNumber);
 
@@ -43,7 +43,7 @@ private:
     std::string Category;        // 구분
     std::string Item;            // 항목
     std::string Description;     // 내용
-    double Amount;               // (수입/지출) 금액
+    int64_t Amount;              // (수입/지출) 금액
     std::chrono::system_clock::time_point DateTime; // 년월일
     std::string ReceiptNumber;   // 영수증 No
 };

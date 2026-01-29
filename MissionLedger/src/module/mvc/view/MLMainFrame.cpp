@@ -196,7 +196,7 @@ void wxMLMainFrame::DisplayTransaction(const FMLTransactionData& data)
     // 추가든 수정이든 공통: 나머지 컬럼 데이터 설정
     listCtrl->SetItem(index, 1, wxString::FromUTF8(data.Category.c_str()));
     listCtrl->SetItem(index, 2, wxString::FromUTF8(data.Item.c_str()));
-    listCtrl->SetItem(index, 3, wxString::Format("%2ld", data.Amount));
+    listCtrl->SetItem(index, 3, wxString::Format("%lld", data.Amount));
     listCtrl->SetItem(index, 4, wxString::FromUTF8(data.ReceiptNumber.c_str()));
     listCtrl->SetItem(index, 5, wxString::FromUTF8(data.DateTime.c_str()));
 }
@@ -225,8 +225,8 @@ void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
 
     // 금액 파싱
     wxString amountStr = amountText->GetValue();
-    double amount = 0.0;
-    if (!amountStr.ToDouble(&amount)) {
+    long long amount = 0;
+    if (!amountStr.ToLongLong(&amount)) {
         wxMessageBox(wxString::FromUTF8("올바른 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
         return;
     }
@@ -367,8 +367,8 @@ void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
 
     // 금액 파싱
     wxString amountStr = amountText->GetValue();
-    double amount = 0.0;
-    if (!amountStr.ToDouble(&amount)) {
+    long long amount = 0;
+    if (!amountStr.ToLongLong(&amount)) {
         wxMessageBox(wxString::FromUTF8("올바른 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
         return;
     }
@@ -443,7 +443,7 @@ void wxMLMainFrame::LoadTransactionToInput(int transactionId)
     categoryText->SetValue(wxString::FromUTF8(data.Category.c_str()));
     itemText->SetValue(wxString::FromUTF8(data.Item.c_str()));
     descriptionText->SetValue(wxString::FromUTF8(data.Description.c_str()));
-    amountText->SetValue(wxString::Format("%ld", static_cast<long>(data.Amount)));
+    amountText->SetValue(wxString::Format("%lld", data.Amount));
     receiptText->SetValue(wxString::FromUTF8(data.ReceiptNumber.c_str()));
 
     // 날짜 파싱 (YYYY-MM-DD 형식)

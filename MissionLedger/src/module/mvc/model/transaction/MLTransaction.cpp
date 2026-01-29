@@ -8,7 +8,7 @@ FMLTransaction::FMLTransaction()
     , Category("")
     , Item("")
     , Description("")
-    , Amount(0.0)
+    , Amount(0)
     , DateTime(std::chrono::system_clock::now())
     , ReceiptNumber("")
 {
@@ -16,7 +16,7 @@ FMLTransaction::FMLTransaction()
 
 FMLTransaction::FMLTransaction(int id, E_MLTransactionType type, const std::string& category,
                                const std::string& item, const std::string& description,
-                               double amount, const std::string& receiptNumber)
+                               int64_t amount, const std::string& receiptNumber)
     : Id(id)
     , Type(type)
     , Category(category)
@@ -39,7 +39,7 @@ E_MLTransactionType FMLTransaction::GetType() const
     return Type;
 }
 
-double FMLTransaction::GetAmount() const
+int64_t FMLTransaction::GetAmount() const
 {
     return Amount;
 }
@@ -80,7 +80,7 @@ void FMLTransaction::SetType(E_MLTransactionType type)
     Type = type;
 }
 
-void FMLTransaction::SetAmount(double amount)
+void FMLTransaction::SetAmount(int64_t amount)
 {
     Amount = amount;
 }
