@@ -153,6 +153,46 @@ std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFi
                 continue;
             }
         }
+        
+        // 검색어 필터
+        if (criteria.UseTextSearch)
+        {
+            // 검색 필드가 하나라도 선택되었는지 확인
+            if (criteria.SearchInItem || criteria.SearchInDescription || criteria.SearchInReceipt)
+            {
+                bool bfound = false;
+
+                if (criteria.SearchInDescription)
+                {
+                    if (data.Description.find(criteria.SearchText) != std::string::npos)
+                    {
+                        bfound = true;
+                    }
+                }
+
+                if (criteria.SearchInItem)
+                {
+                    if (data.Item.find(criteria.SearchText) != std::string::npos)
+                    {
+                        bfound = true;
+                    }
+                }
+
+                if (criteria.SearchInReceipt)
+                {
+                    if (data.ReceiptNumber.find(criteria.SearchText) != std::string::npos)
+                    {
+                        bfound = true;
+                    }
+                }
+
+                if (!bfound)
+                {
+                    continue;
+                }
+            }
+            // 검색 필드가 모두 false면 검색 스킵 (모든 거래 포함)
+        }
 
         result.push_back(data);
     }

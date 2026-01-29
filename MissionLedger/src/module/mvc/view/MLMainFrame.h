@@ -92,6 +92,10 @@ private:
     wxButton* deleteButton;
 
     // UI 컨트롤들 - 필터 패널
+    wxTextCtrl* filterSearchText;
+    wxCheckBox* filterSearchInItem;
+    wxCheckBox* filterSearchInDescription;
+    wxCheckBox* filterSearchInReceipt;
     wxDatePickerCtrl* filterStartDate;
     wxDatePickerCtrl* filterEndDate;
     wxChoice* filterTypeChoice;

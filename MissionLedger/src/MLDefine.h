@@ -31,6 +31,12 @@ struct FMLFilterCriteria {
     std::string CategoryFilter;
 
     bool UseAmountRangeFilter = false;
-    double MinAmount = 0.0;
-    double MaxAmount = 0.0;
+    int64_t MinAmount = 0;
+    int64_t MaxAmount = 0;
+
+    bool UseTextSearch = false;
+    std::string SearchText;
+    bool SearchInItem = false;
+    bool SearchInDescription = false;
+    bool SearchInReceipt = false;
 };
