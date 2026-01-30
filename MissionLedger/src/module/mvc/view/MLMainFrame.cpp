@@ -952,11 +952,8 @@ void wxMLMainFrame::applySorting()
         // 정렬 해제: ID 순으로 재표시
         applyCurrentFilter();  // 필터 재적용 (ID 순)
 
-        // 모든 컬럼의 정렬 아이콘 제거
-        for (int i = 0; i < listCtrl->GetColumnCount(); i++)
-        {
-            listCtrl->ClearColumnImage(i);
-        }
+        // 정렬 아이콘 제거 (col = -1로 모든 아이콘 제거)
+        listCtrl->ShowSortIndicator(wxNOT_FOUND, true);
     }
     else
     {
