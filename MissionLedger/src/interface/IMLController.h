@@ -4,12 +4,13 @@
 
 struct FMLTransactionData;
 struct FMLFilterCriteria;
+struct FMLTransactionSummary;
 
 class IMLController
 {
 public:
     virtual ~IMLController() = default;
-    
+
     // Transaction operations
     virtual void AddTransaction(const FMLTransactionData& transactionData) = 0;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) = 0;
@@ -23,6 +24,10 @@ public:
     // Business logic delegation
     virtual float GetCategoryTotal(const std::string& category) = 0;
     virtual float GetAllTotal() = 0;
+
+    // Transaction Summary
+    virtual FMLTransactionSummary GetTransactionSummary() = 0;
+    virtual FMLTransactionSummary GetFilteredTransactionSummary(const FMLFilterCriteria& criteria) = 0;
 
     // Persistence
     virtual bool SaveData() = 0;

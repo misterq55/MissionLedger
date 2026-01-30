@@ -93,6 +93,33 @@ float FMLController::GetAllTotal()
     return 0.0f;
 }
 
+// Transaction Summary
+FMLTransactionSummary FMLController::GetTransactionSummary()
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->CalculateTransactionSummary();
+    }
+
+    // Model이 없으면 빈 Summary 반환
+    FMLTransactionSummary emptySummary;
+    return emptySummary;
+}
+
+FMLTransactionSummary FMLController::GetFilteredTransactionSummary(const FMLFilterCriteria& criteria)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->CalculateFilteredTransactionSummary(criteria);
+    }
+
+    // Model이 없으면 빈 Summary 반환
+    FMLTransactionSummary emptySummary;
+    return emptySummary;
+}
+
 // Persistence
 bool FMLController::SaveData()
 {

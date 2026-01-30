@@ -26,7 +26,7 @@ public:
     void AddTransaction(const FMLTransactionData& data) override;
     void DisplayTransaction(const FMLTransactionData& data) override;
     void DisplayTransactions() override;
-    
+
     // IMLModelObserver 인터페이스 구현
     void OnTransactionAdded(const FMLTransactionData& transactionData) override;
     void OnTransactionRemoved(int transactionId) override;
@@ -68,6 +68,13 @@ private:
     void updateCategoryFilter();
     void applyCurrentFilter();
 
+    // Summary 헬퍼 메서드
+    void createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer);
+    void updateSummaryPanel();
+    void displaySummary(const FMLTransactionSummary& summary);
+    wxString formatAmountWithComma(int64_t amount);
+    FMLFilterCriteria buildCurrentFilterCriteria();
+
     // 리스트 증분 업데이트 헬퍼
     std::set<int> getCurrentListIds();
     long findListItemByTransactionId(int transactionId);
@@ -102,7 +109,13 @@ private:
     wxComboBox* filterCategoryCombo;
     wxButton* applyFilterButton;
     wxButton* clearFilterButton;
-    
+
+    // UI 컨트롤들 - Summary 패널
+    wxPanel* summaryPanel;
+    wxStaticText* summaryIncomeText;
+    wxStaticText* summaryExpenseText;
+    wxStaticText* summaryBalanceText;
+
 private:
     int SelectedTransactionId = -1;
     bool FilterActive = false;

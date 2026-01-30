@@ -153,7 +153,7 @@ std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFi
                 continue;
             }
         }
-        
+
         // 검색어 필터
         if (criteria.UseTextSearch)
         {
@@ -250,6 +250,16 @@ float FMLModel::GetAllTotal()
 int FMLModel::GetNextTransactionId()
 {
     return TransactionIdIndex;
+}
+
+FMLTransactionSummary FMLModel::CalculateTransactionSummary()
+{
+    return calculateTransactionSummary(GetAllTransactionData());
+}
+
+FMLTransactionSummary FMLModel::CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria)
+{
+    return calculateTransactionSummary(GetFilteredTransactionData(criteria));
 }
 
 // Persistence
@@ -411,6 +421,32 @@ void FMLModel::clearAllTransactions()
     TransactionIdIndex = 0;
 }
 
+FMLTransactionSummary FMLModel::calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData)
+{
+    FMLTransactionSummary transactionSummary;
+    for (const auto& transaction : transactionData)
+    {
+        transactionSummary.TransactionCount++;
+        switch (transaction.Type)
+        {
+        case E_MLTransactionType::Income:
+            transactionSummary.TotalIncome += transaction.Amount;
+            transactionSummary.Balance += transaction.Amount;
+            break;
+
+        case E_MLTransactionType::Expense:
+            transactionSummary.TotalExpense += transaction.Amount;
+            transactionSummary.Balance -= transaction.Amount;
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    return transactionSummary;
+}
+
 // Private helper
 FMLTransactionData FMLModel::convertToTransactionData(const std::shared_ptr<FMLTransaction>& transaction)
 {
@@ -422,6 +458,6 @@ FMLTransactionData FMLModel::convertToTransactionData(const std::shared_ptr<FMLT
     data.Description = transaction->GetDescription();
     data.Amount = transaction->GetAmount();
     data.ReceiptNumber = transaction->GetReceiptNumber();
-    data.DateTime = transaction->GetDateTimeString();  // 포맷된 문자열로 변환
+    data.DateTime = transaction->GetDateTimeString(); // 포맷된 문자열로 변환
     return data;
 }

@@ -40,3 +40,10 @@ struct FMLFilterCriteria {
     bool SearchInDescription = false;
     bool SearchInReceipt = false;
 };
+
+struct FMLTransactionSummary {
+    int64_t TotalIncome = 0;
+    int64_t TotalExpense = 0;
+    int64_t Balance = 0;
+    int TransactionCount = 0;
+};

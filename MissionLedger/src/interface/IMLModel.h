@@ -6,6 +6,7 @@
 
 struct FMLTransactionData;
 struct FMLFilterCriteria;
+struct FMLTransactionSummary;
 class FMLTransaction;
 class IMLModelObserver;
 
@@ -35,6 +36,9 @@ public:
     virtual float GetCategoryTotal(const std::string& category) = 0;
     virtual float GetAllTotal() = 0;
     virtual int GetNextTransactionId() = 0;
+    
+    virtual FMLTransactionSummary CalculateTransactionSummary() = 0;
+    virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) = 0;
 
     // Persistence
     virtual bool Save() = 0;

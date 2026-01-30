@@ -37,6 +37,9 @@ public:
     virtual float GetAllTotal() override;
     virtual int GetNextTransactionId() override;
 
+    virtual FMLTransactionSummary CalculateTransactionSummary() override;
+    virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) override;
+
     // Persistence
     virtual bool Save() override;
     virtual bool Load() override;
@@ -56,6 +59,7 @@ public:
 private:
     FMLTransactionData convertToTransactionData(const std::shared_ptr<FMLTransaction>& transaction);
     void clearAllTransactions();
+    FMLTransactionSummary calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData);
 
 private:
     std::shared_ptr<IMLModelObserver> ModelObserver;

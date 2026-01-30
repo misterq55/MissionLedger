@@ -125,6 +125,9 @@ wxMLMainFrame::wxMLMainFrame()
     // 필터 패널 생성
     createFilterPanel(rightPanel, rightSizer);
 
+    // Summary 패널 생성
+    createSummaryPanel(rightPanel, rightSizer);
+
     // 리스트 컨트롤
     listCtrl = new wxListCtrl(rightPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
 
@@ -277,6 +280,7 @@ void wxMLMainFrame::OnTransactionAdded(const FMLTransactionData& transactionData
     }
 
     updateTitle();
+    updateSummaryPanel();
 }
 
 void wxMLMainFrame::OnTransactionRemoved(int transactionId)
@@ -295,6 +299,7 @@ void wxMLMainFrame::OnTransactionRemoved(int transactionId)
     }
 
     updateTitle();
+    updateSummaryPanel();
 }
 
 void wxMLMainFrame::OnTransactionUpdated(const FMLTransactionData& transactionData)
@@ -313,6 +318,7 @@ void wxMLMainFrame::OnTransactionUpdated(const FMLTransactionData& transactionDa
     }
 
     updateTitle();
+    updateSummaryPanel();
 }
 
 void wxMLMainFrame::OnTransactionsCleared()
@@ -320,6 +326,7 @@ void wxMLMainFrame::OnTransactionsCleared()
     // 모든 항목 제거
     listCtrl->DeleteAllItems();
     updateTitle();
+    updateSummaryPanel();
 }
 
 void wxMLMainFrame::OnDataLoaded()
@@ -327,6 +334,7 @@ void wxMLMainFrame::OnDataLoaded()
     // 데이터 로드 시 증분 업데이트 (FilterActive 상태 유지)
     updateCategoryFilter();
     applyCurrentFilter();
+    updateSummaryPanel();
 }
 
 void wxMLMainFrame::OnDataSaved()
@@ -763,6 +771,7 @@ void wxMLMainFrame::OnApplyFilter(wxCommandEvent& event)
 {
     FilterActive = true;
     applyCurrentFilter();
+    updateSummaryPanel();
 }
 
 // 필터 초기화
@@ -776,6 +785,7 @@ void wxMLMainFrame::OnClearFilter(wxCommandEvent& event)
     filterTypeChoice->SetSelection(0);
     filterCategoryCombo->SetSelection(0);
     applyCurrentFilter();  // 증분 업데이트 사용
+    updateSummaryPanel();
 }
 
 // 카테고리 필터 업데이트 (거래 추가/로드 시 호출)
@@ -944,5 +954,167 @@ void wxMLMainFrame::removeListItemByTransactionId(int transactionId)
     {
         listCtrl->DeleteItem(index);
     }
+}
+
+// Summary 패널 생성
+void wxMLMainFrame::createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer)
+{
+    summaryPanel = new wxPanel(parent);
+    summaryPanel->SetBackgroundColour(wxColour(245, 245, 245));
+
+    wxBoxSizer* summarySizer = new wxBoxSizer(wxHORIZONTAL);
+
+    // 수입 라벨
+    wxStaticText* incomeLabel = new wxStaticText(summaryPanel, wxID_ANY, wxString::FromUTF8("수입: "));
+    wxFont labelFont = incomeLabel->GetFont();
+    labelFont.SetWeight(wxFONTWEIGHT_BOLD);
+    incomeLabel->SetFont(labelFont);
+    summarySizer->Add(incomeLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+
+    summaryIncomeText = new wxStaticText(summaryPanel, wxID_ANY, "0");
+    summaryIncomeText->SetForegroundColour(wxColour(0, 128, 0)); // 녹색
+    wxFont amountFont = summaryIncomeText->GetFont();
+    amountFont.SetWeight(wxFONTWEIGHT_BOLD);
+    summaryIncomeText->SetFont(amountFont);
+    summarySizer->Add(summaryIncomeText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 20);
+
+    // 지출 라벨
+    wxStaticText* expenseLabel = new wxStaticText(summaryPanel, wxID_ANY, wxString::FromUTF8("지출: "));
+    expenseLabel->SetFont(labelFont);
+    summarySizer->Add(expenseLabel, 0, wxALIGN_CENTER_VERTICAL);
+
+    summaryExpenseText = new wxStaticText(summaryPanel, wxID_ANY, "0");
+    summaryExpenseText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
+    summaryExpenseText->SetFont(amountFont);
+    summarySizer->Add(summaryExpenseText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 20);
+
+    // 잔액 라벨
+    wxStaticText* balanceLabel = new wxStaticText(summaryPanel, wxID_ANY, wxString::FromUTF8("잔액: "));
+    balanceLabel->SetFont(labelFont);
+    summarySizer->Add(balanceLabel, 0, wxALIGN_CENTER_VERTICAL);
+
+    summaryBalanceText = new wxStaticText(summaryPanel, wxID_ANY, "0");
+    summaryBalanceText->SetFont(amountFont);
+    summarySizer->Add(summaryBalanceText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+
+    summaryPanel->SetSizer(summarySizer);
+    sizer->Add(summaryPanel, 0, wxEXPAND | wxALL, 5);
+}
+
+// Summary 데이터 갱신
+void wxMLMainFrame::updateSummaryPanel()
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
+
+    FMLTransactionSummary summary;
+
+    if (FilterActive)
+    {
+        FMLFilterCriteria criteria = buildCurrentFilterCriteria();
+        summary = controller->GetFilteredTransactionSummary(criteria);
+    }
+    else
+    {
+        summary = controller->GetTransactionSummary();
+    }
+
+    displaySummary(summary);
+}
+
+// Summary 데이터 UI에 표시
+void wxMLMainFrame::displaySummary(const FMLTransactionSummary& summary)
+{
+    summaryIncomeText->SetLabel(formatAmountWithComma(summary.TotalIncome));
+    summaryExpenseText->SetLabel(formatAmountWithComma(summary.TotalExpense));
+
+    wxString balanceText = formatAmountWithComma(summary.Balance);
+    summaryBalanceText->SetLabel(balanceText);
+
+    // 잔액 색상 설정 (양수: 파랑, 음수: 빨강)
+    if (summary.Balance >= 0)
+    {
+        summaryBalanceText->SetForegroundColour(wxColour(0, 0, 200)); // 파랑
+    }
+    else
+    {
+        summaryBalanceText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
+    }
+}
+
+// 천 단위 구분 포맷팅
+wxString wxMLMainFrame::formatAmountWithComma(int64_t amount)
+{
+    bool negative = (amount < 0);
+    int64_t absAmount = negative ? -amount : amount;
+
+    std::string numStr = std::to_string(absAmount);
+    std::string result;
+
+    int count = 0;
+    for (auto it = numStr.rbegin(); it != numStr.rend(); ++it)
+    {
+        if (count > 0 && count % 3 == 0)
+        {
+            result = ',' + result;
+        }
+        result = *it + result;
+        count++;
+    }
+
+    if (negative)
+    {
+        result = "-" + result;
+    }
+
+    return wxString::FromUTF8(result.c_str());
+}
+
+// 현재 필터 조건 생성
+FMLFilterCriteria wxMLMainFrame::buildCurrentFilterCriteria()
+{
+    FMLFilterCriteria criteria;
+
+    // 거래 유형 필터
+    const int typeSelection = filterTypeChoice->GetSelection();
+    if (typeSelection == 1) // 수입
+    {
+        criteria.UseTypeFilter = true;
+        criteria.TypeFilter = E_MLTransactionType::Income;
+    }
+    else if (typeSelection == 2) // 지출
+    {
+        criteria.UseTypeFilter = true;
+        criteria.TypeFilter = E_MLTransactionType::Expense;
+    }
+
+    // 날짜 범위 필터 (FilterActive일 때만)
+    if (FilterActive)
+    {
+        criteria.UseDateRangeFilter = true;
+        criteria.StartDate = filterStartDate->GetValue().Format("%Y-%m-%d").ToStdString();
+        criteria.EndDate = filterEndDate->GetValue().Format("%Y-%m-%d").ToStdString();
+    }
+
+    // 카테고리 필터
+    const int categorySelection = filterCategoryCombo->GetSelection();
+    if (categorySelection > 0) // "전체"가 아닌 경우
+    {
+        criteria.UseCategoryFilter = true;
+        criteria.CategoryFilter = filterCategoryCombo->GetValue().ToUTF8().data();
+    }
+
+    // 검색어 필터
+    const std::string searchText = filterSearchText->GetValue().ToUTF8().data();
+    if (!searchText.empty())
+    {
+        criteria.UseTextSearch = true;
+        criteria.SearchText = searchText;
+        criteria.SearchInItem = filterSearchInItem->GetValue();
+        criteria.SearchInDescription = filterSearchInDescription->GetValue();
+        criteria.SearchInReceipt = filterSearchInReceipt->GetValue();
+    }
+
+    return criteria;
 }
 

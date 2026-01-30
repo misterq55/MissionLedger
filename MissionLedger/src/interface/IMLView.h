@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 struct FMLTransactionData;
+struct FMLTransactionSummary;
+struct FMLFilterCriteria;
 
 class IMLView
 {

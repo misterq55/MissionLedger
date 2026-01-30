@@ -30,6 +30,10 @@ public:
     virtual float GetCategoryTotal(const std::string& category) override;
     virtual float GetAllTotal() override;
 
+    // Transaction Summary
+    virtual FMLTransactionSummary GetTransactionSummary() override;
+    virtual FMLTransactionSummary GetFilteredTransactionSummary(const FMLFilterCriteria& criteria) override;
+
     // Persistence
     virtual bool SaveData() override;
     virtual bool LoadData() override;
