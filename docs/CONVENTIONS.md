@@ -209,6 +209,51 @@ std::string std = wxStr.ToUTF8().data();
 - Event handler functions should be private
 - Prefix event handlers with `On`: `OnButtonClick()`, `OnMenuSave()`
 
+### Naming Convention Exceptions
+
+wxWidgets has specific naming conventions that differ from the project's general rules:
+
+#### Event Handlers (Private Functions Exception)
+- Event handlers are **private functions** but use **PascalCase** (not camelCase)
+- Must use `On` prefix followed by event description
+- This follows wxWidgets framework conventions
+
+```cpp
+private:
+    // ✅ Event handlers - PascalCase with On prefix (wxWidgets convention)
+    void OnButtonClick(wxCommandEvent& event);
+    void OnMenuSave(wxCommandEvent& event);
+    void OnListItemSelected(wxListEvent& event);
+
+    // ✅ Other private functions - camelCase (project convention)
+    void updateButtonStates();
+    void clearInputFields();
+```
+
+#### UI Control Member Variables (camelCase Exception)
+- wxWidgets UI control pointers use **camelCase** (not PascalCase)
+- This follows wxWidgets community conventions and improves readability
+- General (non-wxWidgets) member variables still use **PascalCase**
+
+```cpp
+private:
+    // ✅ wxWidgets UI controls - camelCase (wxWidgets convention)
+    wxTextCtrl* categoryText;
+    wxListCtrl* listCtrl;
+    wxButton* addButton;
+    wxRadioButton* incomeRadio;
+
+    // ✅ General member variables - PascalCase (project convention)
+    int SelectedTransactionId = -1;
+    bool FilterActive = false;
+    std::string CurrentFilePath;
+```
+
+**Rationale:**
+- **Event Handlers**: wxWidgets documentation and examples consistently use `OnXxx` pattern
+- **UI Controls**: Shorter camelCase names (`listCtrl`) are more readable than PascalCase (`ListCtrl`)
+- **Consistency**: Following framework conventions reduces confusion and matches official examples
+
 ## MVC Architecture Compliance
 
 ### Dependency Rules

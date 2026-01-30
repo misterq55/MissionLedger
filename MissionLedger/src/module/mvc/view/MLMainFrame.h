@@ -56,25 +56,25 @@ private:
     void OnClearFilter(wxCommandEvent& event);
 
     // UI 헬퍼 메서드
-    void RefreshTransactionList();
-    void ClearInputFields();
-    void LoadTransactionToInput(int transactionId);
-    void UpdateButtonStates();
-    void UpdateTitle();
-    bool CheckUnsavedChanges();
+    void refreshTransactionList();
+    void clearInputFields();
+    void loadTransactionToInput(int transactionId);
+    void updateButtonStates();
+    void updateTitle();
+    bool checkUnsavedChanges();
 
     // 필터 헬퍼 메서드
-    void CreateFilterPanel(wxPanel* parent, wxBoxSizer* sizer);
-    void UpdateCategoryFilter();
-    void ApplyCurrentFilter();
+    void createFilterPanel(wxPanel* parent, wxBoxSizer* sizer);
+    void updateCategoryFilter();
+    void applyCurrentFilter();
 
     // 리스트 증분 업데이트 헬퍼
-    std::set<int> GetCurrentListIds();
-    long FindListItemByTransactionId(int transactionId);
-    void RemoveListItemByTransactionId(int transactionId);
+    std::set<int> getCurrentListIds();
+    long findListItemByTransactionId(int transactionId);
+    void removeListItemByTransactionId(int transactionId);
 
 private:
-    void CreateMenuBar();
+    void createMenuBar();
 
 private:
     // UI 컨트롤들 - 입력 패널
@@ -104,6 +104,6 @@ private:
     wxButton* clearFilterButton;
     
 private:
-    int selectedTransactionId = -1;
-    bool filterActive = false;
+    int SelectedTransactionId = -1;
+    bool FilterActive = false;
 };

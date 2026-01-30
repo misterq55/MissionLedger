@@ -123,7 +123,7 @@ wxMLMainFrame::wxMLMainFrame()
     wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
 
     // 필터 패널 생성
-    CreateFilterPanel(rightPanel, rightSizer);
+    createFilterPanel(rightPanel, rightSizer);
 
     // 리스트 컨트롤
     listCtrl = new wxListCtrl(rightPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
@@ -155,13 +155,13 @@ wxMLMainFrame::wxMLMainFrame()
     listCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnListItemDeselected, this);
 
     // 메뉴바 생성
-    CreateMenuBar();
+    createMenuBar();
 
     // 창 닫기 이벤트 바인딩
     Bind(wxEVT_CLOSE_WINDOW, &wxMLMainFrame::OnClose, this);
 
     // 제목 초기화
-    UpdateTitle();
+    updateTitle();
 }
 
 void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
@@ -174,7 +174,7 @@ void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
         // Observer 패턴으로 자동 UI 업데이트됨 (OnTransactionAdded 호출)
 
         // 입력 필드 초기화
-        ClearInputFields();
+        clearInputFields();
 
         // wxMessageBox(wxString::FromUTF8("거래가 추가되었습니다."), wxString::FromUTF8("성공"), wxOK | wxICON_INFORMATION);
     }
@@ -183,7 +183,7 @@ void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
 void wxMLMainFrame::DisplayTransaction(const FMLTransactionData& data)
 {
     // ID로 기존 항목 찾기
-    long index = FindListItemByTransactionId(data.TransactionId);
+    long index = findListItemByTransactionId(data.TransactionId);
 
     if (index == -1) {
         // 새 항목 추가
@@ -242,14 +242,14 @@ void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
     AddTransaction(data);
 }
 
-void wxMLMainFrame::RefreshTransactionList()
+void wxMLMainFrame::refreshTransactionList()
 {
     listCtrl->DeleteAllItems();
 
     DisplayTransactions();
 }
 
-void wxMLMainFrame::ClearInputFields()
+void wxMLMainFrame::clearInputFields()
 {
     incomeRadio->SetValue(true);
     categoryText->Clear();
@@ -263,12 +263,12 @@ void wxMLMainFrame::ClearInputFields()
 // IMLModelObserver 인터페이스 구현
 void wxMLMainFrame::OnTransactionAdded(const FMLTransactionData& transactionData)
 {
-    UpdateCategoryFilter();
+    updateCategoryFilter();
 
-    if (filterActive)
+    if (FilterActive)
     {
         // 필터 활성화 상태: 증분 업데이트로 필터 재적용
-        ApplyCurrentFilter();
+        applyCurrentFilter();
     }
     else
     {
@@ -276,35 +276,35 @@ void wxMLMainFrame::OnTransactionAdded(const FMLTransactionData& transactionData
         DisplayTransaction(transactionData);
     }
 
-    UpdateTitle();
+    updateTitle();
 }
 
 void wxMLMainFrame::OnTransactionRemoved(int transactionId)
 {
-    UpdateCategoryFilter();
+    updateCategoryFilter();
 
-    if (filterActive)
+    if (FilterActive)
     {
         // 필터 활성화 상태: 증분 업데이트로 필터 재적용
-        ApplyCurrentFilter();
+        applyCurrentFilter();
     }
     else
     {
         // 필터 비활성화 상태: 리스트에서 항목 제거
-        RemoveListItemByTransactionId(transactionId);
+        removeListItemByTransactionId(transactionId);
     }
 
-    UpdateTitle();
+    updateTitle();
 }
 
 void wxMLMainFrame::OnTransactionUpdated(const FMLTransactionData& transactionData)
 {
-    UpdateCategoryFilter();
+    updateCategoryFilter();
 
-    if (filterActive)
+    if (FilterActive)
     {
         // 필터 활성화 상태: 증분 업데이트로 필터 재적용
-        ApplyCurrentFilter();
+        applyCurrentFilter();
     }
     else
     {
@@ -312,21 +312,21 @@ void wxMLMainFrame::OnTransactionUpdated(const FMLTransactionData& transactionDa
         DisplayTransaction(transactionData);
     }
 
-    UpdateTitle();
+    updateTitle();
 }
 
 void wxMLMainFrame::OnTransactionsCleared()
 {
     // 모든 항목 제거
     listCtrl->DeleteAllItems();
-    UpdateTitle();
+    updateTitle();
 }
 
 void wxMLMainFrame::OnDataLoaded()
 {
-    // 데이터 로드 시 증분 업데이트 (filterActive 상태 유지)
-    UpdateCategoryFilter();
-    ApplyCurrentFilter();
+    // 데이터 로드 시 증분 업데이트 (FilterActive 상태 유지)
+    updateCategoryFilter();
+    applyCurrentFilter();
 }
 
 void wxMLMainFrame::OnDataSaved()
@@ -339,29 +339,29 @@ void wxMLMainFrame::OnDataSaved()
 void wxMLMainFrame::OnListItemSelected(wxListEvent& event)
 {
     const long selectedIndex = event.GetIndex();
-    selectedTransactionId = static_cast<int>(listCtrl->GetItemData(selectedIndex));
+    SelectedTransactionId = static_cast<int>(listCtrl->GetItemData(selectedIndex));
 
-    LoadTransactionToInput(selectedTransactionId);
-    UpdateButtonStates();
+    loadTransactionToInput(SelectedTransactionId);
+    updateButtonStates();
 }
 
 void wxMLMainFrame::OnListItemDeselected(wxListEvent& event)
 {
-    selectedTransactionId = -1;
-    UpdateButtonStates();
+    SelectedTransactionId = -1;
+    updateButtonStates();
 }
 
 // 수정 버튼 핸들러
 void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
 {
-    if (selectedTransactionId < 0) {
+    if (SelectedTransactionId < 0) {
         wxMessageBox(wxString::FromUTF8("수정할 거래를 선택하세요."), wxString::FromUTF8("알림"), wxOK | wxICON_WARNING);
         return;
     }
 
     // 입력 데이터 수집
     FMLTransactionData data;
-    data.TransactionId = selectedTransactionId;
+    data.TransactionId = SelectedTransactionId;
     data.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
     data.Category = categoryText->GetValue().ToUTF8().data();
     data.Item = itemText->GetValue().ToUTF8().data();
@@ -385,10 +385,10 @@ void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (controller) {
         if (controller->UpdateTransaction(data)) {
-            ClearInputFields();
-            selectedTransactionId = -1;
+            clearInputFields();
+            SelectedTransactionId = -1;
             listCtrl->SetItemState(-1, 0, wxLIST_STATE_SELECTED);  // 선택 해제
-            UpdateButtonStates();
+            updateButtonStates();
         } else {
             wxMessageBox(wxString::FromUTF8("거래 수정에 실패했습니다."), wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
         }
@@ -398,7 +398,7 @@ void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
 // 삭제 버튼 핸들러
 void wxMLMainFrame::OnDeleteTransaction(wxCommandEvent& event)
 {
-    if (selectedTransactionId < 0) {
+    if (SelectedTransactionId < 0) {
         wxMessageBox(wxString::FromUTF8("삭제할 거래를 선택하세요."), wxString::FromUTF8("알림"), wxOK | wxICON_WARNING);
         return;
     }
@@ -417,10 +417,10 @@ void wxMLMainFrame::OnDeleteTransaction(wxCommandEvent& event)
     // Controller를 통해 삭제
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (controller) {
-        if (controller->RemoveTransaction(selectedTransactionId)) {
-            ClearInputFields();
-            selectedTransactionId = -1;
-            UpdateButtonStates();
+        if (controller->RemoveTransaction(SelectedTransactionId)) {
+            clearInputFields();
+            SelectedTransactionId = -1;
+            updateButtonStates();
         } else {
             wxMessageBox(wxString::FromUTF8("거래 삭제에 실패했습니다."), wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
         }
@@ -428,7 +428,7 @@ void wxMLMainFrame::OnDeleteTransaction(wxCommandEvent& event)
 }
 
 // 선택된 거래 데이터를 입력 필드에 로드
-void wxMLMainFrame::LoadTransactionToInput(int transactionId)
+void wxMLMainFrame::loadTransactionToInput(int transactionId)
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller) return;
@@ -457,15 +457,15 @@ void wxMLMainFrame::LoadTransactionToInput(int transactionId)
 }
 
 // 버튼 활성화 상태 업데이트
-void wxMLMainFrame::UpdateButtonStates()
+void wxMLMainFrame::updateButtonStates()
 {
-    bool hasSelection = (selectedTransactionId >= 0);
+    bool hasSelection = (SelectedTransactionId >= 0);
     updateButton->Enable(hasSelection);
     deleteButton->Enable(hasSelection);
 }
 
 // 메뉴바 생성
-void wxMLMainFrame::CreateMenuBar()
+void wxMLMainFrame::createMenuBar()
 {
     wxMenuBar* menuBar = new wxMenuBar();
 
@@ -494,20 +494,20 @@ void wxMLMainFrame::CreateMenuBar()
 // 파일 메뉴 핸들러
 void wxMLMainFrame::OnNewFile(wxCommandEvent& event)
 {
-    if (!CheckUnsavedChanges()) return;
+    if (!checkUnsavedChanges()) return;
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (controller)
     {
         controller->NewFile();
-        UpdateTitle();
-        ClearInputFields();
+        updateTitle();
+        clearInputFields();
     }
 }
 
 void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
 {
-    if (!CheckUnsavedChanges()) return;
+    if (!checkUnsavedChanges()) return;
 
     wxFileDialog openDialog(this,
         wxString::FromUTF8("파일 열기"),
@@ -523,8 +523,8 @@ void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
     {
         if (controller->OpenFile(openDialog.GetPath().ToUTF8().data()))
         {
-            UpdateTitle();
-            ClearInputFields();
+            updateTitle();
+            clearInputFields();
         }
         else
         {
@@ -552,7 +552,7 @@ void wxMLMainFrame::OnSaveFile(wxCommandEvent& event)
     }
     else
     {
-        UpdateTitle();
+        updateTitle();
     }
 }
 
@@ -579,7 +579,7 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
 
         if (controller->SaveFileAs(filePath.ToUTF8().data()))
         {
-            UpdateTitle();
+            updateTitle();
         }
         else
         {
@@ -596,7 +596,7 @@ void wxMLMainFrame::OnExit(wxCommandEvent& event)
 
 void wxMLMainFrame::OnClose(wxCloseEvent& event)
 {
-    if (!CheckUnsavedChanges())
+    if (!checkUnsavedChanges())
     {
         event.Veto();
         return;
@@ -604,7 +604,7 @@ void wxMLMainFrame::OnClose(wxCloseEvent& event)
     event.Skip();
 }
 
-void wxMLMainFrame::UpdateTitle()
+void wxMLMainFrame::updateTitle()
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     wxString title = wxString::FromUTF8("MissionLedger");
@@ -636,7 +636,7 @@ void wxMLMainFrame::UpdateTitle()
     SetTitle(title);
 }
 
-bool wxMLMainFrame::CheckUnsavedChanges()
+bool wxMLMainFrame::checkUnsavedChanges()
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller || !controller->HasUnsavedChanges())
@@ -665,7 +665,7 @@ bool wxMLMainFrame::CheckUnsavedChanges()
 }
 
 // 필터 패널 생성
-void wxMLMainFrame::CreateFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
+void wxMLMainFrame::createFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
 {
     wxPanel* filterPanel = new wxPanel(parent);
     filterPanel->SetBackgroundColour(wxColour(250, 250, 250));
@@ -761,25 +761,25 @@ void wxMLMainFrame::CreateFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
 // 필터 적용
 void wxMLMainFrame::OnApplyFilter(wxCommandEvent& event)
 {
-    filterActive = true;
-    ApplyCurrentFilter();
+    FilterActive = true;
+    applyCurrentFilter();
 }
 
 // 필터 초기화
 void wxMLMainFrame::OnClearFilter(wxCommandEvent& event)
 {
-    filterActive = false;
+    FilterActive = false;
     filterSearchText->Clear();
     filterSearchInItem->SetValue(false);
     filterSearchInDescription->SetValue(false);
     filterSearchInReceipt->SetValue(false);
     filterTypeChoice->SetSelection(0);
     filterCategoryCombo->SetSelection(0);
-    ApplyCurrentFilter();  // 증분 업데이트 사용
+    applyCurrentFilter();  // 증분 업데이트 사용
 }
 
 // 카테고리 필터 업데이트 (거래 추가/로드 시 호출)
-void wxMLMainFrame::UpdateCategoryFilter()
+void wxMLMainFrame::updateCategoryFilter()
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller) return;
@@ -813,7 +813,7 @@ void wxMLMainFrame::UpdateCategoryFilter()
 }
 
 // 현재 필터 적용 (증분 업데이트 방식)
-void wxMLMainFrame::ApplyCurrentFilter()
+void wxMLMainFrame::applyCurrentFilter()
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller) return;
@@ -833,8 +833,8 @@ void wxMLMainFrame::ApplyCurrentFilter()
         criteria.TypeFilter = E_MLTransactionType::Expense;
     }
 
-    // 날짜 범위 필터 (filterActive일 때만 적용)
-    if (filterActive)
+    // 날짜 범위 필터 (FilterActive일 때만 적용)
+    if (FilterActive)
     {
         criteria.UseDateRangeFilter = true;
         criteria.StartDate = filterStartDate->GetValue().Format("%Y-%m-%d").ToStdString();
@@ -850,7 +850,7 @@ void wxMLMainFrame::ApplyCurrentFilter()
     }
 
     // 현재 리스트에 표시된 ID 목록 가져오기 (Single Source of Truth)
-    std::set<int> previousIds = GetCurrentListIds();
+    std::set<int> previousIds = getCurrentListIds();
 
     // 검색어
     const std::string searchText = filterSearchText->GetValue().ToUTF8().data();
@@ -896,7 +896,7 @@ void wxMLMainFrame::ApplyCurrentFilter()
     }
     for (const int& idToRemove : idsToRemove)
     {
-        RemoveListItemByTransactionId(idToRemove);
+        removeListItemByTransactionId(idToRemove);
     }
 
     // 증분 업데이트: 추가된 항목 삽입
@@ -911,7 +911,7 @@ void wxMLMainFrame::ApplyCurrentFilter()
 }
 
 // 현재 리스트에 표시된 모든 거래 ID 가져오기 (Single Source of Truth)
-std::set<int> wxMLMainFrame::GetCurrentListIds()
+std::set<int> wxMLMainFrame::getCurrentListIds()
 {
     std::set<int> ids;
     const int itemCount = listCtrl->GetItemCount();
@@ -923,7 +923,7 @@ std::set<int> wxMLMainFrame::GetCurrentListIds()
 }
 
 // 리스트에서 거래 ID로 항목 찾기
-long wxMLMainFrame::FindListItemByTransactionId(int transactionId)
+long wxMLMainFrame::findListItemByTransactionId(int transactionId)
 {
     const int itemCount = listCtrl->GetItemCount();
     for (long i = 0; i < itemCount; i++)
@@ -937,9 +937,9 @@ long wxMLMainFrame::FindListItemByTransactionId(int transactionId)
 }
 
 // 리스트에서 거래 ID로 항목 제거
-void wxMLMainFrame::RemoveListItemByTransactionId(int transactionId)
+void wxMLMainFrame::removeListItemByTransactionId(int transactionId)
 {
-    const long index = FindListItemByTransactionId(transactionId);
+    const long index = findListItemByTransactionId(transactionId);
     if (index != -1)
     {
         listCtrl->DeleteItem(index);

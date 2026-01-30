@@ -302,7 +302,7 @@ bool FMLModel::OpenFile(const std::string& filePath)
     }
 
     // TransactionIdIndex 갱신
-    int lastId = StorageProvider->GetLastTransactionId();
+    const int lastId = StorageProvider->GetLastTransactionId();
     TransactionIdIndex = (lastId >= 0) ? lastId + 1 : 0;
 
     CurrentFilePath = filePath;
