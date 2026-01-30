@@ -614,8 +614,8 @@ void wxMLMainFrame::updateTitle()
         const std::string& filePath = controller->GetCurrentFilePath();
         if (!filePath.empty())
         {
-            wxFileName fileName(filePath);
-            title = fileName.GetFullName() + " - " + title;
+            wxFileName fileName(wxString::FromUTF8(filePath.c_str()));
+            title = fileName.GetFullName() + wxString::FromUTF8(" - ") + title;
         }
         else
         {
@@ -624,7 +624,7 @@ void wxMLMainFrame::updateTitle()
 
         if (controller->HasUnsavedChanges())
         {
-            title = "* " + title;
+            title = wxString::FromUTF8("* ") + title;
         }
     }
     else
