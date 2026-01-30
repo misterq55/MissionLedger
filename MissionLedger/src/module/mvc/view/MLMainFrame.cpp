@@ -159,6 +159,9 @@ wxMLMainFrame::wxMLMainFrame()
 
     // 창 닫기 이벤트 바인딩
     Bind(wxEVT_CLOSE_WINDOW, &wxMLMainFrame::OnClose, this);
+
+    // 제목 초기화
+    UpdateTitle();
 }
 
 void wxMLMainFrame::AddTransaction(const FMLTransactionData& data)
@@ -624,6 +627,11 @@ void wxMLMainFrame::UpdateTitle()
             title = "* " + title;
         }
     }
+    else
+    {
+        // Controller가 아직 초기화되지 않은 경우 (프로그램 시작 시)
+        title = wxString::FromUTF8("새 파일 - ") + title;
+    }
 
     SetTitle(title);
 }
@@ -906,7 +914,8 @@ void wxMLMainFrame::ApplyCurrentFilter()
 std::set<int> wxMLMainFrame::GetCurrentListIds()
 {
     std::set<int> ids;
-    for (long i = 0; i < listCtrl->GetItemCount(); i++)
+    const int itemCount = listCtrl->GetItemCount();
+    for (long i = 0; i < itemCount; i++)
     {
         ids.insert(static_cast<int>(listCtrl->GetItemData(i)));
     }
@@ -916,7 +925,8 @@ std::set<int> wxMLMainFrame::GetCurrentListIds()
 // 리스트에서 거래 ID로 항목 찾기
 long wxMLMainFrame::FindListItemByTransactionId(int transactionId)
 {
-    for (long i = 0; i < listCtrl->GetItemCount(); i++)
+    const int itemCount = listCtrl->GetItemCount();
+    for (long i = 0; i < itemCount; i++)
     {
         if (listCtrl->GetItemData(i) == static_cast<long>(transactionId))
         {
