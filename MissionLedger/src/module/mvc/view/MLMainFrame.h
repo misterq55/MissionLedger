@@ -55,6 +55,9 @@ private:
     void OnApplyFilter(wxCommandEvent& event);
     void OnClearFilter(wxCommandEvent& event);
 
+    // 이벤트 핸들러 - 정렬
+    void OnColumnHeaderClick(wxListEvent& event);
+
     // UI 헬퍼 메서드
     void clearInputFields();
     void loadTransactionToInput(int transactionId);
@@ -66,6 +69,10 @@ private:
     void createFilterPanel(wxPanel* parent, wxBoxSizer* sizer);
     void updateCategoryFilter();
     void applyCurrentFilter();
+
+    // 정렬 헬퍼 메서드
+    void applySorting();
+    static int wxCALLBACK CompareTransactions(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortData);
 
     // Summary 헬퍼 메서드
     void createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer);
@@ -128,4 +135,8 @@ private:
 private:
     int SelectedTransactionId = -1;
     bool FilterActive = false;
+
+    // 정렬 상태
+    int currentSortColumn = -1;        // -1 = 정렬 안함 (ID 순)
+    bool currentSortAscending = true;  // true = 오름차순
 };

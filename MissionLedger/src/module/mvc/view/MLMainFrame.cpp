@@ -165,6 +165,7 @@ wxMLMainFrame::wxMLMainFrame()
     // 리스트 선택 이벤트 바인딩
     listCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &wxMLMainFrame::OnListItemSelected, this);
     listCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnListItemDeselected, this);
+    listCtrl->Bind(wxEVT_LIST_COL_CLICK, &wxMLMainFrame::OnColumnHeaderClick, this);
 
     // 메뉴바 생성
     createMenuBar();
@@ -870,6 +871,13 @@ void wxMLMainFrame::applyCurrentFilter()
             DisplayTransaction(transactionMap[currentId]);
         }
     }
+
+    // 정렬 적용 (정렬 상태가 있으면)
+    if (currentSortColumn != -1)
+    {
+        listCtrl->SortItems(CompareTransactions, reinterpret_cast<wxIntPtr>(this));
+        listCtrl->ShowSortIndicator(currentSortColumn, currentSortAscending);
+    }
 }
 
 // 현재 리스트에 표시된 모든 거래 ID 가져오기 (Single Source of Truth)
@@ -906,6 +914,120 @@ void wxMLMainFrame::removeListItemByTransactionId(int transactionId)
     {
         listCtrl->DeleteItem(index);
     }
+}
+
+// 컬럼 헤더 클릭 이벤트 핸들러
+void wxMLMainFrame::OnColumnHeaderClick(wxListEvent& event)
+{
+    int column = event.GetColumn();
+
+    // 정렬 방향 토글
+    if (currentSortColumn == column)
+    {
+        if (currentSortAscending)
+        {
+            currentSortAscending = false;  // 내림차순
+        }
+        else
+        {
+            currentSortColumn = -1;  // 정렬 해제 (ID 순)
+            currentSortAscending = true;
+        }
+    }
+    else
+    {
+        currentSortColumn = column;
+        currentSortAscending = true;  // 오름차순
+    }
+
+    // 정렬 수행
+    applySorting();
+}
+
+// 정렬 수행
+void wxMLMainFrame::applySorting()
+{
+    if (currentSortColumn == -1)
+    {
+        // 정렬 해제: ID 순으로 재표시
+        applyCurrentFilter();  // 필터 재적용 (ID 순)
+
+        // 모든 컬럼의 정렬 아이콘 제거
+        for (int i = 0; i < listCtrl->GetColumnCount(); i++)
+        {
+            listCtrl->ClearColumnImage(i);
+        }
+    }
+    else
+    {
+        // 정렬 수행
+        listCtrl->SortItems(CompareTransactions, reinterpret_cast<wxIntPtr>(this));
+
+        // 정렬 아이콘 표시
+        listCtrl->ShowSortIndicator(currentSortColumn, currentSortAscending);
+    }
+}
+
+// 거래 비교 함수 (정렬용)
+int wxCALLBACK wxMLMainFrame::CompareTransactions(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortData)
+{
+    auto* frame = reinterpret_cast<wxMLMainFrame*>(sortData);
+    int column = frame->currentSortColumn;
+    bool ascending = frame->currentSortAscending;
+
+    // Controller에서 데이터 조회
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return 0;
+
+    auto data1 = controller->GetTransactionData(static_cast<int>(item1));
+    auto data2 = controller->GetTransactionData(static_cast<int>(item2));
+
+    // ID가 -1이면 존재하지 않는 거래 (에러)
+    if (data1.TransactionId == -1 || data2.TransactionId == -1)
+    {
+        return 0;
+    }
+
+    int result = 0;
+
+    switch (column)
+    {
+    case 0: // 유형 (수입/지출)
+        result = static_cast<int>(data1.Type) - static_cast<int>(data2.Type);
+        break;
+
+    case 1: // 카테고리 (한글)
+        result = data1.Category.compare(data2.Category);
+        break;
+
+    case 2: // 항목 (한글)
+        result = data1.Item.compare(data2.Item);
+        break;
+
+    case 3: // 금액 (숫자)
+        if (data1.Amount < data2.Amount)
+            result = -1;
+        else if (data1.Amount > data2.Amount)
+            result = 1;
+        else
+            result = 0;
+        break;
+
+    case 4: // 영수증번호 (문자열)
+        result = data1.ReceiptNumber.compare(data2.ReceiptNumber);
+        break;
+
+    case 5: // 날짜 (문자열 YYYY-MM-DD)
+        result = data1.DateTime.compare(data2.DateTime);
+        break;
+
+    default:
+        result = 0;
+        break;
+    }
+
+    // 오름차순/내림차순 적용
+    return ascending ? result : -result;
 }
 
 // Summary 패널 생성
@@ -1043,9 +1165,12 @@ FMLFilterCriteria wxMLMainFrame::buildCurrentFilterCriteria()
     // 날짜 범위 필터 (FilterActive일 때만)
     if (FilterActive)
     {
-        criteria.UseDateRangeFilter = true;
-        criteria.StartDate = filterStartDateText->GetValue().ToStdString();
-        criteria.EndDate = filterEndDateText->GetValue().ToStdString();
+        const std::string startDate = filterStartDateText->GetValue().ToStdString();
+        const std::string endDate = filterEndDateText->GetValue().ToStdString();
+        
+        criteria.UseDateRangeFilter = !startDate.empty() && !endDate.empty();
+        criteria.StartDate = startDate;
+        criteria.EndDate = endDate;
     }
 
     // 카테고리 필터
