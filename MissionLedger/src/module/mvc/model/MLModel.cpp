@@ -52,12 +52,7 @@ bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
     }
 
     auto& transaction = it->second;
-    transaction->SetType(transactionData.Type);
-    transaction->SetCategory(transactionData.Category);
-    transaction->SetItem(transactionData.Item);
-    transaction->SetDescription(transactionData.Description);
-    transaction->SetAmount(transactionData.Amount);
-    transaction->SetReceiptNumber(transactionData.ReceiptNumber);
+    transaction->ApplyData(transactionData);
     UnsavedChanges = true;
 
     if (ModelObserver)

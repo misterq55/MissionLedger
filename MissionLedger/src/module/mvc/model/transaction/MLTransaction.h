@@ -29,7 +29,11 @@ public:
     void SetDescription(const std::string& description);
     void SetAmount(int64_t amount);
     void SetDateTime(const std::chrono::system_clock::time_point& dateTime);
+    void SetDateTime(const std::string& dateTimeStr);
     void SetReceiptNumber(const std::string& receiptNumber);
+
+    // Apply data from DTO
+    void ApplyData(const FMLTransactionData& data);
 
     // Utility methods
     std::string GetDateTimeString() const;

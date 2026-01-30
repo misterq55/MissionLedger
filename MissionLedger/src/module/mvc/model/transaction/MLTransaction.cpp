@@ -110,6 +110,22 @@ void FMLTransaction::SetDateTime(const std::chrono::system_clock::time_point& da
     DateTime = dateTime;
 }
 
+void FMLTransaction::SetDateTime(const std::string& dateTimeStr)
+{
+    DateTime = parseDateTime(dateTimeStr);
+}
+
+void FMLTransaction::ApplyData(const FMLTransactionData& data)
+{
+    Type = data.Type;
+    Category = data.Category;
+    Item = data.Item;
+    Description = data.Description;
+    Amount = data.Amount;
+    DateTime = parseDateTime(data.DateTime);
+    ReceiptNumber = data.ReceiptNumber;
+}
+
 // Private helper
 std::chrono::system_clock::time_point FMLTransaction::parseDateTime(const std::string& dateTimeStr)
 {

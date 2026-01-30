@@ -5,7 +5,8 @@
 enum class E_MLTransactionType
 {
     Income,    // 수입/입금
-    Expense    // 지출/출금
+    Expense,    // 지출/출금
+    _Max
 };
 
 struct FMLTransactionData {
@@ -21,7 +22,7 @@ struct FMLTransactionData {
 
 struct FMLFilterCriteria {
     bool UseTypeFilter = false;
-    E_MLTransactionType TypeFilter;
+    E_MLTransactionType TypeFilter = E_MLTransactionType::_Max;
 
     bool UseDateRangeFilter = false;
     std::string StartDate;  // YYYY-MM-DD 형식
