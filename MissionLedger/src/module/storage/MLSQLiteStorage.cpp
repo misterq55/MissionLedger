@@ -167,8 +167,7 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransa
         const char* receiptPtr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
         std::string receiptNumber = receiptPtr ? receiptPtr : "";
 
-        auto transaction = std::make_shared<FMLTransaction>(id, type, category, item, description, amount, receiptNumber);
-        transaction->SetDateTime(parseDateTime(dateTimeStr));
+        auto transaction = std::make_shared<FMLTransaction>(id, type, category, item, description, amount, dateTimeStr, receiptNumber);
 
         outTransactions.push_back(transaction);
     }
@@ -238,25 +237,6 @@ bool FMLSQLiteStorage::IsReady() const
 {
     return IsInitialized && Database != nullptr;
 }
-
-std::chrono::system_clock::time_point FMLSQLiteStorage::parseDateTime(const std::string& dateTimeStr)
-{
-    std::tm tm = {};
-    std::istringstream ss(dateTimeStr);
-    ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
-
-    if (ss.fail())
-    {
-        // 날짜만 있는 경우 (YYYY-MM-DD)
-        ss.clear();
-        ss.str(dateTimeStr);
-        ss >> std::get_time(&tm, "%Y-%m-%d");
-    }
-
-    std::time_t time = std::mktime(&tm);
-    return std::chrono::system_clock::from_time_t(time);
-}
-
 std::string FMLSQLiteStorage::formatDateTime(const std::chrono::system_clock::time_point& timePoint)
 {
     std::time_t time = std::chrono::system_clock::to_time_t(timePoint);
@@ -264,6 +244,6 @@ std::string FMLSQLiteStorage::formatDateTime(const std::chrono::system_clock::ti
     localtime_s(&tm, &time);
 
     std::ostringstream ss;
-    ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    ss << std::put_time(&tm, "%Y-%m-%d");
     return ss.str();
 }

@@ -21,10 +21,6 @@ public:
     virtual std::vector<FMLTransactionData> GetAllTransactionData() = 0;
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) = 0;
 
-    // Business logic delegation
-    virtual float GetCategoryTotal(const std::string& category) = 0;
-    virtual float GetAllTotal() = 0;
-
     // Transaction Summary
     virtual FMLTransactionSummary GetTransactionSummary() = 0;
     virtual FMLTransactionSummary GetFilteredTransactionSummary(const FMLFilterCriteria& criteria) = 0;

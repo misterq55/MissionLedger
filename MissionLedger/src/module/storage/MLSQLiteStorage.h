@@ -34,11 +34,6 @@ private:
     bool createTable();
 
     /// <summary>
-    /// DateTime 문자열을 time_point로 변환
-    /// </summary>
-    std::chrono::system_clock::time_point parseDateTime(const std::string& dateTimeStr);
-
-    /// <summary>
     /// time_point를 DateTime 문자열로 변환
     /// </summary>
     std::string formatDateTime(const std::chrono::system_clock::time_point& timePoint);

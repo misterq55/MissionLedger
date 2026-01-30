@@ -72,27 +72,6 @@ std::vector<FMLTransactionData> FMLController::GetFilteredTransactionData(const 
     return std::vector<FMLTransactionData>();
 }
 
-// Business logic delegation
-float FMLController::GetCategoryTotal(const std::string& category)
-{
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (model)
-    {
-        return model->GetCategoryTotal(category);
-    }
-    return 0.0f;
-}
-
-float FMLController::GetAllTotal()
-{
-    auto model = FMLMVCHolder::GetInstance().GetModel();
-    if (model)
-    {
-        return model->GetAllTotal();
-    }
-    return 0.0f;
-}
-
 // Transaction Summary
 FMLTransactionSummary FMLController::GetTransactionSummary()
 {

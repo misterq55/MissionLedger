@@ -2,6 +2,7 @@
 #include <wx/statline.h>
 #include <wx/datectrl.h>
 #include <wx/dateevt.h>
+#include <wx/calctrl.h>
 #include <wx/filedlg.h>
 #include <wx/filename.h>
 #include <set>
@@ -94,9 +95,17 @@ wxMLMainFrame::wxMLMainFrame()
     // 날짜
     wxStaticText* dateLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("날짜:"));
     inputSizer->Add(dateLabel, 0, wxLEFT | wxRIGHT, 10);
-    datePicker = new wxDatePickerCtrl(inputPanel, wxID_ANY, wxDefaultDateTime,
-        wxDefaultPosition, wxDefaultSize, wxDP_DEFAULT | wxDP_DROPDOWN);
-    inputSizer->Add(datePicker, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
+
+    wxBoxSizer* dateSizer = new wxBoxSizer(wxHORIZONTAL);
+    dateText = new wxTextCtrl(inputPanel, wxID_ANY, "", wxDefaultPosition, wxSize(120, -1));
+    dateText->SetHint("YYYY-MM-DD");
+    dateSizer->Add(dateText, 1, wxEXPAND | wxRIGHT, 5);
+
+    dateCalendarButton = new wxButton(inputPanel, wxID_ANY, wxString::FromUTF8("📅"), wxDefaultPosition, wxSize(30, -1));
+    dateCalendarButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { showCalendarDialog(dateText); });
+    dateSizer->Add(dateCalendarButton, 0);
+
+    inputSizer->Add(dateSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
     inputSizer->AddSpacer(15);
 
     // 버튼 패널 (추가, 수정, 삭제)
@@ -202,20 +211,15 @@ void wxMLMainFrame::DisplayTransaction(const FMLTransactionData& data)
     // 추가든 수정이든 공통: 나머지 컬럼 데이터 설정
     listCtrl->SetItem(index, 1, wxString::FromUTF8(data.Category.c_str()));
     listCtrl->SetItem(index, 2, wxString::FromUTF8(data.Item.c_str()));
-    listCtrl->SetItem(index, 3, wxString::Format("%lld", data.Amount));
+    listCtrl->SetItem(index, 3, formatAmountWithComma(data.Amount));
     listCtrl->SetItem(index, 4, wxString::FromUTF8(data.ReceiptNumber.c_str()));
     listCtrl->SetItem(index, 5, wxString::FromUTF8(data.DateTime.c_str()));
 }
 
-void wxMLMainFrame::DisplayTransactions()
+void wxMLMainFrame::DisplayTransactions(const std::vector<FMLTransactionData>& data)
 {
-    auto controller = FMLMVCHolder::GetInstance().GetController();
-    if (controller) {
-        auto transactions = controller->GetAllTransactionData();
-
-        for (const auto& trans : transactions) {
-            DisplayTransaction(trans);
-        }
+    for (const auto& trans : data) {
+        DisplayTransaction(trans);
     }
 }
 
@@ -239,17 +243,9 @@ void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
     data.Amount = amount;
 
     // 날짜 가져오기
-    wxDateTime selectedDate = datePicker->GetValue();
-    data.DateTime = selectedDate.Format("%Y-%m-%d").ToStdString();
+    data.DateTime = dateText->GetValue().ToStdString();
 
     AddTransaction(data);
-}
-
-void wxMLMainFrame::refreshTransactionList()
-{
-    listCtrl->DeleteAllItems();
-
-    DisplayTransactions();
 }
 
 void wxMLMainFrame::clearInputFields()
@@ -260,7 +256,7 @@ void wxMLMainFrame::clearInputFields()
     descriptionText->Clear();
     amountText->Clear();
     receiptText->Clear();
-    datePicker->SetValue(wxDateTime::Now());
+    dateText->SetValue(formatDate(wxDateTime::Now()));
 }
 
 // IMLModelObserver 인터페이스 구현
@@ -386,8 +382,7 @@ void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
     data.Amount = amount;
 
     // 날짜 가져오기
-    wxDateTime selectedDate = datePicker->GetValue();
-    data.DateTime = selectedDate.Format("%Y-%m-%d").ToStdString();
+    data.DateTime = dateText->GetValue().ToStdString();
 
     // Controller를 통해 수정
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -458,10 +453,7 @@ void wxMLMainFrame::loadTransactionToInput(int transactionId)
     receiptText->SetValue(wxString::FromUTF8(data.ReceiptNumber.c_str()));
 
     // 날짜 파싱 (YYYY-MM-DD 형식)
-    wxDateTime date;
-    if (date.ParseFormat(wxString::FromUTF8(data.DateTime.c_str()), "%Y-%m-%d")) {
-        datePicker->SetValue(date);
-    }
+    dateText->SetValue(wxString::FromUTF8(data.DateTime.c_str()));
 }
 
 // 버튼 활성화 상태 업데이트
@@ -691,12 +683,21 @@ void wxMLMainFrame::createFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
     wxBoxSizer* dateSizer = new wxBoxSizer(wxHORIZONTAL);
     dateSizer->Add(new wxStaticText(filterPanel, wxID_ANY, wxString::FromUTF8("기간:")), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
 
-    filterStartDate = new wxDatePickerCtrl(filterPanel, wxID_ANY);
-    filterEndDate = new wxDatePickerCtrl(filterPanel, wxID_ANY);
+    filterStartDateText = new wxTextCtrl(filterPanel, wxID_ANY, "", wxDefaultPosition, wxSize(100, -1));
+    filterStartDateText->SetHint("YYYY-MM-DD");
+    filterStartDateButton = new wxButton(filterPanel, wxID_ANY, wxString::FromUTF8("📅"), wxDefaultPosition, wxSize(30, -1));
+    filterStartDateButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { showCalendarDialog(filterStartDateText); });
 
-    dateSizer->Add(filterStartDate, 1, wxRIGHT, 5);
+    filterEndDateText = new wxTextCtrl(filterPanel, wxID_ANY, "", wxDefaultPosition, wxSize(100, -1));
+    filterEndDateText->SetHint("YYYY-MM-DD");
+    filterEndDateButton = new wxButton(filterPanel, wxID_ANY, wxString::FromUTF8("📅"), wxDefaultPosition, wxSize(30, -1));
+    filterEndDateButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { showCalendarDialog(filterEndDateText); });
+
+    dateSizer->Add(filterStartDateText, 1, wxRIGHT, 2);
+    dateSizer->Add(filterStartDateButton, 0, wxRIGHT, 5);
     dateSizer->Add(new wxStaticText(filterPanel, wxID_ANY, "~"), 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 2);
-    dateSizer->Add(filterEndDate, 1, wxLEFT, 5);
+    dateSizer->Add(filterEndDateText, 1, wxLEFT | wxRIGHT, 2);
+    dateSizer->Add(filterEndDateButton, 0, wxLEFT, 5);
 
     filterSizer->Add(dateSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 
@@ -828,60 +829,11 @@ void wxMLMainFrame::applyCurrentFilter()
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller) return;
 
-    FMLFilterCriteria criteria;
-    
-    // 거래 유형 필터
-    const int typeSelection = filterTypeChoice->GetSelection();
-    if (typeSelection == 1) // 수입
-    {
-        criteria.UseTypeFilter = true;
-        criteria.TypeFilter = E_MLTransactionType::Income;
-    }
-    else if (typeSelection == 2) // 지출
-    {
-        criteria.UseTypeFilter = true;
-        criteria.TypeFilter = E_MLTransactionType::Expense;
-    }
-
-    // 날짜 범위 필터 (FilterActive일 때만 적용)
-    if (FilterActive)
-    {
-        criteria.UseDateRangeFilter = true;
-        criteria.StartDate = filterStartDate->GetValue().Format("%Y-%m-%d").ToStdString();
-        criteria.EndDate = filterEndDate->GetValue().Format("%Y-%m-%d").ToStdString();
-    }
-
-    // 카테고리 필터
-    const int categorySelection = filterCategoryCombo->GetSelection();
-    if (categorySelection > 0) // "전체"가 아닌 경우
-    {
-        criteria.UseCategoryFilter = true;
-        criteria.CategoryFilter = filterCategoryCombo->GetValue().ToUTF8().data();
-    }
-
     // 현재 리스트에 표시된 ID 목록 가져오기 (Single Source of Truth)
     std::set<int> previousIds = getCurrentListIds();
 
-    // 검색어
-    const std::string searchText = filterSearchText->GetValue().ToUTF8().data();
-    if (!searchText.empty())
-    {
-        criteria.UseTextSearch = true;
-        criteria.SearchText = searchText;
-    }
-    else
-    {
-        criteria.UseTextSearch = false;
-    }
-    
-    const bool searchInItem = filterSearchInItem->GetValue();
-    criteria.SearchInItem = searchInItem;
-    
-    const bool searchInDescription = filterSearchInDescription->GetValue();
-    criteria.SearchInDescription = searchInDescription;
-    
-    const bool searchInReceipt = filterSearchInReceipt->GetValue();
-    criteria.SearchInReceipt = searchInReceipt;
+    // 필터 조건 생성
+    FMLFilterCriteria criteria = buildCurrentFilterCriteria();
     
     // 새로운 필터 결과 가져오기
     auto transactions = controller->GetFilteredTransactionData(criteria);
@@ -981,7 +933,7 @@ void wxMLMainFrame::createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer)
     // 지출 라벨
     wxStaticText* expenseLabel = new wxStaticText(summaryPanel, wxID_ANY, wxString::FromUTF8("지출: "));
     expenseLabel->SetFont(labelFont);
-    summarySizer->Add(expenseLabel, 0, wxALIGN_CENTER_VERTICAL);
+    summarySizer->Add(expenseLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 60);
 
     summaryExpenseText = new wxStaticText(summaryPanel, wxID_ANY, "0");
     summaryExpenseText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
@@ -991,7 +943,7 @@ void wxMLMainFrame::createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer)
     // 잔액 라벨
     wxStaticText* balanceLabel = new wxStaticText(summaryPanel, wxID_ANY, wxString::FromUTF8("잔액: "));
     balanceLabel->SetFont(labelFont);
-    summarySizer->Add(balanceLabel, 0, wxALIGN_CENTER_VERTICAL);
+    summarySizer->Add(balanceLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 60);
 
     summaryBalanceText = new wxStaticText(summaryPanel, wxID_ANY, "0");
     summaryBalanceText->SetFont(amountFont);
@@ -1092,8 +1044,8 @@ FMLFilterCriteria wxMLMainFrame::buildCurrentFilterCriteria()
     if (FilterActive)
     {
         criteria.UseDateRangeFilter = true;
-        criteria.StartDate = filterStartDate->GetValue().Format("%Y-%m-%d").ToStdString();
-        criteria.EndDate = filterEndDate->GetValue().Format("%Y-%m-%d").ToStdString();
+        criteria.StartDate = filterStartDateText->GetValue().ToStdString();
+        criteria.EndDate = filterEndDateText->GetValue().ToStdString();
     }
 
     // 카테고리 필터
@@ -1116,5 +1068,68 @@ FMLFilterCriteria wxMLMainFrame::buildCurrentFilterCriteria()
     }
 
     return criteria;
+}
+
+// Helper methods
+void wxMLMainFrame::showCalendarDialog(wxTextCtrl* targetTextCtrl)
+{
+    wxDateTime currentDate = parseDate(targetTextCtrl->GetValue());
+
+    wxDialog dialog(this, wxID_ANY, wxString::FromUTF8("날짜 선택"), wxDefaultPosition, wxDefaultSize);
+    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+
+    wxCalendarCtrl* calendar = new wxCalendarCtrl(&dialog, wxID_ANY, currentDate);
+    sizer->Add(calendar, 1, wxEXPAND | wxALL, 10);
+
+    wxBoxSizer* buttonSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxButton* okButton = new wxButton(&dialog, wxID_OK, wxString::FromUTF8("확인"));
+    wxButton* cancelButton = new wxButton(&dialog, wxID_CANCEL, wxString::FromUTF8("취소"));
+    buttonSizer->Add(okButton, 0, wxRIGHT, 5);
+    buttonSizer->Add(cancelButton, 0);
+    sizer->Add(buttonSizer, 0, wxALIGN_RIGHT | wxALL, 10);
+
+    dialog.SetSizer(sizer);
+    dialog.Fit();
+
+    if (dialog.ShowModal() == wxID_OK)
+    {
+        wxDateTime selectedDate = calendar->GetDate();
+        targetTextCtrl->SetValue(formatDate(selectedDate));
+    }
+}
+
+bool wxMLMainFrame::validateDateFormat(const wxString& dateStr)
+{
+    if (dateStr.length() != 10) return false;
+    if (dateStr[4] != '-' || dateStr[7] != '-') return false;
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (i == 4 || i == 7) continue;
+        if (!wxIsdigit(dateStr[i])) return false;
+    }
+
+    return true;
+}
+
+wxString wxMLMainFrame::formatDate(const wxDateTime& date)
+{
+    return date.FormatISODate(); // YYYY-MM-DD
+}
+
+wxDateTime wxMLMainFrame::parseDate(const wxString& dateStr)
+{
+    if (dateStr.IsEmpty() || !validateDateFormat(dateStr))
+    {
+        return wxDateTime::Now();
+    }
+
+    wxDateTime date;
+    if (date.ParseISODate(dateStr))
+    {
+        return date;
+    }
+
+    return wxDateTime::Now();
 }
 

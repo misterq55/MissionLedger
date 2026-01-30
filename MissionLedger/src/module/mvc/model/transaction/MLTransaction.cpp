@@ -4,27 +4,27 @@
 
 FMLTransaction::FMLTransaction()
     : Id(0)
-    , Type(E_MLTransactionType::Income)
-    , Category("")
-    , Item("")
-    , Description("")
-    , Amount(0)
-    , DateTime(std::chrono::system_clock::now())
-    , ReceiptNumber("")
+      , Type(E_MLTransactionType::Income)
+      , Category("")
+      , Item("")
+      , Description("")
+      , Amount(0)
+      , DateTime(std::chrono::system_clock::now())
+      , ReceiptNumber("")
 {
 }
 
 FMLTransaction::FMLTransaction(int id, E_MLTransactionType type, const std::string& category,
                                const std::string& item, const std::string& description,
-                               int64_t amount, const std::string& receiptNumber)
+                               int64_t amount, const std::string& dateTime, const std::string& receiptNumber)
     : Id(id)
-    , Type(type)
-    , Category(category)
-    , Item(item)
-    , Description(description)
-    , Amount(amount)
-    , DateTime(std::chrono::system_clock::now())
-    , ReceiptNumber(receiptNumber)
+      , Type(type)
+      , Category(category)
+      , Item(item)
+      , Description(description)
+      , Amount(amount)
+      , DateTime(parseDateTime(dateTime))
+      , ReceiptNumber(receiptNumber)
 {
 }
 
@@ -110,6 +110,34 @@ void FMLTransaction::SetDateTime(const std::chrono::system_clock::time_point& da
     DateTime = dateTime;
 }
 
+// Private helper
+std::chrono::system_clock::time_point FMLTransaction::parseDateTime(const std::string& dateTimeStr)
+{
+    if (dateTimeStr.empty())
+    {
+        return std::chrono::system_clock::now();
+    }
+
+    std::tm tm = {};
+    std::istringstream ss(dateTimeStr);
+
+    // 날짜만 파싱 (YYYY-MM-DD)
+    ss >> std::get_time(&tm, "%Y-%m-%d");
+
+    if (ss.fail())
+    {
+        // 파싱 실패 시 현재 날짜 반환
+        return std::chrono::system_clock::now();
+    }
+
+    // 시간은 00:00:00으로 고정
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+
+    return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+}
+
 // Utility methods
 std::string FMLTransaction::GetDateTimeString() const
 {
@@ -123,7 +151,7 @@ std::string FMLTransaction::GetDateTimeString() const
 #endif
 
     std::stringstream ss;
-    ss << std::put_time(&timeInfo, "%Y-%m-%d %H:%M:%S");
+    ss << std::put_time(&timeInfo, "%Y-%m-%d");
     return ss.str();
 }
 

@@ -29,6 +29,7 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
         newId, transactionData.Type,
         transactionData.Category, transactionData.Item,
         transactionData.Description, transactionData.Amount,
+        transactionData.DateTime,
         transactionData.ReceiptNumber);
 
     Transactions.emplace(newId, newTransaction);
@@ -217,40 +218,6 @@ std::map<int, std::shared_ptr<FMLTransaction>> FMLModel::GetAllTransactions()
 }
 
 // Business logic
-float FMLModel::GetCategoryTotal(const std::string& category)
-{
-    float total = 0.0f;
-    for (const auto& pair : Transactions)
-    {
-        if (pair.second->GetCategory() == category)
-        {
-            total += static_cast<float>(pair.second->GetAmount());
-        }
-    }
-    return total;
-}
-
-float FMLModel::GetAllTotal()
-{
-    float total = 0.0f;
-    for (const auto& pair : Transactions)
-    {
-        if (pair.second->IsIncome())
-        {
-            total += static_cast<float>(pair.second->GetAmount());
-        }
-        else if (pair.second->IsExpense())
-        {
-            total -= static_cast<float>(pair.second->GetAmount());
-        }
-    }
-    return total;
-}
-
-int FMLModel::GetNextTransactionId()
-{
-    return TransactionIdIndex;
-}
 
 FMLTransactionSummary FMLModel::CalculateTransactionSummary()
 {

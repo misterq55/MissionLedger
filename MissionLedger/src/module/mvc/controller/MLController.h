@@ -26,10 +26,6 @@ public:
     virtual std::vector<FMLTransactionData> GetAllTransactionData() override;
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) override;
 
-    // Business logic delegation
-    virtual float GetCategoryTotal(const std::string& category) override;
-    virtual float GetAllTotal() override;
-
     // Transaction Summary
     virtual FMLTransactionSummary GetTransactionSummary() override;
     virtual FMLTransactionSummary GetFilteredTransactionSummary(const FMLFilterCriteria& criteria) override;

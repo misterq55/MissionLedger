@@ -33,10 +33,6 @@ public:
     virtual std::map<int, std::shared_ptr<FMLTransaction>> GetAllTransactions() override;
 
     // Business logic
-    virtual float GetCategoryTotal(const std::string& category) override;
-    virtual float GetAllTotal() override;
-    virtual int GetNextTransactionId() override;
-
     virtual FMLTransactionSummary CalculateTransactionSummary() override;
     virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) override;
 

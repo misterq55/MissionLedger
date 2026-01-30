@@ -33,10 +33,6 @@ public:
     virtual std::map<int, std::shared_ptr<FMLTransaction>> GetAllTransactions() = 0;
 
     // Business logic
-    virtual float GetCategoryTotal(const std::string& category) = 0;
-    virtual float GetAllTotal() = 0;
-    virtual int GetNextTransactionId() = 0;
-    
     virtual FMLTransactionSummary CalculateTransactionSummary() = 0;
     virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) = 0;
 

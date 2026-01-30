@@ -25,7 +25,7 @@ public:
     // IMLView 인터페이스 구현
     void AddTransaction(const FMLTransactionData& data) override;
     void DisplayTransaction(const FMLTransactionData& data) override;
-    void DisplayTransactions() override;
+    void DisplayTransactions(const std::vector<FMLTransactionData>& data) override;
 
     // IMLModelObserver 인터페이스 구현
     void OnTransactionAdded(const FMLTransactionData& transactionData) override;
@@ -56,7 +56,6 @@ private:
     void OnClearFilter(wxCommandEvent& event);
 
     // UI 헬퍼 메서드
-    void refreshTransactionList();
     void clearInputFields();
     void loadTransactionToInput(int transactionId);
     void updateButtonStates();
@@ -92,7 +91,8 @@ private:
     wxTextCtrl* descriptionText;
     wxTextCtrl* amountText;
     wxTextCtrl* receiptText;
-    wxDatePickerCtrl* datePicker;
+    wxTextCtrl* dateText;
+    wxButton* dateCalendarButton;
     wxListCtrl* listCtrl;
     wxButton* addButton;
     wxButton* updateButton;
@@ -103,8 +103,10 @@ private:
     wxCheckBox* filterSearchInItem;
     wxCheckBox* filterSearchInDescription;
     wxCheckBox* filterSearchInReceipt;
-    wxDatePickerCtrl* filterStartDate;
-    wxDatePickerCtrl* filterEndDate;
+    wxTextCtrl* filterStartDateText;
+    wxButton* filterStartDateButton;
+    wxTextCtrl* filterEndDateText;
+    wxButton* filterEndDateButton;
     wxChoice* filterTypeChoice;
     wxComboBox* filterCategoryCombo;
     wxButton* applyFilterButton;
@@ -115,6 +117,13 @@ private:
     wxStaticText* summaryIncomeText;
     wxStaticText* summaryExpenseText;
     wxStaticText* summaryBalanceText;
+
+private:
+    // Helper methods
+    void showCalendarDialog(wxTextCtrl* targetTextCtrl);
+    bool validateDateFormat(const wxString& dateStr);
+    wxString formatDate(const wxDateTime& date);
+    wxDateTime parseDate(const wxString& dateStr);
 
 private:
     int SelectedTransactionId = -1;
