@@ -1,0 +1,359 @@
+# Architecture Documentation
+
+This document describes the architectural design and patterns used in the MissionLedger project.
+
+## MVC Pattern Implementation
+
+The codebase follows a strict MVC architecture with centralized component management:
+
+- **Model**: `FMLModel` class manages transaction data using `std::map<int, std::shared_ptr<FMLTransaction>>`
+- **View**: `wxMLMainFrame` class implementing `IMLView` and `IMLModelObserver` interfaces
+- **Controller**: `FMLController` class implementing `IMLController` for transaction operations
+- **Observer Pattern**: Model notifies View of data changes via `IMLModelObserver` interface
+- **MVC Holder**: `FMLMVCHolder` singleton pattern for global MVC component access
+
+## Design Approach: Model First Strategy
+
+This project adopts a **Model First** design approach for MVC implementation. This strategy prioritizes establishing a solid data foundation before building controller logic and UI components.
+
+### Rationale for Model First
+
+**Why Model First?**
+- **Data-Centric Application**: Financial transaction management is fundamentally about data integrity and business rules
+- **Clear Domain Model**: Transaction entities and their relationships are well-defined from requirements
+- **Stable Foundation**: Data structures change less frequently than UI/UX requirements
+- **Testability**: Business logic can be validated independently without UI dependencies
+- **Domain Complexity**: Financial calculations, validations, and aggregations require careful design
+
+**Alternative Approaches Considered:**
+1. **View First**: Better for UI-heavy apps with unclear requirements - not suitable for this project
+2. **Controller First (Use Case Driven)**: Good for feature-centric design - viable but Model First provides better data integrity
+
+### Design Principles
+
+- **Separation of Concerns**: Strict MVC boundaries - View never accesses Model directly
+- **Dependency Direction**: View → Controller → Model (never reversed)
+- **Data Flow**: Model notifies via Observer, View requests via Controller
+- **Testing Strategy**: Unit test Model logic → Integration test Controller → UI test View
+
+## Core Data Structure
+
+The main entity is `FMLTransaction` representing financial transactions with:
+- Transaction type (Income/Expense) via `E_MLTransactionType` enum
+- Categories, items, descriptions, amounts
+- Timestamps using `std::chrono::system_clock::time_point`
+- Receipt number tracking
+
+## Key Interfaces
+
+- `IMLModel`: Data management interface with Add/Remove/Save/Load operations
+- `IMLController`: Business logic interface for transaction handling
+- `IMLView`: UI interface for transaction display and user input
+- `IMLStorageProvider`: Storage abstraction interface using Strategy Pattern for pluggable persistence
+- `IMLModelObserver`: Observer pattern for data change notifications
+- `FMLMVCHolder`: Singleton holder for centralized MVC component access
+
+## MVC Holder Pattern
+
+The `FMLMVCHolder` singleton provides centralized access to MVC components throughout the application.
+
+### Design Benefits
+- **Initialization Flexibility**: MVC components can be created in any order
+- **Global Access**: Any wxWidgets window/dialog can access components via MVCHolder
+- **Decoupling**: Component lifecycles are independent
+
+### Trade-offs
+- Runtime dependency (components must be registered before use)
+- Implicit coupling (dependency not visible in constructor)
+- Acceptable for single-instance desktop applications
+
+### Initialization Pattern
+
+```cpp
+#include "module/common/holder/MLMVCHolder.h"
+#include "module/mvc/view/MLMainFrame.h"
+#include "module/storage/MLSQLiteStorage.h"
+
+class MissionLedger : public wxApp {
+    virtual bool OnInit() override {
+        // Create MVC components
+        auto& mvcHolder = FMLMVCHolder::GetInstance();
+        auto model = std::make_shared<FMLModel>();
+        auto controller = std::make_shared<FMLController>();
+
+        // Storage Provider injection (DI pattern)
+        auto storageProvider = std::make_shared<FMLSQLiteStorage>();
+        model->SetStorageProvider(storageProvider);
+
+        // Create main frame (wxWidgets manages memory)
+        wxMLMainFrame* frame = new wxMLMainFrame();
+
+        // Register with holder
+        mvcHolder.SetModel(model);
+        mvcHolder.SetController(controller);
+        mvcHolder.SetView(std::shared_ptr<IMLView>(frame, [](IMLView*){})); // No-op deleter
+
+        // Connect observer (frame implements IMLModelObserver)
+        model->AddObserver(std::shared_ptr<IMLModelObserver>(frame, [](IMLModelObserver*){}));
+
+        frame->Show();
+
+        // Open file from command line argument (for file association)
+        if (argc > 1) {
+            wxString filePath = argv[1];
+            if (wxFileExists(filePath) && filePath.EndsWith(".ml")) {
+                model->OpenFile(filePath.ToStdString());
+            }
+        }
+
+        return true;
+    }
+};
+```
+
+### Usage in Components
+
+```cpp
+// In menu handlers
+void OnMenuSave(wxCommandEvent& event) {
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model) model->Save();
+}
+
+// In dialog OK handlers
+void AddTransactionDialog::OnOK(wxCommandEvent& event) {
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) controller->AddTransaction(transactionData);
+}
+```
+
+## Storage Provider Pattern
+
+The project uses Strategy Pattern for data persistence, allowing flexible storage backend selection.
+
+### Design Principles
+- **Abstraction**: `IMLStorageProvider` interface decouples Model from storage implementation
+- **Pluggability**: Storage backend can be changed at runtime without modifying Model code
+- **Testability**: Mock storage providers enable unit testing without file I/O
+- **Extensibility**: New storage types can be added without touching existing code
+
+### Interface Overview
+
+```cpp
+class IMLStorageProvider {
+    virtual bool Initialize(const std::string& filePath) = 0;
+    virtual bool SaveTransaction(const FMLTransaction& transaction) = 0;
+    virtual bool SaveAllTransactions(const std::vector<std::shared_ptr<FMLTransaction>>& transactions) = 0;
+    virtual bool LoadAllTransactions(std::vector<std::shared_ptr<FMLTransaction>>& outTransactions) = 0;
+    virtual bool DeleteTransaction(int transactionId) = 0;
+    virtual bool UpdateTransaction(const FMLTransaction& transaction) = 0;
+    virtual int GetLastTransactionId() = 0;
+    virtual E_MLStorageType GetStorageType() const = 0;
+    virtual bool IsReady() const = 0;
+};
+```
+
+### Implementations
+- **SQLite** (✅ Implemented): Recommended for production (ACID compliance, efficient querying, data integrity)
+- **JSON** (Planned): Good for prototyping and human-readable data
+- **XML** (Planned): Compatible with external tools, wxWidgets built-in support
+
+### Usage Example
+
+```cpp
+// Create storage provider
+auto storage = std::make_shared<FMLSQLiteStorage>();
+storage->Initialize("transactions.db");
+
+// Inject into model
+auto model = std::make_shared<FMLModel>();
+model->SetStorageProvider(storage);
+
+// Model uses storage transparently
+model->Save();  // Delegates to storage->SaveAllTransactions()
+model->Load();  // Delegates to storage->LoadAllTransactions()
+```
+
+## DTO (Data Transfer Object) Strategy
+
+This project uses a **single DTO pattern** for data exchange between layers to balance simplicity and maintainability.
+
+### Design Decision
+
+**Single DTO Approach**: `FMLTransactionData` serves both as input and output DTO
+
+```cpp
+struct FMLTransactionData {
+    int TransactionId = -1;       // -1 for input (new transaction), actual ID for output
+    E_MLTransactionType Type;
+    std::string Category;
+    std::string Item;
+    std::string Description;
+    double Amount;
+    std::string ReceiptNumber;
+    std::string DateTime;          // Empty for input, formatted string for output
+};
+```
+
+**Rationale**:
+- **Simplicity**: Single structure reduces code duplication and maintenance overhead
+- **Pragmatic**: For simple CRUD applications, field overlap is typically 80%+
+- **Clear Boundaries**: View/Controller use DTO, Model uses Entity internally
+- **Flexibility**: Fields can be optional based on context (input vs output)
+
+**Alternative Considered**: Separate Input/Output DTOs
+- Would require duplicating 7+ fields across structures
+- Overhead not justified for current application complexity
+- Can refactor later if security or validation requirements grow
+
+### DTO vs Entity Separation
+
+**What View/Controller See (DTO)**:
+```cpp
+FMLTransactionData data;  // Plain struct
+data.DateTime = "2025-12-30 15:30:45";  // Formatted string
+```
+
+**What Model Uses Internally (Entity)**:
+```cpp
+FMLTransaction transaction;  // Rich domain object
+std::chrono::system_clock::time_point dateTime;  // Native type
+std::string GetDateTimeString() const;  // Business logic
+```
+
+**Conversion**: Model provides `convertToTransactionData()` private method to transform Entity → DTO
+
+## Controller Implementation Pattern
+
+The `FMLController` class implements a **thin controller** approach using the MVCHolder pattern.
+
+### MVCHolder-based Design
+
+Controller does not hold a direct reference to Model. Instead, it accesses Model through `FMLMVCHolder`:
+
+```cpp
+class FMLController : public IMLController {
+public:
+    FMLController() = default;  // No dependencies injected
+
+    void AddTransaction(const FMLTransactionData& data) override {
+        auto model = FMLMVCHolder::GetInstance().GetModel();  // Get on demand
+        if (model) model->AddTransaction(data);
+    }
+};
+```
+
+### Controller Responsibilities
+
+**What Controller Does**:
+- Delegate operations to Model
+- Provide DTO-based interface to View
+- Validate Model availability (null checks)
+
+**What Controller Does NOT Do**:
+- Business logic (delegated to Model)
+- Data transformation (Model handles Entity ↔ DTO conversion)
+- UI updates (View's responsibility via Observer pattern)
+
+## View Architecture Design
+
+The project uses an **is-a inheritance pattern** where wxWidgets frames directly implement MVC interfaces.
+
+### Design Pattern (Is-a)
+
+```
+┌─────────────────────────────────────────┐
+│         wxMLMainFrame                   │
+│  (wxFrame + IMLView + IMLModelObserver) │
+│                                         │
+│  - wxWidgets UI (buttons, layout)      │
+│  - MVC logic (Observer handlers)       │
+│  - Direct Controller/Model access      │
+└────────┬────────────────────────────────┘
+         │ communicates with
+         ↓
+┌─────────────────┐
+│  FMLController  │ → FMLModel
+└─────────────────┘
+```
+
+**Rationale for Is-a Pattern:**
+- **Simplicity**: No intermediate layer between UI and MVC logic
+- **wxWidgets Convention**: Standard pattern for wxWidgets applications
+- **Direct Event Handling**: Observer events directly update UI
+- **Single Responsibility**: One class manages both UI and View logic for this desktop-only application
+
+### Implementation Structure
+
+```cpp
+// MLMainFrame.h
+class wxMLMainFrame : public wxFrame, public IMLView, public IMLModelObserver {
+public:
+    wxMLMainFrame();
+
+    // IMLView interface
+    void AddTransaction(const FMLTransactionData& data) override;
+    void DisplayTransaction(const FMLTransactionData& data) override;
+    void DisplayTransactions() override;
+
+    // IMLModelObserver interface
+    void OnTransactionAdded(const FMLTransactionData& data) override;
+    void OnTransactionRemoved(int transactionId) override;
+    void OnTransactionUpdated(const FMLTransactionData& data) override;
+    void OnTransactionsCleared() override;
+    void OnDataLoaded() override;
+    void OnDataSaved() override;
+
+private:
+    // UI Controls
+    wxListCtrl* listCtrl;
+    wxTextCtrl* categoryText;
+    // ...
+
+    // Event Handlers
+    void OnAddTransaction(wxCommandEvent& event);
+    void RefreshTransactionList();
+    void ClearInputFields();
+};
+```
+
+### Benefits
+
+1. **Simplicity**: Single class handles both UI and MVC logic
+2. **Direct Updates**: Observer events directly manipulate wxWidgets controls
+3. **wxWidgets Standard**: Follows conventional wxWidgets patterns
+4. **Less Boilerplate**: No additional View wrapper classes needed
+5. **MVC Compliance**: Still maintains strict Model-View-Controller boundaries
+
+### Trade-offs
+
+- **Technology Lock-in**: Tightly coupled to wxWidgets (acceptable for desktop-only app)
+- **Testing**: Requires wxWidgets instantiation for testing (mitigated by using wxWidgets test framework)
+- **Has-a Alternative**: Previously considered composition pattern, but deemed over-engineered for this use case
+
+## Observer Pattern Implementation
+
+The Observer pattern enables automatic UI updates when Model data changes.
+
+### Design
+- Model maintains a list of weak_ptr<IMLModelObserver> to avoid circular references
+- View implements IMLModelObserver and registers itself with Model
+- Model notifies all observers when data changes (Add/Remove/Update/Load/Save)
+
+### Event Types
+
+```cpp
+class IMLModelObserver {
+    virtual void OnTransactionAdded(const FMLTransactionData& data) = 0;
+    virtual void OnTransactionRemoved(int transactionId) = 0;
+    virtual void OnTransactionUpdated(const FMLTransactionData& data) = 0;
+    virtual void OnTransactionsCleared() = 0;
+    virtual void OnDataLoaded() = 0;
+    virtual void OnDataSaved() = 0;
+};
+```
+
+### Benefits
+- Automatic UI synchronization with data changes
+- Decouples Model from View (Model doesn't know about View implementation)
+- Supports multiple observers (future extensibility)
