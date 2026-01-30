@@ -58,8 +58,10 @@ MissionLedger/
 - ✅ UTF-8 encoding support for Korean text
 - ✅ MVC architecture with strict boundaries (View → Controller → Model)
 
-**Current Focus**: Phase 4 - Transaction Summary Display
-- 🔄 List footer with income/expense/balance totals
+**Completed**:
+- ✅ List footer with income/expense/balance totals (real-time summary with filter support)
+
+**Current Focus**: Phase 4 - Data Export & Distribution
 - ⏳ Excel/CSV export
 - ⏳ Installer with .ml file association
 

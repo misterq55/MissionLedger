@@ -189,7 +189,7 @@ struct FMLTransactionData {
     std::string Category;
     std::string Item;
     std::string Description;
-    double Amount;
+    int64_t Amount;                // Integer for financial precision (no floating-point errors)
     std::string ReceiptNumber;
     std::string DateTime;          // Empty for input, formatted string for output
 };
@@ -336,9 +336,13 @@ private:
 The Observer pattern enables automatic UI updates when Model data changes.
 
 ### Design
-- Model maintains a list of weak_ptr<IMLModelObserver> to avoid circular references
-- View implements IMLModelObserver and registers itself with Model
-- Model notifies all observers when data changes (Add/Remove/Update/Load/Save)
+- Model maintains a single `shared_ptr<IMLModelObserver>` (currently supports one observer)
+- View implements IMLModelObserver and registers itself with Model via `AddObserver()`
+- Model notifies observer when data changes (Add/Remove/Update/Load/Save)
+
+**Current Implementation Note**:
+- Single observer design (sufficient for desktop app with one main view)
+- Future enhancement: Convert to `std::vector<std::weak_ptr<IMLModelObserver>>` for multiple observers if needed
 
 ### Event Types
 
@@ -356,4 +360,4 @@ class IMLModelObserver {
 ### Benefits
 - Automatic UI synchronization with data changes
 - Decouples Model from View (Model doesn't know about View implementation)
-- Supports multiple observers (future extensibility)
+- Single observer design simplifies lifecycle management
