@@ -257,7 +257,7 @@ void wxMLMainFrame::clearInputFields()
     descriptionText->Clear();
     amountText->Clear();
     receiptText->Clear();
-    dateText->SetValue(formatDate(wxDateTime::Now()));
+    dateText->Clear();
 }
 
 // IMLModelObserver 인터페이스 구현
@@ -786,7 +786,13 @@ void wxMLMainFrame::OnClearFilter(wxCommandEvent& event)
     filterSearchInReceipt->SetValue(false);
     filterTypeChoice->SetSelection(0);
     filterCategoryCombo->SetSelection(0);
-    applyCurrentFilter();  // 증분 업데이트 사용
+
+    // 정렬 상태도 초기화
+    currentSortColumn = -1;
+    currentSortAscending = true;
+    listCtrl->ShowSortIndicator(wxNOT_FOUND, true);
+
+    applyCurrentFilter();
     updateSummaryPanel();
 }
 
@@ -824,52 +830,28 @@ void wxMLMainFrame::updateCategoryFilter()
     filterCategoryCombo->SetSelection(index != wxNOT_FOUND ? index : 0);
 }
 
-// 현재 필터 적용 (증분 업데이트 방식)
+// 현재 필터 적용 (전체 재로드 방식)
 void wxMLMainFrame::applyCurrentFilter()
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller) return;
 
-    // 현재 리스트에 표시된 ID 목록 가져오기 (Single Source of Truth)
-    std::set<int> previousIds = getCurrentListIds();
+    // 화면 갱신 중지 (깜빡임 방지)
+    listCtrl->Freeze();
+
+    // 리스트 완전 클리어
+    listCtrl->DeleteAllItems();
 
     // 필터 조건 생성
     FMLFilterCriteria criteria = buildCurrentFilterCriteria();
-    
-    // 새로운 필터 결과 가져오기
+
+    // 필터링된 데이터 가져오기
     auto transactions = controller->GetFilteredTransactionData(criteria);
 
-    // 새로운 ID 목록 생성
-    std::set<int> currentIds;
-    std::map<int, FMLTransactionData> transactionMap;
+    // 새 데이터 추가
     for (const auto& trans : transactions)
     {
-        currentIds.insert(trans.TransactionId);
-        transactionMap[trans.TransactionId] = trans;
-    }
-
-    // 증분 업데이트: 제거된 항목 삭제
-    std::vector<int> idsToRemove;
-    for (const int& prevId : previousIds)
-    {
-        if (currentIds.find(prevId) == currentIds.end())
-        {
-            idsToRemove.push_back(prevId);
-        }
-    }
-    for (const int& idToRemove : idsToRemove)
-    {
-        removeListItemByTransactionId(idToRemove);
-    }
-
-    // 증분 업데이트: 추가된 항목 삽입
-    for (const int& currentId : currentIds)
-    {
-        if (previousIds.find(currentId) == previousIds.end())
-        {
-            // 새로 추가된 항목
-            DisplayTransaction(transactionMap[currentId]);
-        }
+        DisplayTransaction(trans);
     }
 
     // 정렬 적용 (정렬 상태가 있으면)
@@ -878,19 +860,11 @@ void wxMLMainFrame::applyCurrentFilter()
         listCtrl->SortItems(CompareTransactions, reinterpret_cast<wxIntPtr>(this));
         listCtrl->ShowSortIndicator(currentSortColumn, currentSortAscending);
     }
+
+    // 화면 갱신 재개
+    listCtrl->Thaw();
 }
 
-// 현재 리스트에 표시된 모든 거래 ID 가져오기 (Single Source of Truth)
-std::set<int> wxMLMainFrame::getCurrentListIds()
-{
-    std::set<int> ids;
-    const int itemCount = listCtrl->GetItemCount();
-    for (long i = 0; i < itemCount; i++)
-    {
-        ids.insert(static_cast<int>(listCtrl->GetItemData(i)));
-    }
-    return ids;
-}
 
 // 리스트에서 거래 ID로 항목 찾기
 long wxMLMainFrame::findListItemByTransactionId(int transactionId)

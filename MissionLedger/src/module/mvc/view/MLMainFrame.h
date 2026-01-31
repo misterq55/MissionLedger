@@ -81,8 +81,7 @@ private:
     wxString formatAmountWithComma(int64_t amount);
     FMLFilterCriteria buildCurrentFilterCriteria();
 
-    // 리스트 증분 업데이트 헬퍼
-    std::set<int> getCurrentListIds();
+    // 리스트 헬퍼
     long findListItemByTransactionId(int transactionId);
     void removeListItemByTransactionId(int transactionId);
 
