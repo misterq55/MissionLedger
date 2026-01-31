@@ -7,6 +7,12 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <limits>
+
+#ifdef _WIN32
+#define NOMINMAX  // Windows.h의 min/max 매크로 비활성화
+#include <windows.h>
+#endif
 
 void printHelp()
 {
@@ -59,7 +65,13 @@ void addTransactionInteractive(std::shared_ptr<FMLController> controller)
     std::getline(std::cin, data.Description);
 
     std::cout << "금액: ";
-    std::cin >> data.Amount;
+    if (!(std::cin >> data.Amount))
+    {
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        std::cout << "잘못된 입력입니다. 숫자를 입력해주세요." << std::endl;
+        return;
+    }
 
     std::cin.ignore(); // 버퍼 비우기
 
@@ -79,7 +91,8 @@ int main(int argc, char* argv[])
 {
     // UTF-8 콘솔 설정 (Windows)
     #ifdef _WIN32
-    system("chcp 65001 > nul");
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
     #endif
 
     std::cout << "MissionLedger CLI 시작..." << std::endl;
@@ -109,7 +122,10 @@ int main(int argc, char* argv[])
         if (filePath.find(".ml") != std::string::npos)
         {
             std::cout << "파일 열기: " << filePath << std::endl;
-            controller->OpenFile(filePath);
+            if (!controller->OpenFile(filePath))
+            {
+                std::cout << "경고: 파일을 열 수 없습니다." << std::endl;
+            }
         }
     }
 
@@ -141,12 +157,22 @@ int main(int argc, char* argv[])
             std::string filename;
             std::cin >> filename;
             std::cout << "파일 열기: " << filename << std::endl;
-            controller->OpenFile(filename);
+            if (!controller->OpenFile(filename))
+            {
+                std::cout << "오류: 파일을 열 수 없습니다." << std::endl;
+            }
         }
         else if (command == "save")
         {
             std::cout << "파일 저장 중..." << std::endl;
-            controller->SaveFile();
+            if (controller->SaveFile())
+            {
+                std::cout << "저장 완료" << std::endl;
+            }
+            else
+            {
+                std::cout << "오류: 파일을 저장할 수 없습니다." << std::endl;
+            }
         }
         else if (command == "add")
         {

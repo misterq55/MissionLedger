@@ -16,8 +16,11 @@ FMLCLIView::~FMLCLIView()
 // IMLView implementation
 void FMLCLIView::AddTransaction(const FMLTransactionData& data)
 {
-    // CLI에서는 직접 입력받지 않고, main에서 컨트롤러를 통해 추가합니다.
-    // 이 메서드는 사용되지 않을 수 있습니다.
+    // Note: IMLView 인터페이스 구현을 위한 메서드
+    // CLI에서는 main_cli.cpp의 addTransactionInteractive()를 통해 입력받으므로
+    // 이 메서드는 직접 호출되지 않습니다.
+    // 향후 프로그래밍 방식 입력이 필요한 경우를 대비하여 구현 유지
+    (void)data; // 미사용 경고 방지
 }
 
 void FMLCLIView::DisplayTransaction(const FMLTransactionData& data)
@@ -114,6 +117,11 @@ void FMLCLIView::OnDataSaved()
 // Private helper methods
 void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeader)
 {
+    // 안전한 substr 헬퍼 람다
+    auto safeSub = [](const std::string& str, size_t len) -> std::string {
+        return str.length() > len ? str.substr(0, len) : str;
+    };
+
     if (showHeader)
     {
         std::cout << "ID: " << data.TransactionId << std::endl;
@@ -130,10 +138,10 @@ void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeade
         std::cout << std::left
             << std::setw(6) << data.TransactionId
             << std::setw(8) << getTypeString(data.Type)
-            << std::setw(15) << data.Category.substr(0, 14)
-            << std::setw(20) << data.Item.substr(0, 19)
+            << std::setw(15) << safeSub(data.Category, 14)
+            << std::setw(20) << safeSub(data.Item, 19)
             << std::setw(15) << formatAmount(data.Amount)
-            << std::setw(20) << data.DateTime.substr(0, 19)
+            << std::setw(20) << safeSub(data.DateTime, 19)
             << std::endl;
     }
 }
@@ -159,7 +167,14 @@ std::string FMLCLIView::getTypeString(E_MLTransactionType type)
 std::string FMLCLIView::formatAmount(int64_t amount)
 {
     std::stringstream ss;
-    ss.imbue(std::locale(""));
+    try
+    {
+        ss.imbue(std::locale(""));
+    }
+    catch (const std::runtime_error&)
+    {
+        // 시스템 로케일을 사용할 수 없으면 기본 로케일 사용
+    }
     ss << std::fixed << amount << "원";
     return ss.str();
 }
