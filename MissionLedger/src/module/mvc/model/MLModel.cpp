@@ -35,6 +35,7 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
     Transactions.emplace(newId, newTransaction);
     TransactionIdIndex++;
     UnsavedChanges = true;
+    invalidateCategoryCache();
 
     if (ModelObserver)
     {
@@ -54,6 +55,7 @@ bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
     auto& transaction = it->second;
     transaction->ApplyData(transactionData);
     UnsavedChanges = true;
+    invalidateCategoryCache();
 
     if (ModelObserver)
     {
@@ -73,6 +75,7 @@ bool FMLModel::RemoveTransaction(const int transactionId)
 
     Transactions.erase(it);
     UnsavedChanges = true;
+    invalidateCategoryCache();
 
     if (ModelObserver)
     {
@@ -128,8 +131,7 @@ std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFi
         // 날짜 범위 필터
         if (criteria.UseDateRangeFilter)
         {
-            std::string transactionDate = data.DateTime.substr(0, 10); // YYYY-MM-DD 부분만 추출
-            if (transactionDate < criteria.StartDate || transactionDate > criteria.EndDate)
+            if (data.DateTime < criteria.StartDate || data.DateTime > criteria.EndDate)
             {
                 continue;
             }
@@ -194,22 +196,6 @@ std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFi
     }
 
     return result;
-}
-
-// Data retrieval - Entity 기반
-std::shared_ptr<FMLTransaction> FMLModel::GetTransaction(const int transactionId)
-{
-    auto it = Transactions.find(transactionId);
-    if (it != Transactions.end())
-    {
-        return it->second;
-    }
-    return nullptr;
-}
-
-std::map<int, std::shared_ptr<FMLTransaction>> FMLModel::GetAllTransactions()
-{
-    return Transactions;
 }
 
 // Business logic
@@ -381,6 +367,7 @@ void FMLModel::clearAllTransactions()
 {
     Transactions.clear();
     TransactionIdIndex = 0;
+    invalidateCategoryCache();
 }
 
 FMLTransactionSummary FMLModel::calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData)
@@ -401,6 +388,7 @@ FMLTransactionSummary FMLModel::calculateTransactionSummary(const std::vector<FM
             transactionSummary.Balance -= transaction.Amount;
             break;
 
+        case E_MLTransactionType::_Max:
         default:
             break;
         }
@@ -420,6 +408,39 @@ FMLTransactionData FMLModel::convertToTransactionData(const std::shared_ptr<FMLT
     data.Description = transaction->GetDescription();
     data.Amount = transaction->GetAmount();
     data.ReceiptNumber = transaction->GetReceiptNumber();
-    data.DateTime = transaction->GetDateTimeString(); // 포맷된 문자열로 변환
+    data.DateTime = transaction->GetDateTime();
     return data;
+}
+
+// 카테고리 캐싱
+// NOTE: 단일 스레드(GUI 메인 스레드) 전용 메서드
+//       멀티스레드 환경에서는 mutable 변수 접근 시 동기화 필요
+std::vector<std::string> FMLModel::GetAllCategories() const
+{
+    if (CategoryCacheDirty)
+    {
+        rebuildCategoryCache();
+        CategoryCacheDirty = false;
+    }
+
+    return std::vector<std::string>(CachedCategories.begin(), CachedCategories.end());
+}
+
+void FMLModel::rebuildCategoryCache() const
+{
+    CachedCategories.clear();
+
+    for (const auto& pair : Transactions)
+    {
+        const auto& category = pair.second->GetCategory();
+        if (!category.empty())
+        {
+            CachedCategories.insert(category);
+        }
+    }
+}
+
+void FMLModel::invalidateCategoryCache()
+{
+    CategoryCacheDirty = true;
 }

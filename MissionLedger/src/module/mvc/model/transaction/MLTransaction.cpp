@@ -1,6 +1,4 @@
 ﻿#include "MLTransaction.h"
-#include <sstream>
-#include <iomanip>
 
 FMLTransaction::FMLTransaction()
     : Id(0)
@@ -9,7 +7,7 @@ FMLTransaction::FMLTransaction()
       , Item("")
       , Description("")
       , Amount(0)
-      , DateTime(std::chrono::system_clock::now())
+      , DateTime("")
       , ReceiptNumber("")
 {
 }
@@ -23,7 +21,7 @@ FMLTransaction::FMLTransaction(int id, E_MLTransactionType type, const std::stri
       , Item(item)
       , Description(description)
       , Amount(amount)
-      , DateTime(parseDateTime(dateTime))
+      , DateTime(dateTime)
       , ReceiptNumber(receiptNumber)
 {
 }
@@ -64,7 +62,7 @@ const std::string& FMLTransaction::GetReceiptNumber() const
     return ReceiptNumber;
 }
 
-const std::chrono::system_clock::time_point& FMLTransaction::GetDateTime() const
+const std::string& FMLTransaction::GetDateTime() const
 {
     return DateTime;
 }
@@ -105,14 +103,9 @@ void FMLTransaction::SetReceiptNumber(const std::string& receiptNumber)
     ReceiptNumber = receiptNumber;
 }
 
-void FMLTransaction::SetDateTime(const std::chrono::system_clock::time_point& dateTime)
-{
-    DateTime = dateTime;
-}
-
 void FMLTransaction::SetDateTime(const std::string& dateTimeStr)
 {
-    DateTime = parseDateTime(dateTimeStr);
+    DateTime = dateTimeStr;
 }
 
 void FMLTransaction::ApplyData(const FMLTransactionData& data)
@@ -122,55 +115,11 @@ void FMLTransaction::ApplyData(const FMLTransactionData& data)
     Item = data.Item;
     Description = data.Description;
     Amount = data.Amount;
-    DateTime = parseDateTime(data.DateTime);
+    DateTime = data.DateTime;
     ReceiptNumber = data.ReceiptNumber;
 }
 
-// Private helper
-std::chrono::system_clock::time_point FMLTransaction::parseDateTime(const std::string& dateTimeStr)
-{
-    if (dateTimeStr.empty())
-    {
-        return std::chrono::system_clock::now();
-    }
-
-    std::tm tm = {};
-    std::istringstream ss(dateTimeStr);
-
-    // 날짜만 파싱 (YYYY-MM-DD)
-    ss >> std::get_time(&tm, "%Y-%m-%d");
-
-    if (ss.fail())
-    {
-        // 파싱 실패 시 현재 날짜 반환
-        return std::chrono::system_clock::now();
-    }
-
-    // 시간은 00:00:00으로 고정
-    tm.tm_hour = 0;
-    tm.tm_min = 0;
-    tm.tm_sec = 0;
-
-    return std::chrono::system_clock::from_time_t(std::mktime(&tm));
-}
-
 // Utility methods
-std::string FMLTransaction::GetDateTimeString() const
-{
-    auto time_t = std::chrono::system_clock::to_time_t(DateTime);
-    struct tm timeInfo;
-
-#ifdef _WIN32
-    localtime_s(&timeInfo, &time_t);
-#else
-    localtime_r(&time_t, &timeInfo);
-#endif
-
-    std::stringstream ss;
-    ss << std::put_time(&timeInfo, "%Y-%m-%d");
-    return ss.str();
-}
-
 std::string FMLTransaction::GetTypeString() const
 {
     switch (Type)

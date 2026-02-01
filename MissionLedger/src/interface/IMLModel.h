@@ -28,13 +28,10 @@ public:
     virtual std::vector<FMLTransactionData> GetAllTransactionData() = 0;
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) = 0;
 
-    // Data retrieval - Entity 기반 (내부 로직용, optional)
-    virtual std::shared_ptr<FMLTransaction> GetTransaction(const int transactionId) = 0;
-    virtual std::map<int, std::shared_ptr<FMLTransaction>> GetAllTransactions() = 0;
-
     // Business logic
     virtual FMLTransactionSummary CalculateTransactionSummary() = 0;
     virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) = 0;
+    virtual std::vector<std::string> GetAllCategories() const = 0;
 
     // Persistence
     virtual bool Save() = 0;

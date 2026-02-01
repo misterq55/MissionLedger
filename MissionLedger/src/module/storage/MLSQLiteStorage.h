@@ -2,7 +2,6 @@
 
 #include "interface/IMLStorageProvider.h"
 #include <string>
-#include <chrono>
 
 struct sqlite3;
 
@@ -32,11 +31,6 @@ private:
     /// 트랜잭션 테이블 생성
     /// </summary>
     bool createTable();
-
-    /// <summary>
-    /// time_point를 DateTime 문자열로 변환
-    /// </summary>
-    std::string formatDateTime(const std::chrono::system_clock::time_point& timePoint);
 
 private:
     sqlite3* Database = nullptr;

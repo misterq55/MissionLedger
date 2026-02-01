@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "MLDefine.h"
 #include <string>
-#include <chrono>
 
 class FMLTransaction
 {
@@ -18,7 +17,7 @@ public:
     const std::string& GetItem() const; // 항목
     const std::string& GetDescription() const; // 내용
     int64_t GetAmount() const; // (수입/지출) 금액
-    const std::chrono::system_clock::time_point& GetDateTime() const; // 년월일
+    const std::string& GetDateTime() const; // 년월일 (YYYY-MM-DD)
     const std::string& GetReceiptNumber() const; // 영수증 No
 
     // Setters
@@ -28,7 +27,6 @@ public:
     void SetItem(const std::string& item);
     void SetDescription(const std::string& description);
     void SetAmount(int64_t amount);
-    void SetDateTime(const std::chrono::system_clock::time_point& dateTime);
     void SetDateTime(const std::string& dateTimeStr);
     void SetReceiptNumber(const std::string& receiptNumber);
 
@@ -36,13 +34,9 @@ public:
     void ApplyData(const FMLTransactionData& data);
 
     // Utility methods
-    std::string GetDateTimeString() const;
     std::string GetTypeString() const;
     bool IsIncome() const;
     bool IsExpense() const;
-
-private:
-    static std::chrono::system_clock::time_point parseDateTime(const std::string& dateTimeStr);
 
 private:
     int Id;
@@ -51,6 +45,6 @@ private:
     std::string Item; // 항목
     std::string Description; // 내용
     int64_t Amount; // (수입/지출) 금액
-    std::chrono::system_clock::time_point DateTime; // 년월일
+    std::string DateTime; // 년월일 (YYYY-MM-DD)
     std::string ReceiptNumber; // 영수증 No
 };

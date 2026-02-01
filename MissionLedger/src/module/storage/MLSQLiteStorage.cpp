@@ -102,7 +102,7 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
     sqlite3_bind_text(stmt, 4, transaction.GetItem().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 5, transaction.GetDescription().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(stmt, 6, transaction.GetAmount());
-    sqlite3_bind_text(stmt, 7, formatDateTime(transaction.GetDateTime()).c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 7, transaction.GetDateTime().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 8, transaction.GetReceiptNumber().c_str(), -1, SQLITE_TRANSIENT);
 
     result = sqlite3_step(stmt);
@@ -236,14 +236,4 @@ E_MLStorageType FMLSQLiteStorage::GetStorageType() const
 bool FMLSQLiteStorage::IsReady() const
 {
     return IsInitialized && Database != nullptr;
-}
-std::string FMLSQLiteStorage::formatDateTime(const std::chrono::system_clock::time_point& timePoint)
-{
-    std::time_t time = std::chrono::system_clock::to_time_t(timePoint);
-    std::tm tm;
-    localtime_s(&tm, &time);
-
-    std::ostringstream ss;
-    ss << std::put_time(&tm, "%Y-%m-%d");
-    return ss.str();
 }

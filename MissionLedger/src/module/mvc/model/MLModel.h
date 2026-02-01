@@ -2,6 +2,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <set>
 
 #include "interface/IMLModel.h"
 
@@ -28,13 +29,10 @@ public:
     virtual std::vector<FMLTransactionData> GetAllTransactionData() override;
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) override;
 
-    // Data retrieval - Entity 기반
-    virtual std::shared_ptr<FMLTransaction> GetTransaction(const int transactionId) override;
-    virtual std::map<int, std::shared_ptr<FMLTransaction>> GetAllTransactions() override;
-
     // Business logic
     virtual FMLTransactionSummary CalculateTransactionSummary() override;
     virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) override;
+    virtual std::vector<std::string> GetAllCategories() const override;
 
     // Persistence
     virtual bool Save() override;
@@ -57,6 +55,10 @@ private:
     void clearAllTransactions();
     FMLTransactionSummary calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData);
 
+    // 카테고리 캐싱
+    void rebuildCategoryCache() const;
+    void invalidateCategoryCache();
+
 private:
     std::shared_ptr<IMLModelObserver> ModelObserver;
     std::shared_ptr<IMLStorageProvider> StorageProvider;
@@ -64,4 +66,8 @@ private:
     std::string CurrentFilePath;
     int TransactionIdIndex = 0;
     bool UnsavedChanges = false;
+
+    // 카테고리 캐시 (Lazy 업데이트)
+    mutable std::set<std::string> CachedCategories;
+    mutable bool CategoryCacheDirty = true;
 };

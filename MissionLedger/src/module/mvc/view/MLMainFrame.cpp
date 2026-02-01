@@ -257,7 +257,8 @@ void wxMLMainFrame::clearInputFields()
     descriptionText->Clear();
     amountText->Clear();
     receiptText->Clear();
-    dateText->Clear();
+    // 날짜 필드는 현재 날짜로 자동 설정 (빈 값 방지 및 UX 개선)
+    dateText->SetValue(wxDateTime::Now().FormatISODate());
 }
 
 // IMLModelObserver 인터페이스 구현
@@ -809,16 +810,8 @@ void wxMLMainFrame::updateCategoryFilter()
     filterCategoryCombo->Clear();
     filterCategoryCombo->Append(wxString::FromUTF8("전체"));
 
-    auto allTransactions = controller->GetAllTransactionData();
-    std::set<std::string> categories;
-
-    for (const auto& trans : allTransactions)
-    {
-        if (!trans.Category.empty())
-        {
-            categories.insert(trans.Category);
-        }
-    }
+    // Controller에서 카테고리 목록 가져오기 (View는 표시만 담당)
+    auto categories = controller->GetAllCategories();
 
     for (const auto& cat : categories)
     {

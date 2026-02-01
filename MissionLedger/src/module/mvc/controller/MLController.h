@@ -25,6 +25,7 @@ public:
     virtual FMLTransactionData GetTransactionData(const int transactionId) override;
     virtual std::vector<FMLTransactionData> GetAllTransactionData() override;
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) override;
+    virtual std::vector<std::string> GetAllCategories() const override;
 
     // Transaction Summary
     virtual FMLTransactionSummary GetTransactionSummary() override;

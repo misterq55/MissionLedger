@@ -20,6 +20,7 @@ public:
     virtual FMLTransactionData GetTransactionData(const int transactionId) = 0;
     virtual std::vector<FMLTransactionData> GetAllTransactionData() = 0;
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) = 0;
+    virtual std::vector<std::string> GetAllCategories() const = 0;
 
     // Transaction Summary
     virtual FMLTransactionSummary GetTransactionSummary() = 0;

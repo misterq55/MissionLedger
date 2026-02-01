@@ -179,3 +179,13 @@ bool FMLController::HasUnsavedChanges() const
     }
     return false;
 }
+
+std::vector<std::string> FMLController::GetAllCategories() const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetAllCategories();
+    }
+    return {};
+}
