@@ -92,7 +92,7 @@ wxMLMainFrame::wxMLMainFrame()
     inputSizer->AddSpacer(5);
 
     // 환율 정보 패널 (체크박스 선택 시 활성화)
-    wxPanel* exchangePanel = new wxPanel(inputPanel);
+    exchangePanel = new wxPanel(inputPanel);
     exchangePanel->SetBackgroundColour(wxColour(235, 235, 235));
     wxBoxSizer* exchangeSizer = new wxBoxSizer(wxVERTICAL);
 
@@ -513,6 +513,11 @@ void wxMLMainFrame::loadTransactionToInput(int transactionId)
 
     // 환율 정보 로드
     exchangeRateCheckBox->SetValue(data.UseExchangeRate);
+
+    // 환율 필드 활성화/비활성화
+    exchangePanel->Enable(data.UseExchangeRate);
+    amountText->Enable(!data.UseExchangeRate);
+
     if (data.UseExchangeRate) {
         currencyCombo->SetValue(wxString::FromUTF8(data.Currency.c_str()));
         originalAmountText->SetValue(wxString::Format("%.2f", data.OriginalAmount));

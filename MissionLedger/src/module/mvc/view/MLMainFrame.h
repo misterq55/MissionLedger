@@ -108,6 +108,7 @@ private:
 
     // 환율 관련 컨트롤
     wxCheckBox* exchangeRateCheckBox;
+    wxPanel* exchangePanel;
     wxComboBox* currencyCombo;
     wxTextCtrl* originalAmountText;
     wxTextCtrl* exchangeRateText;
