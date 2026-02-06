@@ -12,6 +12,8 @@ MissionLedger is a C++ desktop application built with wxWidgets for financial tr
 
 ### Build Commands
 
+#### Visual Studio Developer Command Prompt
+
 ```bash
 # Debug build
 msbuild MissionLedger.sln /p:Configuration=Debug /p:Platform=x64
@@ -22,6 +24,26 @@ msbuild MissionLedger.sln /p:Configuration=Release /p:Platform=x64
 # Clean
 msbuild MissionLedger.sln /t:Clean
 ```
+
+#### Git Bash (MSYS2 Environment)
+
+Git Bash requires special handling due to automatic path conversion. Use `MSYS_NO_PATHCONV=1` to prevent `/p:`, `/v:` switches from being converted to Windows paths.
+
+```bash
+# Debug build (recommended)
+MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" MissionLedger.sln /p:Configuration=Debug /p:Platform=x64 /v:minimal /nologo
+
+# Release build
+MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" MissionLedger.sln /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo
+
+# Clean
+MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" MissionLedger.sln /t:Clean /v:minimal /nologo
+```
+
+**Note**: Adjust the MSBuild path if using Professional or Enterprise edition:
+- Community: `C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe`
+- Professional: `C:/Program Files/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin/MSBuild.exe`
+- Enterprise: `C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/MSBuild.exe`
 
 ### Dependencies
 
