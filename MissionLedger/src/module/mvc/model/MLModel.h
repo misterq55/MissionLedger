@@ -51,7 +51,6 @@ public:
     void SetStorageProvider(std::shared_ptr<IMLStorageProvider> storageProvider);
 
 private:
-    FMLTransactionData convertToTransactionData(const std::shared_ptr<FMLTransaction>& transaction);
     void clearAllTransactions();
     FMLTransactionSummary calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData);
 

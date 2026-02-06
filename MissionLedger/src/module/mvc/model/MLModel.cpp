@@ -26,13 +26,11 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 {
     const int newId = TransactionIdIndex;
 
-    // 기본 생성자 + ApplyData 패턴 사용 (LoadAllTransactions와 동일)
+    // Entity 생성 및 데이터 설정
     auto newTransaction = std::make_shared<FMLTransaction>();
-
-    // DTO를 먼저 적용한 후 ID 설정
     FMLTransactionData dataWithId = transactionData;
     dataWithId.TransactionId = newId;
-    newTransaction->ApplyData(dataWithId);
+    newTransaction->SetData(dataWithId);
 
     Transactions.emplace(newId, newTransaction);
     TransactionIdIndex++;
@@ -41,8 +39,7 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 
     if (ModelObserver)
     {
-        // Entity에서 변환하여 완전한 Output DTO 전달
-        ModelObserver->OnTransactionAdded(convertToTransactionData(newTransaction));
+        ModelObserver->OnTransactionAdded(newTransaction->GetData());
     }
 }
 
@@ -55,7 +52,7 @@ bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
     }
 
     auto& transaction = it->second;
-    transaction->ApplyData(transactionData);
+    transaction->SetData(transactionData);
     UnsavedChanges = true;
     invalidateCategoryCache();
 
@@ -93,7 +90,7 @@ FMLTransactionData FMLModel::GetTransactionData(const int transactionId)
     auto it = Transactions.find(transactionId);
     if (it != Transactions.end())
     {
-        return convertToTransactionData(it->second);
+        return it->second->GetData();
     }
 
     // 빈 데이터 반환 (ID -1로 표시)
@@ -109,7 +106,7 @@ std::vector<FMLTransactionData> FMLModel::GetAllTransactionData()
 
     for (const auto& pair : Transactions)
     {
-        result.push_back(convertToTransactionData(pair.second));
+        result.push_back(pair.second->GetData());
     }
 
     return result;
@@ -122,79 +119,12 @@ std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFi
     for (const auto& pair : Transactions)
     {
         const auto& transaction = pair.second;
-        FMLTransactionData data = convertToTransactionData(transaction);
 
-        // 거래 유형 필터
-        if (criteria.UseTypeFilter && data.Type != criteria.TypeFilter)
+        // Entity의 비즈니스 로직 사용
+        if (transaction->MatchesFilter(criteria))
         {
-            continue;
+            result.push_back(transaction->GetData());
         }
-
-        // 날짜 범위 필터
-        if (criteria.UseDateRangeFilter)
-        {
-            if (data.DateTime < criteria.StartDate || data.DateTime > criteria.EndDate)
-            {
-                continue;
-            }
-        }
-
-        // 카테고리 필터
-        if (criteria.UseCategoryFilter && data.Category != criteria.CategoryFilter)
-        {
-            continue;
-        }
-
-        // 금액 범위 필터
-        if (criteria.UseAmountRangeFilter)
-        {
-            if (data.Amount < criteria.MinAmount || data.Amount > criteria.MaxAmount)
-            {
-                continue;
-            }
-        }
-
-        // 검색어 필터
-        if (criteria.UseTextSearch)
-        {
-            // 검색 필드가 하나라도 선택되었는지 확인
-            if (criteria.SearchInItem || criteria.SearchInDescription || criteria.SearchInReceipt)
-            {
-                bool bfound = false;
-
-                if (criteria.SearchInDescription)
-                {
-                    if (data.Description.find(criteria.SearchText) != std::string::npos)
-                    {
-                        bfound = true;
-                    }
-                }
-
-                if (criteria.SearchInItem)
-                {
-                    if (data.Item.find(criteria.SearchText) != std::string::npos)
-                    {
-                        bfound = true;
-                    }
-                }
-
-                if (criteria.SearchInReceipt)
-                {
-                    if (data.ReceiptNumber.find(criteria.SearchText) != std::string::npos)
-                    {
-                        bfound = true;
-                    }
-                }
-
-                if (!bfound)
-                {
-                    continue;
-                }
-            }
-            // 검색 필드가 모두 false면 검색 스킵 (모든 거래 포함)
-        }
-
-        result.push_back(data);
     }
 
     return result;
@@ -247,18 +177,20 @@ bool FMLModel::OpenFile(const std::string& filePath)
     // 기존 데이터 정리
     clearAllTransactions();
 
-    // 파일에서 거래 로드
-    std::vector<std::shared_ptr<FMLTransaction>> loadedTransactions;
-    if (!StorageProvider->LoadAllTransactions(loadedTransactions))
+    // 파일에서 거래 로드 (DTO)
+    std::vector<FMLTransactionData> loadedData;
+    if (!StorageProvider->LoadAllTransactions(loadedData))
     {
         StorageProvider->Close();
         return false;
     }
 
-    // 메모리에 로드
-    for (const auto& transaction : loadedTransactions)
+    // DTO → Entity 변환 후 메모리에 로드
+    for (const auto& data : loadedData)
     {
-        Transactions.emplace(transaction->GetId(), transaction);
+        auto transaction = std::make_shared<FMLTransaction>();
+        transaction->SetData(data);
+        Transactions.emplace(data.TransactionId, transaction);
     }
 
     // TransactionIdIndex 갱신
@@ -292,15 +224,15 @@ bool FMLModel::SaveFile()
         }
     }
 
-    // 모든 거래를 벡터로 변환
-    std::vector<std::shared_ptr<FMLTransaction>> transactionList;
-    transactionList.reserve(Transactions.size());
+    // Entity → DTO 변환
+    std::vector<FMLTransactionData> transactionDataList;
+    transactionDataList.reserve(Transactions.size());
     for (const auto& pair : Transactions)
     {
-        transactionList.push_back(pair.second);
+        transactionDataList.push_back(pair.second->GetData());
     }
 
-    if (!StorageProvider->SaveAllTransactions(transactionList))
+    if (!StorageProvider->SaveAllTransactions(transactionDataList))
     {
         return false;
     }
@@ -400,27 +332,6 @@ FMLTransactionSummary FMLModel::calculateTransactionSummary(const std::vector<FM
 }
 
 // Private helper
-FMLTransactionData FMLModel::convertToTransactionData(const std::shared_ptr<FMLTransaction>& transaction)
-{
-    FMLTransactionData data;
-    data.TransactionId = transaction->GetId();
-    data.Type = transaction->GetType();
-    data.Category = transaction->GetCategory();
-    data.Item = transaction->GetItem();
-    data.Description = transaction->GetDescription();
-    data.Amount = transaction->GetAmount();
-    data.ReceiptNumber = transaction->GetReceiptNumber();
-    data.DateTime = transaction->GetDateTime();
-
-    // 환율 관련 필드
-    data.UseExchangeRate = transaction->GetUseExchangeRate();
-    data.Currency = transaction->GetCurrency();
-    data.OriginalAmount = transaction->GetOriginalAmount();
-    data.ExchangeRate = transaction->GetExchangeRate();
-
-    return data;
-}
-
 // 카테고리 캐싱
 // NOTE: 단일 스레드(GUI 메인 스레드) 전용 메서드
 //       멀티스레드 환경에서는 mutable 변수 접근 시 동기화 필요
@@ -441,7 +352,7 @@ void FMLModel::rebuildCategoryCache() const
 
     for (const auto& pair : Transactions)
     {
-        const auto& category = pair.second->GetCategory();
+        const auto& category = pair.second->GetData().Category;
         if (!category.empty())
         {
             CachedCategories.insert(category);

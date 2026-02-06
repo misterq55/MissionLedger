@@ -14,14 +14,14 @@ public:
     FMLSQLiteStorage();
     virtual ~FMLSQLiteStorage();
 
-    // IMLStorageProvider 인터페이스 구현
+    // IMLStorageProvider 인터페이스 구현 (DTO 기반)
     bool Initialize(const std::string& filePath) override;
     bool Close() override;
-    bool SaveTransaction(const FMLTransaction& transaction) override;
-    bool SaveAllTransactions(const std::vector<std::shared_ptr<FMLTransaction>>& transactions) override;
-    bool LoadAllTransactions(std::vector<std::shared_ptr<FMLTransaction>>& outTransactions) override;
+    bool SaveTransaction(const FMLTransactionData& data) override;
+    bool SaveAllTransactions(const std::vector<FMLTransactionData>& transactions) override;
+    bool LoadAllTransactions(std::vector<FMLTransactionData>& outTransactions) override;
     bool DeleteTransaction(int transactionId) override;
-    bool UpdateTransaction(const FMLTransaction& transaction) override;
+    bool UpdateTransaction(const FMLTransactionData& data) override;
     int GetLastTransactionId() override;
     E_MLStorageType GetStorageType() const override;
     bool IsReady() const override;

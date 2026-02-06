@@ -2,8 +2,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-
-class FMLTransaction;
+#include "MLDefine.h"
 
 /// <summary>
 /// 저장소 타입 열거형
@@ -19,6 +18,7 @@ enum class E_MLStorageType
 /// <summary>
 /// 저장소 제공자 인터페이스
 /// Strategy Pattern을 사용하여 다양한 저장 방식을 추상화
+/// DTO 기반으로 Entity에 의존하지 않음
 /// </summary>
 class IMLStorageProvider
 {
@@ -41,23 +41,23 @@ public:
     /// <summary>
     /// 단일 거래 저장 (추가 또는 업데이트)
     /// </summary>
-    /// <param name="transaction">저장할 거래 객체</param>
+    /// <param name="data">저장할 거래 데이터 (DTO)</param>
     /// <returns>성공 여부</returns>
-    virtual bool SaveTransaction(const FMLTransaction& transaction) = 0;
+    virtual bool SaveTransaction(const FMLTransactionData& data) = 0;
 
     /// <summary>
     /// 모든 거래 일괄 저장 (기존 데이터 덮어쓰기)
     /// </summary>
-    /// <param name="transactions">저장할 거래 목록</param>
+    /// <param name="transactions">저장할 거래 데이터 목록 (DTO)</param>
     /// <returns>성공 여부</returns>
-    virtual bool SaveAllTransactions(const std::vector<std::shared_ptr<FMLTransaction>>& transactions) = 0;
+    virtual bool SaveAllTransactions(const std::vector<FMLTransactionData>& transactions) = 0;
 
     /// <summary>
     /// 저장소에서 모든 거래 로드
     /// </summary>
-    /// <param name="outTransactions">로드된 거래가 저장될 벡터</param>
+    /// <param name="outTransactions">로드된 거래 데이터가 저장될 벡터 (DTO)</param>
     /// <returns>성공 여부</returns>
-    virtual bool LoadAllTransactions(std::vector<std::shared_ptr<FMLTransaction>>& outTransactions) = 0;
+    virtual bool LoadAllTransactions(std::vector<FMLTransactionData>& outTransactions) = 0;
 
     /// <summary>
     /// 특정 거래 삭제
@@ -69,9 +69,9 @@ public:
     /// <summary>
     /// 기존 거래 정보 업데이트
     /// </summary>
-    /// <param name="transaction">업데이트할 거래 객체</param>
+    /// <param name="data">업데이트할 거래 데이터 (DTO)</param>
     /// <returns>성공 여부</returns>
-    virtual bool UpdateTransaction(const FMLTransaction& transaction) = 0;
+    virtual bool UpdateTransaction(const FMLTransactionData& data) = 0;
 
     /// <summary>
     /// 저장소에서 마지막으로 사용된 거래 ID 조회

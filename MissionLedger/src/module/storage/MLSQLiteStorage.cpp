@@ -84,7 +84,7 @@ bool FMLSQLiteStorage::createTable()
     return true;
 }
 
-bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
+bool FMLSQLiteStorage::SaveTransaction(const FMLTransactionData& data)
 {
     if (!IsInitialized) return false;
 
@@ -102,20 +102,20 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
         return false;
     }
 
-    sqlite3_bind_int(stmt, 1, transaction.GetId());
-    sqlite3_bind_int(stmt, 2, static_cast<int>(transaction.GetType()));
-    sqlite3_bind_text(stmt, 3, transaction.GetCategory().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 4, transaction.GetItem().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 5, transaction.GetDescription().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int64(stmt, 6, transaction.GetAmount());
-    sqlite3_bind_text(stmt, 7, transaction.GetDateTime().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 8, transaction.GetReceiptNumber().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 1, data.TransactionId);
+    sqlite3_bind_int(stmt, 2, static_cast<int>(data.Type));
+    sqlite3_bind_text(stmt, 3, data.Category.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, data.Item.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, data.Description.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 6, data.Amount);
+    sqlite3_bind_text(stmt, 7, data.DateTime.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 8, data.ReceiptNumber.c_str(), -1, SQLITE_TRANSIENT);
 
     // 환율 관련 필드
-    sqlite3_bind_int(stmt, 9, transaction.GetUseExchangeRate() ? 1 : 0);
-    sqlite3_bind_text(stmt, 10, transaction.GetCurrency().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_double(stmt, 11, transaction.GetOriginalAmount());
-    sqlite3_bind_double(stmt, 12, transaction.GetExchangeRate());
+    sqlite3_bind_int(stmt, 9, data.UseExchangeRate ? 1 : 0);
+    sqlite3_bind_text(stmt, 10, data.Currency.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_double(stmt, 11, data.OriginalAmount);
+    sqlite3_bind_double(stmt, 12, data.ExchangeRate);
 
     result = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -123,7 +123,7 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
     return result == SQLITE_DONE;
 }
 
-bool FMLSQLiteStorage::SaveAllTransactions(const std::vector<std::shared_ptr<FMLTransaction>>& transactions)
+bool FMLSQLiteStorage::SaveAllTransactions(const std::vector<FMLTransactionData>& transactions)
 {
     if (!IsInitialized) return false;
 
@@ -146,9 +146,9 @@ bool FMLSQLiteStorage::SaveAllTransactions(const std::vector<std::shared_ptr<FML
     }
 
     // 모든 거래 저장
-    for (const auto& transaction : transactions)
+    for (const auto& data : transactions)
     {
-        if (!SaveTransaction(*transaction))
+        if (!SaveTransaction(data))
         {
             sqlite3_exec(Database, "ROLLBACK;", nullptr, nullptr, nullptr);
             return false;
@@ -166,7 +166,7 @@ bool FMLSQLiteStorage::SaveAllTransactions(const std::vector<std::shared_ptr<FML
     return true;
 }
 
-bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransaction>>& outTransactions)
+bool FMLSQLiteStorage::LoadAllTransactions(std::vector<FMLTransactionData>& outTransactions)
 {
     if (!IsInitialized) return false;
 
@@ -187,7 +187,6 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransa
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        // DTO 생성
         FMLTransactionData data;
 
         data.TransactionId = sqlite3_column_int(stmt, 0);
@@ -213,11 +212,7 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransa
         data.OriginalAmount = sqlite3_column_double(stmt, 10);
         data.ExchangeRate = sqlite3_column_double(stmt, 11);
 
-        // Entity 생성 및 DTO 적용
-        auto transaction = std::make_shared<FMLTransaction>();
-        transaction->ApplyData(data);
-
-        outTransactions.push_back(transaction);
+        outTransactions.push_back(data);
     }
 
     sqlite3_finalize(stmt);
@@ -244,10 +239,10 @@ bool FMLSQLiteStorage::DeleteTransaction(int transactionId)
     return result == SQLITE_DONE;
 }
 
-bool FMLSQLiteStorage::UpdateTransaction(const FMLTransaction& transaction)
+bool FMLSQLiteStorage::UpdateTransaction(const FMLTransactionData& data)
 {
     // SaveTransaction이 INSERT OR REPLACE를 사용하므로 동일하게 동작
-    return SaveTransaction(transaction);
+    return SaveTransaction(data);
 }
 
 int FMLSQLiteStorage::GetLastTransactionId()
