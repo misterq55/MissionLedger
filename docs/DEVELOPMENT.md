@@ -117,11 +117,76 @@ The project follows a phased approach for implementation, prioritizing core func
     - ⏳ Double-click .ml file → launch MissionLedger
     - ⏳ Icon association
 
+16. **PDF Export** 📋 PLANNED
+    - 📋 Library: wxPdfDocument (wxWidgets integration, Korean font support)
+    - 📋 Reference layout: 결산안.pdf
+    - 📋 Estimated time: 2-3 hours (basic implementation)
+    - 📋 Features: Transaction table, summary, Korean fonts
+
 ### Deferred Features
 - Multiple document interface (MDI) support
-- Report generation (charts, summaries)
 - Multi-language support
 - Undo/Redo functionality
+
+## Future Development Considerations
+
+### PDF Export (Phase 4 - Planned)
+
+**Recommended Library**: wxPdfDocument
+
+**Why wxPdfDocument?**
+- ✅ Perfect integration with wxWidgets
+- ✅ Korean font support (TrueType)
+- ✅ Easy installation and usage
+- ✅ MIT License (free for commercial use)
+- ✅ Active maintenance
+
+**Installation:**
+```bash
+vcpkg install wxpdfview
+# Or: https://github.com/utelle/wxpdfdoc
+```
+
+**Reference Layout**: `결산안.pdf`
+- Summary table (income/expense totals, balance)
+- Category grouping (생활, 사역 준비, 팀사역, etc.)
+- Detail table (date, item, amount, receipt number)
+- Exchange rate information (PHP 24.84)
+
+**Implementation Plan:**
+1. Install and test wxPdfDocument basic example
+2. Setup Korean fonts (NanumGothic or Malgun Gothic)
+3. Render transaction table with proper formatting
+4. Add summary section (total income, expense, balance)
+5. Integrate file save dialog
+
+**Example Code Structure:**
+```cpp
+wxPdfDocument pdf;
+pdf.AddPage();
+pdf.AddFont("NanumGothic", "", "NanumGothic.ttf");
+pdf.SetFont("NanumGothic", "", 12);
+
+// Header
+pdf.Cell(0, 10, wxString::FromUTF8("거래 내역"), 0, 1, wxPDF_ALIGN_CENTER);
+
+// Table
+for (auto& transaction : transactions) {
+    pdf.Cell(30, 8, transaction.DateTime);
+    pdf.Cell(40, 8, transaction.Category);
+    pdf.Cell(50, 8, transaction.Item);
+    pdf.Cell(40, 8, formatAmount(transaction.Amount));
+    pdf.Ln();
+}
+
+pdf.SaveAsFile("output.pdf");
+```
+
+**Alternative Approaches:**
+- **CSV Export** (Very simple, 1 hour) - Users can open in Excel
+- **HTML → PDF** (Requires external tool like wkhtmltopdf)
+
+**Priority**: Deferred until CSV export and installer features are completed
 
 **Current Focus**: Phase 4 - Transaction Summary Display (essential for budget tracking)
 
