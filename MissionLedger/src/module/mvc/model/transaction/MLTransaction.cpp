@@ -9,20 +9,10 @@ FMLTransaction::FMLTransaction()
       , Amount(0)
       , DateTime("")
       , ReceiptNumber("")
-{
-}
-
-FMLTransaction::FMLTransaction(int id, E_MLTransactionType type, const std::string& category,
-                               const std::string& item, const std::string& description,
-                               int64_t amount, const std::string& dateTime, const std::string& receiptNumber)
-    : Id(id)
-      , Type(type)
-      , Category(category)
-      , Item(item)
-      , Description(description)
-      , Amount(amount)
-      , DateTime(dateTime)
-      , ReceiptNumber(receiptNumber)
+      , UseExchangeRate(false)
+      , Currency("KRW")
+      , OriginalAmount(0.0)
+      , ExchangeRate(1.0)
 {
 }
 
@@ -67,49 +57,30 @@ const std::string& FMLTransaction::GetDateTime() const
     return DateTime;
 }
 
-// Setters
-void FMLTransaction::SetId(int id)
+// 환율 관련 Getters
+bool FMLTransaction::GetUseExchangeRate() const
 {
-    Id = id;
+    return UseExchangeRate;
 }
 
-void FMLTransaction::SetType(E_MLTransactionType type)
+const std::string& FMLTransaction::GetCurrency() const
 {
-    Type = type;
+    return Currency;
 }
 
-void FMLTransaction::SetAmount(int64_t amount)
+double FMLTransaction::GetOriginalAmount() const
 {
-    Amount = amount;
+    return OriginalAmount;
 }
 
-void FMLTransaction::SetCategory(const std::string& category)
+double FMLTransaction::GetExchangeRate() const
 {
-    Category = category;
-}
-
-void FMLTransaction::SetItem(const std::string& item)
-{
-    Item = item;
-}
-
-void FMLTransaction::SetDescription(const std::string& description)
-{
-    Description = description;
-}
-
-void FMLTransaction::SetReceiptNumber(const std::string& receiptNumber)
-{
-    ReceiptNumber = receiptNumber;
-}
-
-void FMLTransaction::SetDateTime(const std::string& dateTimeStr)
-{
-    DateTime = dateTimeStr;
+    return ExchangeRate;
 }
 
 void FMLTransaction::ApplyData(const FMLTransactionData& data)
 {
+    Id = data.TransactionId;
     Type = data.Type;
     Category = data.Category;
     Item = data.Item;
@@ -117,6 +88,12 @@ void FMLTransaction::ApplyData(const FMLTransactionData& data)
     Amount = data.Amount;
     DateTime = data.DateTime;
     ReceiptNumber = data.ReceiptNumber;
+
+    // 환율 관련 필드
+    UseExchangeRate = data.UseExchangeRate;
+    Currency = data.Currency;
+    OriginalAmount = data.OriginalAmount;
+    ExchangeRate = data.ExchangeRate;
 }
 
 // Utility methods

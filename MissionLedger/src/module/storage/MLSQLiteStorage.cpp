@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <iostream>
 
 FMLSQLiteStorage::FMLSQLiteStorage()
 {
@@ -63,7 +64,11 @@ bool FMLSQLiteStorage::createTable()
             description TEXT,
             amount INTEGER NOT NULL,
             datetime TEXT NOT NULL,
-            receipt_number TEXT
+            receipt_number TEXT,
+            use_exchange_rate INTEGER DEFAULT 0,
+            currency TEXT DEFAULT 'KRW',
+            original_amount REAL DEFAULT 0.0,
+            exchange_rate REAL DEFAULT 1.0
         );
     )";
 
@@ -85,8 +90,9 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
 
     const char* sql = R"(
         INSERT OR REPLACE INTO transactions
-        (id, type, category, item, description, amount, datetime, receipt_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        (id, type, category, item, description, amount, datetime, receipt_number,
+         use_exchange_rate, currency, original_amount, exchange_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     )";
 
     sqlite3_stmt* stmt = nullptr;
@@ -105,6 +111,12 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransaction& transaction)
     sqlite3_bind_text(stmt, 7, transaction.GetDateTime().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 8, transaction.GetReceiptNumber().c_str(), -1, SQLITE_TRANSIENT);
 
+    // 환율 관련 필드
+    sqlite3_bind_int(stmt, 9, transaction.GetUseExchangeRate() ? 1 : 0);
+    sqlite3_bind_text(stmt, 10, transaction.GetCurrency().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_double(stmt, 11, transaction.GetOriginalAmount());
+    sqlite3_bind_double(stmt, 12, transaction.GetExchangeRate());
+
     result = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
@@ -116,10 +128,22 @@ bool FMLSQLiteStorage::SaveAllTransactions(const std::vector<std::shared_ptr<FML
     if (!IsInitialized) return false;
 
     // 트랜잭션 시작
-    sqlite3_exec(Database, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+    char* errorMsg = nullptr;
+    int result = sqlite3_exec(Database, "BEGIN TRANSACTION;", nullptr, nullptr, &errorMsg);
+    if (result != SQLITE_OK)
+    {
+        sqlite3_free(errorMsg);
+        return false;
+    }
 
     // 기존 데이터 삭제
-    sqlite3_exec(Database, "DELETE FROM transactions;", nullptr, nullptr, nullptr);
+    result = sqlite3_exec(Database, "DELETE FROM transactions;", nullptr, nullptr, &errorMsg);
+    if (result != SQLITE_OK)
+    {
+        sqlite3_free(errorMsg);
+        sqlite3_exec(Database, "ROLLBACK;", nullptr, nullptr, nullptr);
+        return false;
+    }
 
     // 모든 거래 저장
     for (const auto& transaction : transactions)
@@ -132,7 +156,13 @@ bool FMLSQLiteStorage::SaveAllTransactions(const std::vector<std::shared_ptr<FML
     }
 
     // 커밋
-    sqlite3_exec(Database, "COMMIT;", nullptr, nullptr, nullptr);
+    result = sqlite3_exec(Database, "COMMIT;", nullptr, nullptr, &errorMsg);
+    if (result != SQLITE_OK)
+    {
+        sqlite3_free(errorMsg);
+        return false;
+    }
+
     return true;
 }
 
@@ -142,7 +172,11 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransa
 
     outTransactions.clear();
 
-    const char* sql = "SELECT id, type, category, item, description, amount, datetime, receipt_number FROM transactions ORDER BY id;";
+    const char* sql = R"(
+        SELECT id, type, category, item, description, amount, datetime, receipt_number,
+               use_exchange_rate, currency, original_amount, exchange_rate
+        FROM transactions ORDER BY id;
+    )";
 
     sqlite3_stmt* stmt = nullptr;
     int result = sqlite3_prepare_v2(Database, sql, -1, &stmt, nullptr);
@@ -153,21 +187,35 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<std::shared_ptr<FMLTransa
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        int id = sqlite3_column_int(stmt, 0);
-        E_MLTransactionType type = static_cast<E_MLTransactionType>(sqlite3_column_int(stmt, 1));
-        std::string category = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        std::string item = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        // DTO 생성
+        FMLTransactionData data;
+
+        data.TransactionId = sqlite3_column_int(stmt, 0);
+        data.Type = static_cast<E_MLTransactionType>(sqlite3_column_int(stmt, 1));
+        data.Category = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        data.Item = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
 
         const char* descPtr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
-        std::string description = descPtr ? descPtr : "";
+        data.Description = descPtr ? descPtr : "";
 
-        int64_t amount = sqlite3_column_int64(stmt, 5);
-        std::string dateTimeStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
+        data.Amount = sqlite3_column_int64(stmt, 5);
+        data.DateTime = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
 
         const char* receiptPtr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
-        std::string receiptNumber = receiptPtr ? receiptPtr : "";
+        data.ReceiptNumber = receiptPtr ? receiptPtr : "";
 
-        auto transaction = std::make_shared<FMLTransaction>(id, type, category, item, description, amount, dateTimeStr, receiptNumber);
+        // 환율 관련 필드
+        data.UseExchangeRate = sqlite3_column_int(stmt, 8) != 0;
+
+        const char* currencyPtr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
+        data.Currency = currencyPtr ? currencyPtr : "KRW";
+
+        data.OriginalAmount = sqlite3_column_double(stmt, 10);
+        data.ExchangeRate = sqlite3_column_double(stmt, 11);
+
+        // Entity 생성 및 DTO 적용
+        auto transaction = std::make_shared<FMLTransaction>();
+        transaction->ApplyData(data);
 
         outTransactions.push_back(transaction);
     }

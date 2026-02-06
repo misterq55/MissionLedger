@@ -3,6 +3,7 @@
 #include "MLDefine.h"
 #include <vector>
 #include <algorithm>
+#include <iostream>
 
 #include "interface/IMLModelObserver.h"
 #include "interface/IMLStorageProvider.h"
@@ -23,14 +24,15 @@ void FMLModel::AddObserver(std::shared_ptr<IMLModelObserver> modelObserver)
 // Transaction CRUD operations
 void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 {
-    int newId = TransactionIdIndex;
+    const int newId = TransactionIdIndex;
 
-    auto newTransaction = std::make_shared<FMLTransaction>(
-        newId, transactionData.Type,
-        transactionData.Category, transactionData.Item,
-        transactionData.Description, transactionData.Amount,
-        transactionData.DateTime,
-        transactionData.ReceiptNumber);
+    // 기본 생성자 + ApplyData 패턴 사용 (LoadAllTransactions와 동일)
+    auto newTransaction = std::make_shared<FMLTransaction>();
+
+    // DTO를 먼저 적용한 후 ID 설정
+    FMLTransactionData dataWithId = transactionData;
+    dataWithId.TransactionId = newId;
+    newTransaction->ApplyData(dataWithId);
 
     Transactions.emplace(newId, newTransaction);
     TransactionIdIndex++;
@@ -409,6 +411,13 @@ FMLTransactionData FMLModel::convertToTransactionData(const std::shared_ptr<FMLT
     data.Amount = transaction->GetAmount();
     data.ReceiptNumber = transaction->GetReceiptNumber();
     data.DateTime = transaction->GetDateTime();
+
+    // 환율 관련 필드
+    data.UseExchangeRate = transaction->GetUseExchangeRate();
+    data.Currency = transaction->GetCurrency();
+    data.OriginalAmount = transaction->GetOriginalAmount();
+    data.ExchangeRate = transaction->GetExchangeRate();
+
     return data;
 }
 
