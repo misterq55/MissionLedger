@@ -50,16 +50,16 @@ MissionLedger/
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-01-29):
+**Completed Features** (as of 2026-02-06):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
 - ✅ Transaction filtering (date range, type, category) with differential updates
 - ✅ UTF-8 encoding support for Korean text
 - ✅ MVC architecture with strict boundaries (View → Controller → Model)
-
-**Completed**:
 - ✅ List footer with income/expense/balance totals (real-time summary with filter support)
+- ✅ Exchange rate support (foreign currency transactions with auto-conversion)
+- ✅ Entity-DTO architecture refactoring (Data-Oriented Design, -136 lines net reduction)
 
 **Current Focus**: Phase 4 - Data Export & Distribution
 - ⏳ Excel/CSV export
@@ -73,7 +73,7 @@ MissionLedger/
 - **Enums**: `E_MLTransactionType` (E_ML prefix, PascalCase)
 - **Structs**: `FMLTransactionData`, `FMLFilterCriteria` (FML prefix, PascalCase)
 - **Public functions**: `AddTransaction()`, `GetData()` (PascalCase)
-- **Private functions**: `convertToDTO()`, `notifyObservers()` (camelCase)
+- **Private functions**: `rebuildCategoryCache()`, `notifyObservers()` (camelCase)
 - **Variables/parameters**: `transactionData`, `userId` (camelCase)
 - **Member variables**: `TransactionId`, `Amount` (PascalCase)
 

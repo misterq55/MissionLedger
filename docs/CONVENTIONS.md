@@ -108,8 +108,8 @@ Example:
 bool AddTransaction(const FMLTransactionData& data);
 
 private:
-    // Converts entity to DTO for external access
-    FMLTransactionData convertToTransactionData(const FMLTransaction& transaction) const;
+    // Rebuilds category cache from all transactions
+    void rebuildCategoryCache() const;
 ```
 
 ## Code Style

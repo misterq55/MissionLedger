@@ -142,11 +142,11 @@ The project uses Strategy Pattern for data persistence, allowing flexible storag
 ```cpp
 class IMLStorageProvider {
     virtual bool Initialize(const std::string& filePath) = 0;
-    virtual bool SaveTransaction(const FMLTransaction& transaction) = 0;
-    virtual bool SaveAllTransactions(const std::vector<std::shared_ptr<FMLTransaction>>& transactions) = 0;
-    virtual bool LoadAllTransactions(std::vector<std::shared_ptr<FMLTransaction>>& outTransactions) = 0;
+    virtual bool SaveTransaction(const FMLTransactionData& data) = 0;
+    virtual bool SaveAllTransactions(const std::vector<FMLTransactionData>& transactions) = 0;
+    virtual bool LoadAllTransactions(std::vector<FMLTransactionData>& outTransactions) = 0;
     virtual bool DeleteTransaction(int transactionId) = 0;
-    virtual bool UpdateTransaction(const FMLTransaction& transaction) = 0;
+    virtual bool UpdateTransaction(const FMLTransactionData& data) = 0;
     virtual int GetLastTransactionId() = 0;
     virtual E_MLStorageType GetStorageType() const = 0;
     virtual bool IsReady() const = 0;
@@ -217,11 +217,137 @@ data.DateTime = "2025-12-30 15:30:45";  // Formatted string
 **What Model Uses Internally (Entity)**:
 ```cpp
 FMLTransaction transaction;  // Rich domain object
-std::chrono::system_clock::time_point dateTime;  // Native type
-std::string GetDateTimeString() const;  // Business logic
+auto data = transaction.GetData();  // Access underlying data
+bool isValid = transaction.IsValid();  // Business logic
 ```
 
-**Conversion**: Model provides `convertToTransactionData()` private method to transform Entity → DTO
+**Data Access**: Entity exposes data via `GetData()` method, returning const reference to internal `FMLTransactionData`
+
+## Entity-DTO Architecture (Data-Oriented Design)
+
+This project adopts a **Data-Oriented Design** approach where Entity wraps Data structure rather than duplicating fields.
+
+### Design Evolution
+
+**Previous Design** (Field Duplication):
+```cpp
+class FMLTransaction {
+private:
+    int Id;                           // 12 individual fields
+    E_MLTransactionType Type;
+    std::string Category;
+    // ... 9 more fields
+
+public:
+    int GetId() const;                // 12 individual getters
+    E_MLTransactionType GetType() const;
+    // ... 10 more getters
+};
+```
+
+**Current Design** (Data-Oriented):
+```cpp
+class FMLTransaction {
+private:
+    FMLTransactionData data_;         // Single data container
+
+public:
+    const FMLTransactionData& GetData() const;  // Single getter
+    void SetData(const FMLTransactionData& data);
+
+    // Business logic methods
+    bool MatchesFilter(const FMLFilterCriteria& criteria) const;
+    bool IsValid() const;
+};
+```
+
+### Design Benefits
+
+1. **Reduced Code Duplication**: 12 getters → 1 getter (90% reduction)
+2. **Clear Responsibility Separation**:
+   - `FMLTransactionData`: Pure data container (DTO)
+   - `FMLTransaction`: Business logic + data wrapper (Entity)
+3. **Simplified Model Layer**: Filtering logic reduced from 80 lines → 10 lines
+4. **Entity Encapsulation**: Business logic (validation, filtering) lives in Entity, not Model
+5. **Storage Independence**: Storage layer uses DTO directly, no Entity dependency
+
+### Business Logic Encapsulation
+
+**What Entity Owns**:
+```cpp
+bool FMLTransaction::MatchesFilter(const FMLFilterCriteria& criteria) const {
+    if (criteria.UseTypeFilter && data_.Type != criteria.TypeFilter)
+        return false;
+
+    if (criteria.UseDateRangeFilter)
+        if (data_.DateTime < criteria.StartDate || data_.DateTime > criteria.EndDate)
+            return false;
+
+    // ... all filter logic
+    return true;
+}
+
+bool FMLTransaction::IsValid() const {
+    if (data_.Amount <= 0) return false;
+    if (data_.Category.empty()) return false;
+    return true;
+}
+```
+
+**What Model Does** (Simplified):
+```cpp
+std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(
+    const FMLFilterCriteria& criteria) {
+
+    std::vector<FMLTransactionData> result;
+    for (const auto& pair : Transactions) {
+        if (pair.second->MatchesFilter(criteria))  // Delegated to Entity
+            result.push_back(pair.second->GetData());
+    }
+    return result;
+}
+```
+
+### Layer Separation
+
+**Storage ↔ DTO ↔ Model(Entity) ↔ DTO ↔ View**
+
+```
+┌──────────────┐
+│   Storage    │ Uses FMLTransactionData (DTO)
+│   (SQLite)   │ - No Entity dependency
+└──────┬───────┘ - Direct field access
+       │
+       ↓ DTO
+┌──────────────┐
+│    Model     │ Manages FMLTransaction (Entity)
+│              │ - Converts DTO → Entity on load
+└──────┬───────┘ - Converts Entity → DTO on save
+       │
+       ↓ DTO
+┌──────────────┐
+│ View/Control │ Uses FMLTransactionData (DTO)
+│              │ - No Entity access
+└──────────────┘
+```
+
+### Rationale for Data-Oriented Design
+
+**Why Wrap Data Instead of Field Duplication?**
+- **C++ Best Practice**: Composition over inheritance/duplication
+- **Maintainability**: Adding new fields requires changing only `FMLTransactionData`
+- **Performance**: Single memory block (cache-friendly), no getter overhead
+- **Simplicity**: Clear data flow, no synchronization issues between Entity fields and DTO
+
+**Why Not Direct Field Access?**
+- **Encapsulation**: Business logic methods (MatchesFilter, IsValid) justify Entity existence
+- **Future Flexibility**: Can add computed properties, lazy loading, or validation later
+- **Domain Model**: Entity represents domain concept, not just data storage
+
+**Alternative Considered**: Entity with individual fields duplicating DTO
+- Rejected due to maintenance overhead (12+ fields, 12+ getters)
+- Synchronization bugs when adding/removing fields
+- No clear benefit over Data-Oriented approach for this use case
 
 ## Controller Implementation Pattern
 

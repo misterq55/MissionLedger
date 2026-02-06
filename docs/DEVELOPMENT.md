@@ -75,9 +75,27 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Applied `wxString::ToUTF8().data()` for all string conversions
     - ✅ Proper SQLite UTF-8 encoding
 
+11. **Exchange Rate Support** ✅ COMPLETED (2026-02-06)
+    - ✅ Added exchange rate fields to `FMLTransactionData`
+      - `UseExchangeRate`: Toggle for foreign currency transactions
+      - `Currency`: Currency code (e.g., USD, JPY, EUR)
+      - `OriginalAmount`: Amount in original currency
+      - `ExchangeRate`: Conversion rate to KRW
+    - ✅ GUI integration with auto-calculation
+    - ✅ CLI support for exchange rate parameters
+    - ✅ SQLite schema updated with exchange rate columns
+
+12. **Entity-DTO Architecture Refactoring** ✅ COMPLETED (2026-02-06)
+    - ✅ Adopted Data-Oriented Design (Entity wraps Data)
+    - ✅ Reduced from 12 individual getters → 1 `GetData()` method
+    - ✅ Moved business logic to Entity (`MatchesFilter`, `IsValid`)
+    - ✅ Simplified Model filtering logic (80 lines → 10 lines)
+    - ✅ Converted Storage to DTO-based (removed Entity dependency)
+    - ✅ Net code reduction: -136 lines while adding functionality
+
 ### Phase 4: Data Export & Distribution ⏳ IN PROGRESS
 
-11. **Transaction Summary Display** ✅ COMPLETED (2026-01-30)
+13. **Transaction Summary Display** ✅ COMPLETED (2026-01-30)
     - ✅ List footer panel with summary totals
     - ✅ FMLTransactionSummary data structure
     - ✅ Real-time calculation (Income/Expense/Balance)
@@ -87,13 +105,13 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Observer integration (all data change events trigger summary update)
     - ✅ Helper methods (createSummaryPanel, updateSummaryPanel, displaySummary, formatAmountWithComma, buildCurrentFilterCriteria)
 
-12. **Excel/CSV Export** ⏳ PENDING
+14. **Excel/CSV Export** ⏳ PENDING
     - ⏳ CSV export with UTF-8 BOM (Korean support)
     - ⏳ Export current view (respects active filter)
     - ⏳ File menu integration
     - ⏳ Column headers and formatting
 
-13. **.ml File Registration** ⏳ PENDING
+15. **.ml File Registration** ⏳ PENDING
     - ⏳ Installer creation (Inno Setup / NSIS)
     - ⏳ Windows registry setup for file association
     - ⏳ Double-click .ml file → launch MissionLedger
