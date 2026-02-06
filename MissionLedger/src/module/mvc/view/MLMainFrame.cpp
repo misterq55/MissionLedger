@@ -222,7 +222,7 @@ wxMLMainFrame::wxMLMainFrame()
     listCtrl->Bind(wxEVT_LIST_COL_CLICK, &wxMLMainFrame::OnColumnHeaderClick, this);
 
     // 환율 관련 이벤트 바인딩
-    exchangeRateCheckBox->Bind(wxEVT_CHECKBOX, [this, exchangePanel](wxCommandEvent& event) {
+    exchangeRateCheckBox->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent& event) {
         bool enabled = event.IsChecked();
         exchangePanel->Enable(enabled);
 
