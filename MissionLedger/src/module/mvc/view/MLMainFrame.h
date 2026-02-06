@@ -64,6 +64,8 @@ private:
     void updateButtonStates();
     void updateTitle();
     bool checkUnsavedChanges();
+    void updateConvertedAmount();
+    bool collectTransactionDataFromInput(FMLTransactionData& outData);
 
     // 필터 헬퍼 메서드
     void createFilterPanel(wxPanel* parent, wxBoxSizer* sizer);
@@ -103,6 +105,13 @@ private:
     wxButton* addButton;
     wxButton* updateButton;
     wxButton* deleteButton;
+
+    // 환율 관련 컨트롤
+    wxCheckBox* exchangeRateCheckBox;
+    wxComboBox* currencyCombo;
+    wxTextCtrl* originalAmountText;
+    wxTextCtrl* exchangeRateText;
+    wxStaticText* convertedAmountLabel;
 
     // UI 컨트롤들 - 필터 패널
     wxTextCtrl* filterSearchText;

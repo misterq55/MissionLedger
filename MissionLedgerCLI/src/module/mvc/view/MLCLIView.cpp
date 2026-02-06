@@ -117,10 +117,14 @@ void FMLCLIView::printUsage()
     std::cout << "  --desc <설명>           설명" << std::endl;
     std::cout << "  --receipt <번호>        영수증 번호" << std::endl;
     std::cout << "  --date <날짜>           날짜 (YYYY-MM-DD 형식, 미지정시 현재 날짜)" << std::endl;
+    std::cout << "\n환율 옵션 (선택, 모두 지정 시 환율 적용):" << std::endl;
+    std::cout << "  --currency <통화>       통화 코드 (USD, EUR, JPY 등)" << std::endl;
+    std::cout << "  --original <외화금액>   원래 외화 금액" << std::endl;
+    std::cout << "  --rate <환율>           환율 (원/외화)" << std::endl;
     std::cout << "\n예시:" << std::endl;
     std::cout << "  MissionLedgerCLI list data.ml" << std::endl;
     std::cout << "  MissionLedgerCLI add --file data.ml --type income --amount 50000 --category \"급여\"" << std::endl;
-    std::cout << "  MissionLedgerCLI add --file data.ml --type income --amount 50000 --category \"급여\" --date 2024-11-14" << std::endl;
+    std::cout << "  MissionLedgerCLI add --file data.ml --type expense --amount 130000 --category \"숙박\" --currency USD --original 100 --rate 1300" << std::endl;
     std::cout << "  MissionLedgerCLI open data.ml" << std::endl;
     std::cout << "\n인수 없이 실행하면 대화형 모드로 진입합니다." << std::endl;
 }
@@ -248,6 +252,35 @@ int FMLCLIView::cmdAdd(const std::map<std::string, std::string>& options)
     else
     {
         data.DateTime = "";
+    }
+
+    // 환율 옵션 (선택적, 모두 지정 시 환율 적용)
+    auto currencyIt = options.find("currency");
+    auto originalIt = options.find("original");
+    auto rateIt = options.find("rate");
+
+    if (currencyIt != options.end() && originalIt != options.end() && rateIt != options.end())
+    {
+        data.UseExchangeRate = true;
+        data.Currency = currencyIt->second;
+
+        try
+        {
+            data.OriginalAmount = std::stod(originalIt->second);
+            data.ExchangeRate = std::stod(rateIt->second);
+
+            // 금액 자동 계산 (환율 적용)
+            data.Amount = static_cast<int64_t>(data.OriginalAmount * data.ExchangeRate);
+        }
+        catch (const std::exception&)
+        {
+            std::cerr << "오류: 잘못된 환율 정보입니다." << std::endl;
+            return 1;
+        }
+    }
+    else
+    {
+        data.UseExchangeRate = false;
     }
 
     // 트랜잭션 추가
@@ -452,6 +485,47 @@ void FMLCLIView::handleAddTransaction()
     std::cout << "영수증 번호 (선택): ";
     std::getline(std::cin, data.ReceiptNumber);
 
+    // 환율 적용 여부
+    std::cout << "환율 적용 (y/n, 기본: n): ";
+    std::string useExchangeStr;
+    std::getline(std::cin, useExchangeStr);
+
+    if (useExchangeStr == "y" || useExchangeStr == "Y")
+    {
+        data.UseExchangeRate = true;
+
+        std::cout << "통화 코드 (예: USD, EUR, JPY): ";
+        std::getline(std::cin, data.Currency);
+
+        std::cout << "외화 금액: ";
+        if (!(std::cin >> data.OriginalAmount))
+        {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "잘못된 입력입니다." << std::endl;
+            return;
+        }
+
+        std::cout << "환율 (원/외화): ";
+        if (!(std::cin >> data.ExchangeRate))
+        {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "잘못된 입력입니다." << std::endl;
+            return;
+        }
+
+        // 금액 자동 계산
+        data.Amount = static_cast<int64_t>(data.OriginalAmount * data.ExchangeRate);
+        std::cout << "→ 원화 환산 금액: " << data.Amount << "원" << std::endl;
+
+        std::cin.ignore(); // 버퍼 비우기
+    }
+    else
+    {
+        data.UseExchangeRate = false;
+    }
+
     // 날짜는 자동으로 현재 시간으로 설정됨 (빈 문자열)
     data.DateTime = "";
 
@@ -600,6 +674,14 @@ void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeade
         std::cout << "항목: " << data.Item << std::endl;
         std::cout << "설명: " << data.Description << std::endl;
         std::cout << "금액: " << formatAmount(data.Amount) << std::endl;
+
+        // 환율 정보 표시
+        if (data.UseExchangeRate)
+        {
+            std::cout << "  ↳ 환율 적용: " << data.OriginalAmount << " " << data.Currency
+                      << " × " << data.ExchangeRate << " = " << data.Amount << "원" << std::endl;
+        }
+
         std::cout << "영수증 번호: " << data.ReceiptNumber << std::endl;
         std::cout << "날짜/시간: " << data.DateTime << std::endl;
     }

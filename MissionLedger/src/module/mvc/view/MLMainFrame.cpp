@@ -85,6 +85,60 @@ wxMLMainFrame::wxMLMainFrame()
     inputSizer->Add(amountText, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
     inputSizer->AddSpacer(5);
 
+    // 환율 적용 체크박스
+    exchangeRateCheckBox = new wxCheckBox(inputPanel, wxID_ANY, wxString::FromUTF8("환율 적용"));
+    exchangeRateCheckBox->SetValue(false);
+    inputSizer->Add(exchangeRateCheckBox, 0, wxLEFT | wxRIGHT, 10);
+    inputSizer->AddSpacer(5);
+
+    // 환율 정보 패널 (체크박스 선택 시 활성화)
+    wxPanel* exchangePanel = new wxPanel(inputPanel);
+    exchangePanel->SetBackgroundColour(wxColour(235, 235, 235));
+    wxBoxSizer* exchangeSizer = new wxBoxSizer(wxVERTICAL);
+
+    // 통화 선택
+    wxStaticText* currencyLabel = new wxStaticText(exchangePanel, wxID_ANY, wxString::FromUTF8("통화:"));
+    exchangeSizer->Add(currencyLabel, 0, wxALL, 5);
+
+    wxArrayString currencies;
+    currencies.Add("KRW");
+    currencies.Add("USD");
+    currencies.Add("EUR");
+    currencies.Add("JPY");
+    currencies.Add("CNY");
+    currencies.Add("PHP");
+    currencies.Add("VND");
+    currencies.Add("THB");
+    currencyCombo = new wxComboBox(exchangePanel, wxID_ANY, "USD", wxDefaultPosition, wxDefaultSize, currencies, wxCB_READONLY);
+    exchangeSizer->Add(currencyCombo, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+
+    // 외화 금액
+    wxStaticText* originalAmountLabel = new wxStaticText(exchangePanel, wxID_ANY, wxString::FromUTF8("외화 금액:"));
+    exchangeSizer->Add(originalAmountLabel, 0, wxLEFT | wxRIGHT, 5);
+    originalAmountText = new wxTextCtrl(exchangePanel, wxID_ANY);
+    exchangeSizer->Add(originalAmountText, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+
+    // 환율
+    wxStaticText* exchangeRateLabel = new wxStaticText(exchangePanel, wxID_ANY, wxString::FromUTF8("환율 (원/외화):"));
+    exchangeSizer->Add(exchangeRateLabel, 0, wxLEFT | wxRIGHT, 5);
+    exchangeRateText = new wxTextCtrl(exchangePanel, wxID_ANY);
+    exchangeSizer->Add(exchangeRateText, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+
+    // 환산 금액 표시
+    convertedAmountLabel = new wxStaticText(exchangePanel, wxID_ANY, wxString::FromUTF8("= 원화 환산: 0원"));
+    wxFont convertedFont = convertedAmountLabel->GetFont();
+    convertedFont.SetWeight(wxFONTWEIGHT_BOLD);
+    convertedAmountLabel->SetFont(convertedFont);
+    convertedAmountLabel->SetForegroundColour(wxColour(0, 100, 200));
+    exchangeSizer->Add(convertedAmountLabel, 0, wxALL, 5);
+
+    exchangePanel->SetSizer(exchangeSizer);
+    inputSizer->Add(exchangePanel, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
+    inputSizer->AddSpacer(5);
+
+    // 초기 상태: 환율 패널 비활성화
+    exchangePanel->Enable(false);
+
     // 영수증 번호
     wxStaticText* receiptLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("영수증 번호:"));
     inputSizer->Add(receiptLabel, 0, wxLEFT | wxRIGHT, 10);
@@ -167,6 +221,25 @@ wxMLMainFrame::wxMLMainFrame()
     listCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnListItemDeselected, this);
     listCtrl->Bind(wxEVT_LIST_COL_CLICK, &wxMLMainFrame::OnColumnHeaderClick, this);
 
+    // 환율 관련 이벤트 바인딩
+    exchangeRateCheckBox->Bind(wxEVT_CHECKBOX, [this, exchangePanel](wxCommandEvent& event) {
+        bool enabled = event.IsChecked();
+        exchangePanel->Enable(enabled);
+
+        // 체크 해제 시 금액 필드 활성화, 체크 시 비활성화
+        amountText->Enable(!enabled);
+
+        if (enabled) {
+            updateConvertedAmount();
+        } else {
+            convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: 0원"));
+        }
+    });
+
+    // 외화 금액 또는 환율 변경 시 자동 계산
+    originalAmountText->Bind(wxEVT_TEXT, [this](wxCommandEvent&) { updateConvertedAmount(); });
+    exchangeRateText->Bind(wxEVT_TEXT, [this](wxCommandEvent&) { updateConvertedAmount(); });
+
     // 메뉴바 생성
     createMenuBar();
 
@@ -226,25 +299,11 @@ void wxMLMainFrame::DisplayTransactions(const std::vector<FMLTransactionData>& d
 
 void wxMLMainFrame::OnAddTransaction(wxCommandEvent& event)
 {
-    // 입력 데이터 수집
+    // 입력 데이터 수집 및 검증
     FMLTransactionData data;
-    data.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
-    data.Category = categoryText->GetValue().ToUTF8().data();
-    data.Item = itemText->GetValue().ToUTF8().data();
-    data.Description = descriptionText->GetValue().ToUTF8().data();
-    data.ReceiptNumber = receiptText->GetValue().ToUTF8().data();
-
-    // 금액 파싱
-    wxString amountStr = amountText->GetValue();
-    long long amount = 0;
-    if (!amountStr.ToLongLong(&amount)) {
-        wxMessageBox(wxString::FromUTF8("올바른 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
-        return;
+    if (!collectTransactionDataFromInput(data)) {
+        return;  // 검증 실패 (에러 메시지는 함수 내에서 표시됨)
     }
-    data.Amount = amount;
-
-    // 날짜 가져오기
-    data.DateTime = dateText->GetValue().ToStdString();
 
     AddTransaction(data);
 }
@@ -259,6 +318,14 @@ void wxMLMainFrame::clearInputFields()
     receiptText->Clear();
     // 날짜 필드는 현재 날짜로 자동 설정 (빈 값 방지 및 UX 개선)
     dateText->SetValue(wxDateTime::Now().FormatISODate());
+
+    // 환율 관련 필드 초기화
+    exchangeRateCheckBox->SetValue(false);
+    currencyCombo->SetValue("USD");
+    originalAmountText->Clear();
+    exchangeRateText->Clear();
+    convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: 0원"));
+    amountText->Enable(true);  // 금액 필드 활성화
 }
 
 // IMLModelObserver 인터페이스 구현
@@ -365,26 +432,13 @@ void wxMLMainFrame::OnUpdateTransaction(wxCommandEvent& event)
         return;
     }
 
-    // 입력 데이터 수집
+    // 입력 데이터 수집 및 검증
     FMLTransactionData data;
     data.TransactionId = SelectedTransactionId;
-    data.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
-    data.Category = categoryText->GetValue().ToUTF8().data();
-    data.Item = itemText->GetValue().ToUTF8().data();
-    data.Description = descriptionText->GetValue().ToUTF8().data();
-    data.ReceiptNumber = receiptText->GetValue().ToUTF8().data();
 
-    // 금액 파싱
-    wxString amountStr = amountText->GetValue();
-    long long amount = 0;
-    if (!amountStr.ToLongLong(&amount)) {
-        wxMessageBox(wxString::FromUTF8("올바른 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
-        return;
+    if (!collectTransactionDataFromInput(data)) {
+        return;  // 검증 실패 (에러 메시지는 함수 내에서 표시됨)
     }
-    data.Amount = amount;
-
-    // 날짜 가져오기
-    data.DateTime = dateText->GetValue().ToStdString();
 
     // Controller를 통해 수정
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -456,6 +510,15 @@ void wxMLMainFrame::loadTransactionToInput(int transactionId)
 
     // 날짜 파싱 (YYYY-MM-DD 형식)
     dateText->SetValue(wxString::FromUTF8(data.DateTime.c_str()));
+
+    // 환율 정보 로드
+    exchangeRateCheckBox->SetValue(data.UseExchangeRate);
+    if (data.UseExchangeRate) {
+        currencyCombo->SetValue(wxString::FromUTF8(data.Currency.c_str()));
+        originalAmountText->SetValue(wxString::Format("%.2f", data.OriginalAmount));
+        exchangeRateText->SetValue(wxString::Format("%.2f", data.ExchangeRate));
+        updateConvertedAmount();
+    }
 }
 
 // 버튼 활성화 상태 업데이트
@@ -1220,5 +1283,103 @@ wxDateTime wxMLMainFrame::parseDate(const wxString& dateStr)
     }
 
     return wxDateTime::Now();
+}
+
+// 환산 금액 계산 및 표시
+void wxMLMainFrame::updateConvertedAmount()
+{
+    if (!exchangeRateCheckBox->GetValue())
+    {
+        return;
+    }
+
+    wxString originalAmountStr = originalAmountText->GetValue();
+    wxString exchangeRateStr = exchangeRateText->GetValue();
+
+    if (originalAmountStr.IsEmpty() || exchangeRateStr.IsEmpty())
+    {
+        convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: 0원"));
+        return;
+    }
+
+    double originalAmount = 0.0;
+    double exchangeRate = 0.0;
+
+    if (!originalAmountStr.ToDouble(&originalAmount) || !exchangeRateStr.ToDouble(&exchangeRate))
+    {
+        convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: (입력 오류)"));
+        return;
+    }
+
+    int64_t convertedAmount = static_cast<int64_t>(originalAmount * exchangeRate);
+    wxString amountStr = formatAmountWithComma(convertedAmount);
+    convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: ") + amountStr + wxString::FromUTF8("원"));
+
+    // 금액 필드에 자동 설정 (참고용, 실제 저장 시에는 계산된 값 사용)
+    amountText->SetValue(wxString::Format("%lld", convertedAmount));
+}
+
+// 입력 필드에서 거래 데이터 수집 및 검증
+bool wxMLMainFrame::collectTransactionDataFromInput(FMLTransactionData& outData)
+{
+    // 거래 유형
+    outData.Type = incomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
+
+    // 카테고리, 항목, 설명, 영수증 번호
+    outData.Category = categoryText->GetValue().ToUTF8().data();
+    outData.Item = itemText->GetValue().ToUTF8().data();
+    outData.Description = descriptionText->GetValue().ToUTF8().data();
+    outData.ReceiptNumber = receiptText->GetValue().ToUTF8().data();
+
+    // 금액 파싱
+    long long amount = 0;
+
+    // 환율 적용 여부 확인
+    if (exchangeRateCheckBox->GetValue()) {
+        // 환율 적용: 외화 금액과 환율로 계산
+        wxString originalAmountStr = originalAmountText->GetValue();
+        wxString exchangeRateStr = exchangeRateText->GetValue();
+
+        if (originalAmountStr.IsEmpty() || exchangeRateStr.IsEmpty()) {
+            wxMessageBox(wxString::FromUTF8("외화 금액과 환율을 입력하세요."),
+                        wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
+            return false;
+        }
+
+        double originalAmount = 0.0;
+        double exchangeRate = 0.0;
+
+        if (!originalAmountStr.ToDouble(&originalAmount) || !exchangeRateStr.ToDouble(&exchangeRate)) {
+            wxMessageBox(wxString::FromUTF8("올바른 외화 금액과 환율을 입력하세요."),
+                        wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
+            return false;
+        }
+
+        amount = static_cast<int64_t>(originalAmount * exchangeRate);
+
+        // 환율 데이터 설정
+        outData.UseExchangeRate = true;
+        outData.Currency = currencyCombo->GetValue().ToUTF8().data();
+        outData.OriginalAmount = originalAmount;
+        outData.ExchangeRate = exchangeRate;
+    } else {
+        // 일반 금액 입력
+        wxString amountStr = amountText->GetValue();
+        if (!amountStr.ToLongLong(&amount)) {
+            wxMessageBox(wxString::FromUTF8("올바른 금액을 입력하세요."),
+                        wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
+            return false;
+        }
+
+        // 환율 미적용
+        outData.UseExchangeRate = false;
+    }
+
+    outData.Amount = amount;
+
+    // 날짜 가져오기
+    outData.DateTime = dateText->GetValue().ToStdString();
+
+    return true;
 }
 

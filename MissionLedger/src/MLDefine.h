@@ -18,6 +18,12 @@ struct FMLTransactionData {
     int64_t Amount;
     std::string ReceiptNumber;
     std::string DateTime;  // 입력 시 빈 문자열, 출력 시 포맷된 날짜/시간 문자열
+
+    // 환율 관련 필드
+    bool UseExchangeRate = false;       // 환율 적용 여부
+    std::string Currency = "KRW";       // 통화 코드 (기본값: KRW)
+    double OriginalAmount = 0.0;        // 원래 외화 금액
+    double ExchangeRate = 1.0;          // 환율 (기본값: 1.0)
 };
 
 struct FMLFilterCriteria {
