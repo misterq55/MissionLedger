@@ -6,6 +6,8 @@
 #include <wx/filedlg.h>
 #include <wx/filename.h>
 #include <set>
+#include <algorithm>
+#include <cctype>
 #include "MLDefine.h"
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
@@ -335,7 +337,7 @@ void wxMLMainFrame::OnTransactionAdded(const FMLTransactionData& transactionData
 
     if (FilterActive)
     {
-        // 필터 활성화 상태: 증분 업데이트로 필터 재적용
+        // 필터 활성화 상태: 전체 재로드로 필터 재적용
         applyCurrentFilter();
     }
     else
@@ -354,7 +356,7 @@ void wxMLMainFrame::OnTransactionRemoved(int transactionId)
 
     if (FilterActive)
     {
-        // 필터 활성화 상태: 증분 업데이트로 필터 재적용
+        // 필터 활성화 상태: 전체 재로드로 필터 재적용
         applyCurrentFilter();
     }
     else
@@ -373,7 +375,7 @@ void wxMLMainFrame::OnTransactionUpdated(const FMLTransactionData& transactionDa
 
     if (FilterActive)
     {
-        // 필터 활성화 상태: 증분 업데이트로 필터 재적용
+        // 필터 활성화 상태: 전체 재로드로 필터 재적용
         applyCurrentFilter();
     }
     else
@@ -396,7 +398,7 @@ void wxMLMainFrame::OnTransactionsCleared()
 
 void wxMLMainFrame::OnDataLoaded()
 {
-    // 데이터 로드 시 증분 업데이트 (FilterActive 상태 유지)
+    // 데이터 로드 시 전체 재로드 (FilterActive 상태 유지)
     updateCategoryFilter();
     applyCurrentFilter();
     updateSummaryPanel();
@@ -1045,9 +1047,24 @@ int wxCALLBACK wxMLMainFrame::CompareTransactions(wxIntPtr item1, wxIntPtr item2
             result = 0;
         break;
 
-    case 4: // 영수증번호 (문자열)
-        result = data1.ReceiptNumber.compare(data2.ReceiptNumber);
-        break;
+    case 4: // 영수증번호 (숫자/문자열 혼합 지원)
+        {
+            const bool isNum1 = !data1.ReceiptNumber.empty() &&
+                                std::all_of(data1.ReceiptNumber.begin(),
+                                           data1.ReceiptNumber.end(), ::isdigit);
+            const bool isNum2 = !data2.ReceiptNumber.empty() &&
+                                std::all_of(data2.ReceiptNumber.begin(),
+                                           data2.ReceiptNumber.end(), ::isdigit);
+
+            if (isNum1 && isNum2) {
+                const int64_t receiptNum1 = std::stoll(data1.ReceiptNumber);
+                const int64_t receiptNum2 = std::stoll(data2.ReceiptNumber);
+                result = (receiptNum1 < receiptNum2) ? -1 : (receiptNum1 > receiptNum2) ? 1 : 0;
+            } else {
+                result = data1.ReceiptNumber.compare(data2.ReceiptNumber);
+            }
+            break;
+        }
 
     case 5: // 날짜 (문자열 YYYY-MM-DD)
         result = data1.DateTime.compare(data2.DateTime);

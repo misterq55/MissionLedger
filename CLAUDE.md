@@ -76,7 +76,7 @@ MissionLedger/
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
-- ✅ Transaction filtering (date range, type, category) with differential updates
+- ✅ Transaction filtering (date range, type, category) with Observer pattern integration
 - ✅ UTF-8 encoding support for Korean text
 - ✅ MVC architecture with strict boundaries (View → Controller → Model)
 - ✅ List footer with income/expense/balance totals (real-time summary with filter support)
@@ -132,6 +132,17 @@ void FMLModel::AddTransaction(const FMLTransactionData& data) {
 }
 ```
 
+**Const Correctness**:
+```cpp
+// Use const for local variables that won't change
+const bool isValid = ValidateInput(data);
+const int count = items.size();
+
+if (isValid) {
+    // Clear that these values are immutable
+}
+```
+
 ## Architecture Guidelines
 
 ### MVC Boundaries (STRICT)
@@ -144,7 +155,7 @@ void FMLModel::AddTransaction(const FMLTransactionData& data) {
 - **Separation of Concerns**: View never accesses Model directly
 - **Dependency Direction**: View → Controller → Model (never reversed)
 - **Single Source of Truth**: UI state read from controls, not cached (prevents sync bugs)
-- **Differential Updates**: Only modify changed items (preserves scroll position, better UX)
+- **Update Strategy**: Incremental updates when filter inactive, full reload when filter active (balances performance and correctness)
 
 ## Communication Language
 

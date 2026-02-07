@@ -53,16 +53,15 @@ The project follows a phased approach for implementation, prioritizing core func
    - ✅ `FMLFilterCriteria` data structure
    - ✅ Model layer filtering (`GetFilteredTransactionData`)
    - ✅ Controller layer delegation
-   - ✅ Differential update pattern (Single Source of Truth)
+   - ✅ Full reload pattern for filter changes (consistency and correctness)
    - ✅ Auto-update category filter on data changes
    - ✅ Apply/Clear filter buttons
 
-8. **Differential Update Implementation**
-   - ✅ Single Source of Truth pattern (read from UI, not cached state)
-   - ✅ `GetCurrentListIds()` helper method
-   - ✅ Incremental UI updates (add/remove only changed items)
+8. **UI Update Strategy**
+   - ✅ Incremental updates when filter inactive (performance optimization)
+   - ✅ Full reload when filter active (consistency and correctness)
+   - ✅ Freeze/Thaw pattern to minimize flickering
    - ✅ Eliminated state synchronization bugs
-   - ✅ Scroll position preservation during filtering
 
 9. **MVC Architecture Refinement**
    - ✅ Removed direct Model references from View
@@ -194,7 +193,7 @@ pdf.SaveAsFile("output.pdf");
 
 ### Transaction Filtering System
 
-The filtering system uses a **differential update pattern** with **Single Source of Truth** principle:
+The filtering system uses a **full reload pattern** for filter changes, with **incremental updates** for non-filter operations:
 
 #### Architecture
 1. **Filtering Location**: Model layer (`FMLModel::GetFilteredTransactionData()`)
@@ -202,41 +201,45 @@ The filtering system uses a **differential update pattern** with **Single Source
    - Date range filter (start/end date)
    - Transaction type filter (Income/Expense/All)
    - Category filter (specific category or all)
-   - Amount range filter (optional, not currently used)
+   - Text search filter (item, description, receipt number)
 3. **Data Flow**: View → Controller → Model (strict MVC boundaries)
 
-#### Differential Update Implementation
+#### Update Strategy Implementation
 
 ```cpp
-// Single Source of Truth: Read from UI, not cached state
-std::set<int> GetCurrentListIds() {
-    std::set<int> ids;
-    for (long i = 0; i < listCtrl->GetItemCount(); i++) {
-        ids.insert(listCtrl->GetItemData(i));
+void wxMLMainFrame::applyCurrentFilter()
+{
+    // Full reload pattern (filter active)
+    listCtrl->Freeze();                           // Minimize flickering
+    listCtrl->DeleteAllItems();                   // Clear all items
+
+    auto transactions = controller->GetFilteredTransactionData(criteria);
+    for (const auto& trans : transactions) {
+        DisplayTransaction(trans);                // Add filtered items
     }
-    return ids;
-}
 
-void ApplyCurrentFilter() {
-    std::set<int> previousIds = GetCurrentListIds();  // From UI
-    std::set<int> currentIds = /* filtered results */;
+    if (currentSortColumn != -1) {
+        listCtrl->SortItems(CompareTransactions); // Reapply sorting
+    }
 
-    // Calculate diff and update only changed items
-    RemoveItems(previousIds - currentIds);
-    AddItems(currentIds - previousIds);
+    listCtrl->Thaw();                             // Resume rendering
 }
 ```
 
 #### Key Benefits
-- ✅ No state synchronization bugs (UI is the single source of truth)
-- ✅ Incremental updates preserve scroll position
-- ✅ Minimal UI operations (only changed items)
-- ✅ Automatic category list updates on data changes
+- ✅ Eliminates state synchronization bugs (no differential calculation needed)
+- ✅ Prevents visual artifacts (items disappearing one-by-one)
+- ✅ Handles file switching correctly (old data properly cleared)
+- ✅ Simple and maintainable (no complex diff logic)
+- ✅ Freeze/Thaw minimizes flickering
 
 #### Observer Integration
-- Filter-aware Observer handlers check `filterActive` flag
-- When filter active: reapply filter on data changes
-- When filter inactive: direct UI manipulation for performance
+- Filter-aware Observer handlers check `FilterActive` flag
+- **When filter active**: Call `applyCurrentFilter()` (full reload)
+- **When filter inactive**: Direct UI manipulation (incremental update for performance)
+  - `OnTransactionAdded`: `DisplayTransaction(transactionData)`
+  - `OnTransactionRemoved`: `removeListItemByTransactionId(transactionId)`
+  - `OnTransactionUpdated`: `DisplayTransaction(transactionData)`
 
 ### GUI Implementation Guidelines
 

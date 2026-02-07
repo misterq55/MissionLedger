@@ -139,6 +139,39 @@ void MyFunction() {
 - Prefer lines under 120 characters
 - Break long lines at logical points
 
+### Const Correctness
+- **지역 변수**: 변경이 필요 없다면 가능한 한 `const`를 사용
+- **불변성 명시**: 코드 가독성과 의도 전달 향상
+- **실수 방지**: 의도하지 않은 값 변경을 컴파일 타임에 차단
+- **최적화**: 컴파일러 최적화 기회 제공
+
+```cpp
+// ✅ GOOD - const 사용
+void ProcessData(const std::string& input) {
+    const bool isValid = ValidateInput(input);
+    const int length = input.length();
+
+    if (isValid) {
+        // length, isValid는 변경되지 않음이 명확
+    }
+}
+
+// ❌ AVOID - 불필요한 가변 변수
+void ProcessData(const std::string& input) {
+    bool isValid = ValidateInput(input);  // 변경 가능성 불명확
+    int length = input.length();
+}
+```
+
+**예외**: 변수가 나중에 변경되어야 하는 경우 const를 사용하지 않음
+
+```cpp
+int count = 0;  // ✅ OK - 반복문에서 증가시킴
+for (const auto& item : items) {
+    count++;
+}
+```
+
 ## Smart Pointer Usage
 
 ### Ownership Guidelines
