@@ -4,10 +4,13 @@
 #include <wx/listctrl.h>
 #include <wx/datectrl.h>
 #include <wx/valtext.h>
+#include <wx/notebook.h>
 #include <set>
 #include <map>
 #include "interface/IMLView.h"
 #include "interface/IMLModelObserver.h"
+
+struct FMLBudgetSummary;
 
 /**
  * @brief MissionLedger 메인 윈도우 프레임
@@ -32,6 +35,10 @@ public:
     void OnTransactionRemoved(int transactionId) override;
     void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     void OnTransactionsCleared() override;
+    void OnBudgetAdded(const FMLCategoryBudgetData& budgetData) override;
+    void OnBudgetRemoved(const std::string& category) override;
+    void OnBudgetUpdated(const FMLCategoryBudgetData& budgetData) override;
+    void OnBudgetCleared() override;
     void OnDataLoaded() override;
     void OnDataSaved() override;
 
@@ -58,6 +65,13 @@ private:
     // 이벤트 핸들러 - 정렬
     void OnColumnHeaderClick(wxListEvent& event);
 
+    // 이벤트 핸들러 - 예산
+    void OnAddBudget(wxCommandEvent& event);
+    void OnEditBudget(wxCommandEvent& event);
+    void OnDeleteBudget(wxCommandEvent& event);
+    void OnBudgetListItemSelected(wxListEvent& event);
+    void OnBudgetListItemDeselected(wxListEvent& event);
+
     // UI 헬퍼 메서드
     void clearInputFields();
     void loadTransactionToInput(int transactionId);
@@ -83,6 +97,12 @@ private:
     wxString formatAmountWithComma(int64_t amount);
     FMLFilterCriteria buildCurrentFilterCriteria();
 
+    // 예산 헬퍼 메서드
+    wxPanel* createBudgetTab();
+    void updateBudgetList();
+    void displayBudgetSummary(const FMLBudgetSummary& summary);
+    void updateBudgetButtonStates();
+
     // 리스트 헬퍼
     long findListItemByTransactionId(int transactionId);
     void removeListItemByTransactionId(int transactionId);
@@ -91,6 +111,9 @@ private:
     void createMenuBar();
 
 private:
+    // wxNotebook (탭 컨테이너)
+    wxNotebook* notebook;
+
     // UI 컨트롤들 - 입력 패널
     wxRadioButton* incomeRadio;
     wxRadioButton* expenseRadio;
@@ -134,6 +157,16 @@ private:
     wxStaticText* summaryExpenseText;
     wxStaticText* summaryBalanceText;
 
+    // UI 컨트롤들 - 예산 탭
+    wxListCtrl* budgetListCtrl;
+    wxButton* addBudgetButton;
+    wxButton* editBudgetButton;
+    wxButton* deleteBudgetButton;
+    wxPanel* budgetSummaryPanel;
+    wxStaticText* budgetSummaryIncomeText;
+    wxStaticText* budgetSummaryExpenseText;
+    wxStaticText* budgetSummaryVarianceText;
+
 private:
     // Helper methods
     void showCalendarDialog(wxTextCtrl* targetTextCtrl);
@@ -148,4 +181,7 @@ private:
     // 정렬 상태
     int currentSortColumn = -1;        // -1 = 정렬 안함 (ID 순)
     bool currentSortAscending = true;  // true = 오름차순
+
+    // 예산 관련 상태
+    std::string SelectedBudgetCategory;  // 선택된 예산 카테고리
 };

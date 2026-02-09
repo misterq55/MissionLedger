@@ -43,6 +43,10 @@ public:
     virtual void OnTransactionRemoved(int transactionId) override;
     virtual void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     virtual void OnTransactionsCleared() override;
+    virtual void OnBudgetAdded(const FMLCategoryBudgetData& budgetData) override;
+    virtual void OnBudgetRemoved(const std::string& category) override;
+    virtual void OnBudgetUpdated(const FMLCategoryBudgetData& budgetData) override;
+    virtual void OnBudgetCleared() override;
     virtual void OnDataLoaded() override;
     virtual void OnDataSaved() override;
 

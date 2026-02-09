@@ -26,6 +26,11 @@ public:
     E_MLStorageType GetStorageType() const override;
     bool IsReady() const override;
 
+    // 예산 관련 메서드
+    bool SaveBudget(const FMLItemBudgetData& budget) override;
+    bool LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets) override;
+    bool DeleteBudget(const std::string& category, const std::string& item) override;
+
 private:
     /// <summary>
     /// 트랜잭션 테이블 생성

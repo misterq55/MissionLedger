@@ -55,7 +55,8 @@ bool FMLSQLiteStorage::Close()
 
 bool FMLSQLiteStorage::createTable()
 {
-    const char* sql = R"(
+    // transactions 테이블 생성
+    const char* transactionsSql = R"(
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY,
             type INTEGER NOT NULL,
@@ -73,7 +74,25 @@ bool FMLSQLiteStorage::createTable()
     )";
 
     char* errorMsg = nullptr;
-    int result = sqlite3_exec(Database, sql, nullptr, nullptr, &errorMsg);
+    int result = sqlite3_exec(Database, transactionsSql, nullptr, nullptr, &errorMsg);
+
+    if (result != SQLITE_OK)
+    {
+        sqlite3_free(errorMsg);
+        return false;
+    }
+
+    // budgets 테이블 생성
+    const char* budgetsSql = R"(
+        CREATE TABLE IF NOT EXISTS budgets (
+            category TEXT NOT NULL,
+            item TEXT NOT NULL,
+            budget_amount INTEGER DEFAULT 0,
+            PRIMARY KEY (category, item)
+        );
+    )";
+
+    result = sqlite3_exec(Database, budgetsSql, nullptr, nullptr, &errorMsg);
 
     if (result != SQLITE_OK)
     {
@@ -279,4 +298,72 @@ E_MLStorageType FMLSQLiteStorage::GetStorageType() const
 bool FMLSQLiteStorage::IsReady() const
 {
     return IsInitialized && Database != nullptr;
+}
+
+// ========== 예산 관련 메서드 구현 ==========
+
+bool FMLSQLiteStorage::SaveBudget(const FMLItemBudgetData& budget)
+{
+    if (!IsInitialized) return false;
+
+    const char* sql = R"(
+        INSERT OR REPLACE INTO budgets (category, item, budget_amount)
+        VALUES (?, ?, ?);
+    )";
+
+    sqlite3_stmt* stmt = nullptr;
+    int result = sqlite3_prepare_v2(Database, sql, -1, &stmt, nullptr);
+    if (result != SQLITE_OK) return false;
+
+    sqlite3_bind_text(stmt, 1, budget.Category.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, budget.Item.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 3, budget.BudgetAmount);
+
+    result = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return result == SQLITE_DONE;
+}
+
+bool FMLSQLiteStorage::LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets)
+{
+    if (!IsInitialized) return false;
+
+    outBudgets.clear();
+
+    const char* sql = "SELECT category, item, budget_amount FROM budgets ORDER BY category, item;";
+
+    sqlite3_stmt* stmt = nullptr;
+    int result = sqlite3_prepare_v2(Database, sql, -1, &stmt, nullptr);
+    if (result != SQLITE_OK) return false;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        FMLItemBudgetData budget;
+        budget.Category = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        budget.Item = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        budget.BudgetAmount = sqlite3_column_int64(stmt, 2);
+        outBudgets.push_back(budget);
+    }
+
+    sqlite3_finalize(stmt);
+    return true;
+}
+
+bool FMLSQLiteStorage::DeleteBudget(const std::string& category, const std::string& item)
+{
+    if (!IsInitialized) return false;
+
+    const char* sql = "DELETE FROM budgets WHERE category = ? AND item = ?;";
+
+    sqlite3_stmt* stmt = nullptr;
+    int result = sqlite3_prepare_v2(Database, sql, -1, &stmt, nullptr);
+    if (result != SQLITE_OK) return false;
+
+    sqlite3_bind_text(stmt, 1, category.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, item.c_str(), -1, SQLITE_TRANSIENT);
+    result = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return result == SQLITE_DONE;
 }

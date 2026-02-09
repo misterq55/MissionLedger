@@ -142,9 +142,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\module\mvc\view\MLBudgetDialog.cpp" />
     <ClCompile Include="src\module\mvc\view\MLMainFrame.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\module\mvc\view\MLBudgetDialog.h" />
     <ClInclude Include="src\module\mvc\view\MLMainFrame.h" />
   </ItemGroup>
   <ItemGroup>

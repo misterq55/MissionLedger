@@ -42,4 +42,15 @@ public:
     virtual bool SaveFileAs(const std::string& filePath) override;
     virtual std::string GetCurrentFilePath() const override;
     virtual bool HasUnsavedChanges() const override;
+
+    // Budget operations
+    virtual bool AddBudget(const FMLCategoryBudgetData& budgetData) override;
+    virtual bool UpdateBudget(const FMLCategoryBudgetData& budgetData) override;
+    virtual bool DeleteBudget(const std::string& category) override;
+    virtual std::vector<FMLCategoryBudgetData> GetAllBudgets() const override;
+    virtual FMLCategoryBudgetData GetBudget(const std::string& category) const override;
+
+    // Budget Summary
+    virtual FMLBudgetSummary GetBudgetSummary() const override;
+    virtual FMLBudgetSummary GetFilteredBudgetSummary(const FMLFilterCriteria& criteria) const override;
 };

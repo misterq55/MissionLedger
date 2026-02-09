@@ -189,3 +189,75 @@ std::vector<std::string> FMLController::GetAllCategories() const
     }
     return {};
 }
+
+// ========== 예산 관련 메서드 구현 (Model에 위임) ==========
+
+bool FMLController::AddBudget(const FMLCategoryBudgetData& budgetData)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->AddBudget(budgetData);
+    }
+    return false;
+}
+
+bool FMLController::UpdateBudget(const FMLCategoryBudgetData& budgetData)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->UpdateBudget(budgetData);
+    }
+    return false;
+}
+
+bool FMLController::DeleteBudget(const std::string& category)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->DeleteBudget(category);
+    }
+    return false;
+}
+
+std::vector<FMLCategoryBudgetData> FMLController::GetAllBudgets() const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetAllBudgets();
+    }
+    return {};
+}
+
+FMLCategoryBudgetData FMLController::GetBudget(const std::string& category) const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetBudget(category);
+    }
+    return FMLCategoryBudgetData{category, 0, 0};
+}
+
+FMLBudgetSummary FMLController::GetBudgetSummary() const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetBudgetSummary();
+    }
+    return FMLBudgetSummary{};
+}
+
+FMLBudgetSummary FMLController::GetFilteredBudgetSummary(const FMLFilterCriteria& criteria) const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->GetFilteredBudgetSummary(criteria);
+    }
+    return FMLBudgetSummary{};
+}

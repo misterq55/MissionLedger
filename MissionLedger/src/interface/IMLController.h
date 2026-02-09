@@ -5,6 +5,8 @@
 struct FMLTransactionData;
 struct FMLFilterCriteria;
 struct FMLTransactionSummary;
+struct FMLCategoryBudgetData;
+struct FMLBudgetSummary;
 
 class IMLController
 {
@@ -37,4 +39,15 @@ public:
     virtual bool SaveFileAs(const std::string& filePath) = 0;
     virtual std::string GetCurrentFilePath() const = 0;
     virtual bool HasUnsavedChanges() const = 0;
+
+    // Budget operations
+    virtual bool AddBudget(const FMLCategoryBudgetData& budgetData) = 0;
+    virtual bool UpdateBudget(const FMLCategoryBudgetData& budgetData) = 0;
+    virtual bool DeleteBudget(const std::string& category) = 0;
+    virtual std::vector<FMLCategoryBudgetData> GetAllBudgets() const = 0;
+    virtual FMLCategoryBudgetData GetBudget(const std::string& category) const = 0;
+
+    // Budget Summary
+    virtual FMLBudgetSummary GetBudgetSummary() const = 0;
+    virtual FMLBudgetSummary GetFilteredBudgetSummary(const FMLFilterCriteria& criteria) const = 0;
 };

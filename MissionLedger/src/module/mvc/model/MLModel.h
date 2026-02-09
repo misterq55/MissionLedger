@@ -7,6 +7,7 @@
 #include "interface/IMLModel.h"
 
 class FMLTransaction;
+class FMLCategoryBudget;
 class IMLStorageProvider;
 
 class FMLModel : public IMLModel
@@ -47,6 +48,17 @@ public:
     virtual const std::string& GetCurrentFilePath() const override;
     virtual bool HasUnsavedChanges() const override;
 
+    // Budget CRUD operations
+    virtual bool AddBudget(const FMLCategoryBudgetData& budgetData) override;
+    virtual bool UpdateBudget(const FMLCategoryBudgetData& budgetData) override;
+    virtual bool DeleteBudget(const std::string& category) override;
+    virtual std::vector<FMLCategoryBudgetData> GetAllBudgets() const override;
+    virtual FMLCategoryBudgetData GetBudget(const std::string& category) const override;
+
+    // Budget Summary
+    virtual FMLBudgetSummary GetBudgetSummary() const override;
+    virtual FMLBudgetSummary GetFilteredBudgetSummary(const FMLFilterCriteria& criteria) const override;
+
     // Storage Provider (구현 전용)
     void SetStorageProvider(std::shared_ptr<IMLStorageProvider> storageProvider);
 
@@ -62,6 +74,7 @@ private:
     std::shared_ptr<IMLModelObserver> ModelObserver;
     std::shared_ptr<IMLStorageProvider> StorageProvider;
     std::map<int, std::shared_ptr<FMLTransaction>> Transactions;
+    std::map<std::string, std::shared_ptr<FMLCategoryBudget>> Budgets;  // 카테고리별 예산
     std::string CurrentFilePath;
     int TransactionIdIndex = 0;
     bool UnsavedChanges = false;

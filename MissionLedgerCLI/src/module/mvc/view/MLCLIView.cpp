@@ -658,6 +658,38 @@ void FMLCLIView::OnDataSaved()
     }
 }
 
+void FMLCLIView::OnBudgetAdded(const FMLCategoryBudgetData& budgetData)
+{
+    if (!SilentMode)
+    {
+        std::cout << "[이벤트] 예산 추가됨 - 카테고리: " << budgetData.Category << std::endl;
+    }
+}
+
+void FMLCLIView::OnBudgetRemoved(const std::string& category)
+{
+    if (!SilentMode)
+    {
+        std::cout << "[이벤트] 예산 삭제됨 - 카테고리: " << category << std::endl;
+    }
+}
+
+void FMLCLIView::OnBudgetUpdated(const FMLCategoryBudgetData& budgetData)
+{
+    if (!SilentMode)
+    {
+        std::cout << "[이벤트] 예산 업데이트됨 - 카테고리: " << budgetData.Category << std::endl;
+    }
+}
+
+void FMLCLIView::OnBudgetCleared()
+{
+    if (!SilentMode)
+    {
+        std::cout << "[이벤트] 모든 예산 삭제됨" << std::endl;
+    }
+}
+
 // Private helper methods
 void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeader)
 {

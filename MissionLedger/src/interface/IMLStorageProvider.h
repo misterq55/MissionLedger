@@ -90,4 +90,28 @@ public:
     /// </summary>
     /// <returns>사용 가능 여부</returns>
     virtual bool IsReady() const = 0;
+
+    // ========== 예산 관련 메서드 ==========
+
+    /// <summary>
+    /// 단일 예산 저장 (추가 또는 업데이트)
+    /// </summary>
+    /// <param name="budget">저장할 예산 데이터 (DTO)</param>
+    /// <returns>성공 여부</returns>
+    virtual bool SaveBudget(const FMLItemBudgetData& budget) = 0;
+
+    /// <summary>
+    /// 저장소에서 모든 예산 로드
+    /// </summary>
+    /// <param name="outBudgets">로드된 예산 데이터가 저장될 벡터 (DTO)</param>
+    /// <returns>성공 여부</returns>
+    virtual bool LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets) = 0;
+
+    /// <summary>
+    /// 특정 항목의 예산 삭제
+    /// </summary>
+    /// <param name="category">카테고리명</param>
+    /// <param name="item">항목명</param>
+    /// <returns>성공 여부</returns>
+    virtual bool DeleteBudget(const std::string& category, const std::string& item) = 0;
 };
