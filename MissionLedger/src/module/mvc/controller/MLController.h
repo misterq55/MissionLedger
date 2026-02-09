@@ -44,11 +44,11 @@ public:
     virtual bool HasUnsavedChanges() const override;
 
     // Budget operations
-    virtual bool AddBudget(const FMLCategoryBudgetData& budgetData) override;
-    virtual bool UpdateBudget(const FMLCategoryBudgetData& budgetData) override;
-    virtual bool DeleteBudget(const std::string& category) override;
-    virtual std::vector<FMLCategoryBudgetData> GetAllBudgets() const override;
-    virtual FMLCategoryBudgetData GetBudget(const std::string& category) const override;
+    virtual bool AddBudget(const FMLItemBudgetData& budgetData) override;
+    virtual bool UpdateBudget(const FMLItemBudgetData& budgetData) override;
+    virtual bool DeleteBudget(const std::string& category, const std::string& item) override;
+    virtual std::vector<FMLItemBudgetData> GetAllBudgets() const override;
+    virtual FMLItemBudgetData GetBudget(const std::string& category, const std::string& item) const override;
 
     // Budget Summary
     virtual FMLBudgetSummary GetBudgetSummary() const override;

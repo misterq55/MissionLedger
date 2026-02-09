@@ -24,7 +24,7 @@ public:
      * @param parent 부모 윈도우
      * @param budgetData 수정할 예산 데이터
      */
-    wxMLBudgetDialog(wxWindow* parent, const FMLCategoryBudgetData& budgetData);
+    wxMLBudgetDialog(wxWindow* parent, const FMLItemBudgetData& budgetData);
 
     virtual ~wxMLBudgetDialog() = default;
 
@@ -32,7 +32,7 @@ public:
      * @brief 사용자가 입력한 예산 데이터 가져오기
      * @return 입력된 예산 데이터
      */
-    FMLCategoryBudgetData GetBudgetData() const;
+    FMLItemBudgetData GetBudgetData() const;
 
 private:
     void createControls();

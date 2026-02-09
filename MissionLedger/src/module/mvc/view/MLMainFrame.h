@@ -35,9 +35,9 @@ public:
     void OnTransactionRemoved(int transactionId) override;
     void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     void OnTransactionsCleared() override;
-    void OnBudgetAdded(const FMLCategoryBudgetData& budgetData) override;
-    void OnBudgetRemoved(const std::string& category) override;
-    void OnBudgetUpdated(const FMLCategoryBudgetData& budgetData) override;
+    void OnBudgetAdded(const FMLItemBudgetData& budgetData) override;
+    void OnBudgetRemoved(const std::string& category, const std::string& item) override;
+    void OnBudgetUpdated(const FMLItemBudgetData& budgetData) override;
     void OnBudgetCleared() override;
     void OnDataLoaded() override;
     void OnDataSaved() override;

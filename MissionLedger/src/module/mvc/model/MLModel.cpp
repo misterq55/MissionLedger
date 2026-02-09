@@ -198,18 +198,18 @@ bool FMLModel::OpenFile(const std::string& filePath)
     const int lastId = StorageProvider->GetLastTransactionId();
     TransactionIdIndex = (lastId >= 0) ? lastId + 1 : 0;
 
-    // 예산 로드
-    Budgets.clear();
-    std::vector<FMLCategoryBudgetData> loadedBudgets;
-    if (StorageProvider->LoadAllBudgets(loadedBudgets))
-    {
-        for (const auto& budgetData : loadedBudgets)
-        {
-            auto budgetEntity = std::make_shared<FMLCategoryBudget>();
-            budgetEntity->SetData(budgetData);
-            Budgets[budgetData.Category] = budgetEntity;
-        }
-    }
+    // TODO: 예산 로드 구현 필요
+    // Budgets.clear();
+    // std::vector<FMLItemBudgetData> loadedBudgets;
+    // if (StorageProvider->LoadAllBudgets(loadedBudgets))
+    // {
+    //     for (const auto& budgetData : loadedBudgets)
+    //     {
+    //         auto budgetEntity = std::make_shared<FMLCategoryBudget>();
+    //         budgetEntity->SetData(budgetData);
+    //         Budgets[budgetData.Category] = budgetEntity;
+    //     }
+    // }
 
     CurrentFilePath = filePath;
     UnsavedChanges = false;
@@ -251,14 +251,14 @@ bool FMLModel::SaveFile()
         return false;
     }
 
-    // 예산 저장
-    for (const auto& pair : Budgets)
-    {
-        if (!StorageProvider->SaveBudget(pair.second->GetData()))
-        {
-            return false;
-        }
-    }
+    // TODO: 예산 저장 구현 필요
+    // for (const auto& pair : Budgets)
+    // {
+    //     if (!StorageProvider->SaveBudget(pair.second->GetData()))
+    //     {
+    //         return false;
+    //     }
+    // }
 
     UnsavedChanges = false;
 
@@ -292,7 +292,8 @@ void FMLModel::NewFile()
 {
     // 기존 데이터 정리
     clearAllTransactions();
-    Budgets.clear();
+    // TODO: 예산 클리어 구현 필요
+    // Budgets.clear();
 
     // 스토리지 연결 닫기
     if (StorageProvider)
@@ -391,171 +392,44 @@ void FMLModel::invalidateCategoryCache()
 
 // ========== 예산 관련 메서드 구현 ==========
 
-bool FMLModel::AddBudget(const FMLCategoryBudgetData& budgetData)
+bool FMLModel::AddBudget(const FMLItemBudgetData& budgetData)
 {
-    // 이미 존재하는지 확인
-    if (Budgets.find(budgetData.Category) != Budgets.end()) {
-        return false;  // 이미 존재 - 추가 실패
-    }
-
-    // 새 Entity 생성
-    auto budgetEntity = std::make_shared<FMLCategoryBudget>();
-    budgetEntity->SetData(budgetData);
-    if (!budgetEntity->IsValid()) {
-        return false;
-    }
-
-    Budgets[budgetData.Category] = budgetEntity;
-    UnsavedChanges = true;
-
-    return true;
+    // TODO: 구현 필요
+    return false;
 }
 
-bool FMLModel::UpdateBudget(const FMLCategoryBudgetData& budgetData)
+bool FMLModel::UpdateBudget(const FMLItemBudgetData& budgetData)
 {
-    auto it = Budgets.find(budgetData.Category);
-
-    if (it == Budgets.end()) {
-        return false;  // 존재하지 않음 - 업데이트 실패
-    }
-
-    // 기존 Entity의 데이터만 업데이트 (재생성 안 함)
-    it->second->SetData(budgetData);
-    UnsavedChanges = true;
-
-    return true;
+    // TODO: 구현 필요
+    return false;
 }
 
-bool FMLModel::DeleteBudget(const std::string& category)
+bool FMLModel::DeleteBudget(const std::string& category, const std::string& item)
 {
-    Budgets.erase(category);
-    UnsavedChanges = true;
-    return true;
+    // TODO: 구현 필요
+    return false;
 }
 
-std::vector<FMLCategoryBudgetData> FMLModel::GetAllBudgets() const
+std::vector<FMLItemBudgetData> FMLModel::GetAllBudgets() const
 {
-    std::vector<FMLCategoryBudgetData> result;
-    result.reserve(Budgets.size());
-
-    for (const auto& pair : Budgets) {
-        result.push_back(pair.second->GetData());
-    }
-
-    return result;
+    // TODO: 구현 필요
+    return {};
 }
 
-FMLCategoryBudgetData FMLModel::GetBudget(const std::string& category) const
+FMLItemBudgetData FMLModel::GetBudget(const std::string& category, const std::string& item) const
 {
-    auto it = Budgets.find(category);
-    if (it != Budgets.end()) {
-        return it->second->GetData();
-    }
-    return FMLCategoryBudgetData{category, 0, 0};
+    // TODO: 구현 필요
+    return {};
 }
 
 FMLBudgetSummary FMLModel::GetBudgetSummary() const
 {
-    FMLBudgetSummary summary;
-
-    // 1. 예산 데이터 로드 (모든 카테고리)
-    for (const auto& pair : Budgets) {
-        const std::string& category = pair.first;
-        const auto& budgetData = pair.second->GetData();
-        auto& catSummary = summary.Categories[category];
-        catSummary.Category = category;
-        catSummary.BudgetIncome = budgetData.IncomeAmount;
-        catSummary.BudgetExpense = budgetData.ExpenseAmount;
-    }
-
-    // 2. 실제 거래 집계 (모든 거래)
-    for (const auto& pair : Transactions) {
-        const auto& data = pair.second->GetData();
-        auto& catSummary = summary.Categories[data.Category];
-
-        if (catSummary.Category.empty()) {
-            catSummary.Category = data.Category;
-        }
-
-        catSummary.TransactionCount++;
-        if (data.Type == E_MLTransactionType::Income) {
-            catSummary.ActualIncome += data.Amount;
-        } else {
-            catSummary.ActualExpense += data.Amount;
-        }
-    }
-
-    // 3. 카테고리별 차이 계산 및 전체 합계 계산
-    for (auto& pair : summary.Categories) {
-        auto& catSummary = pair.second;
-        catSummary.IncomeVariance = catSummary.ActualIncome - catSummary.BudgetIncome;
-        catSummary.ExpenseVariance = catSummary.ActualExpense - catSummary.BudgetExpense;
-
-        // 전체 합계에 추가
-        summary.TotalBudgetIncome += catSummary.BudgetIncome;
-        summary.TotalBudgetExpense += catSummary.BudgetExpense;
-        summary.TotalActualIncome += catSummary.ActualIncome;
-        summary.TotalActualExpense += catSummary.ActualExpense;
-    }
-
-    // 4. 전체 차이 계산
-    summary.TotalIncomeVariance = summary.TotalActualIncome - summary.TotalBudgetIncome;
-    summary.TotalExpenseVariance = summary.TotalActualExpense - summary.TotalBudgetExpense;
-    summary.CategoryCount = static_cast<int>(summary.Categories.size());
-
-    return summary;
+    // TODO: 구현 필요
+    return {};
 }
 
 FMLBudgetSummary FMLModel::GetFilteredBudgetSummary(const FMLFilterCriteria& criteria) const
 {
-    FMLBudgetSummary summary;
-
-    // 1. 예산 데이터 로드 (필터 무관 - 모든 카테고리)
-    for (const auto& pair : Budgets) {
-        const std::string& category = pair.first;
-        const auto& budgetData = pair.second->GetData();
-        auto& catSummary = summary.Categories[category];
-        catSummary.Category = category;
-        catSummary.BudgetIncome = budgetData.IncomeAmount;
-        catSummary.BudgetExpense = budgetData.ExpenseAmount;
-    }
-
-    // 2. 필터링된 거래만 집계
-    for (const auto& pair : Transactions) {
-        if (!pair.second->MatchesFilter(criteria)) continue;
-
-        const auto& data = pair.second->GetData();
-        auto& catSummary = summary.Categories[data.Category];
-
-        if (catSummary.Category.empty()) {
-            catSummary.Category = data.Category;
-        }
-
-        catSummary.TransactionCount++;
-        if (data.Type == E_MLTransactionType::Income) {
-            catSummary.ActualIncome += data.Amount;
-        } else {
-            catSummary.ActualExpense += data.Amount;
-        }
-    }
-
-    // 3. 카테고리별 차이 계산 및 전체 합계 계산
-    for (auto& pair : summary.Categories) {
-        auto& catSummary = pair.second;
-        catSummary.IncomeVariance = catSummary.ActualIncome - catSummary.BudgetIncome;
-        catSummary.ExpenseVariance = catSummary.ActualExpense - catSummary.BudgetExpense;
-
-        // 전체 합계에 추가
-        summary.TotalBudgetIncome += catSummary.BudgetIncome;
-        summary.TotalBudgetExpense += catSummary.BudgetExpense;
-        summary.TotalActualIncome += catSummary.ActualIncome;
-        summary.TotalActualExpense += catSummary.ActualExpense;
-    }
-
-    // 4. 전체 차이 계산
-    summary.TotalIncomeVariance = summary.TotalActualIncome - summary.TotalBudgetIncome;
-    summary.TotalExpenseVariance = summary.TotalActualExpense - summary.TotalBudgetExpense;
-    summary.CategoryCount = static_cast<int>(summary.Categories.size());
-
-    return summary;
+    // TODO: 구현 필요
+    return {};
 }

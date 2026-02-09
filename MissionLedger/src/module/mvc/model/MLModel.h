@@ -49,11 +49,11 @@ public:
     virtual bool HasUnsavedChanges() const override;
 
     // Budget CRUD operations
-    virtual bool AddBudget(const FMLCategoryBudgetData& budgetData) override;
-    virtual bool UpdateBudget(const FMLCategoryBudgetData& budgetData) override;
-    virtual bool DeleteBudget(const std::string& category) override;
-    virtual std::vector<FMLCategoryBudgetData> GetAllBudgets() const override;
-    virtual FMLCategoryBudgetData GetBudget(const std::string& category) const override;
+    virtual bool AddBudget(const FMLItemBudgetData& budgetData) override;
+    virtual bool UpdateBudget(const FMLItemBudgetData& budgetData) override;
+    virtual bool DeleteBudget(const std::string& category, const std::string& item) override;
+    virtual std::vector<FMLItemBudgetData> GetAllBudgets() const override;
+    virtual FMLItemBudgetData GetBudget(const std::string& category, const std::string& item) const override;
 
     // Budget Summary
     virtual FMLBudgetSummary GetBudgetSummary() const override;
@@ -74,7 +74,10 @@ private:
     std::shared_ptr<IMLModelObserver> ModelObserver;
     std::shared_ptr<IMLStorageProvider> StorageProvider;
     std::map<int, std::shared_ptr<FMLTransaction>> Transactions;
-    std::map<std::string, std::shared_ptr<FMLCategoryBudget>> Budgets;  // 카테고리별 예산
+
+    // TODO: 예산 저장소 구조 설계 필요 (카테고리 > 항목 계층 구조)
+    // std::map<std::string, std::shared_ptr<FMLCategoryBudget>> Budgets;
+
     std::string CurrentFilePath;
     int TransactionIdIndex = 0;
     bool UnsavedChanges = false;

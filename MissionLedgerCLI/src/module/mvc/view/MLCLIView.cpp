@@ -658,7 +658,7 @@ void FMLCLIView::OnDataSaved()
     }
 }
 
-void FMLCLIView::OnBudgetAdded(const FMLCategoryBudgetData& budgetData)
+void FMLCLIView::OnBudgetAdded(const FMLItemBudgetData& budgetData)
 {
     if (!SilentMode)
     {
@@ -666,7 +666,7 @@ void FMLCLIView::OnBudgetAdded(const FMLCategoryBudgetData& budgetData)
     }
 }
 
-void FMLCLIView::OnBudgetRemoved(const std::string& category)
+void FMLCLIView::OnBudgetRemoved(const std::string& category, const std::string& item)
 {
     if (!SilentMode)
     {
@@ -674,7 +674,7 @@ void FMLCLIView::OnBudgetRemoved(const std::string& category)
     }
 }
 
-void FMLCLIView::OnBudgetUpdated(const FMLCategoryBudgetData& budgetData)
+void FMLCLIView::OnBudgetUpdated(const FMLItemBudgetData& budgetData)
 {
     if (!SilentMode)
     {
