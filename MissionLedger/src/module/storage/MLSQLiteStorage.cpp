@@ -88,7 +88,7 @@ bool FMLSQLiteStorage::createTable()
             category TEXT NOT NULL,
             item TEXT NOT NULL,
             budget_amount INTEGER DEFAULT 0,
-            PRIMARY KEY (category, item)
+            PRIMARY KEY (budgetId)
         );
     )";
 
@@ -109,7 +109,7 @@ bool FMLSQLiteStorage::SaveTransaction(const FMLTransactionData& data)
 
     const char* sql = R"(
         INSERT OR REPLACE INTO transactions
-        (id, type, category, item, description, amount, datetime, receipt_number,
+        (id, type, budgetId, description, amount, datetime, receipt_number,
          use_exchange_rate, currency, original_amount, exchange_rate)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     )";
@@ -192,7 +192,7 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<FMLTransactionData>& outT
     outTransactions.clear();
 
     const char* sql = R"(
-        SELECT id, type, category, item, description, amount, datetime, receipt_number,
+        SELECT id, type, budgetId, description, amount, datetime, receipt_number,
                use_exchange_rate, currency, original_amount, exchange_rate
         FROM transactions ORDER BY id;
     )";
@@ -307,7 +307,7 @@ bool FMLSQLiteStorage::SaveBudget(const FMLItemBudgetData& budget)
     if (!IsInitialized) return false;
 
     const char* sql = R"(
-        INSERT OR REPLACE INTO budgets (category, item, budget_amount)
+        INSERT OR REPLACE INTO budgets (budgetId, budget_amount)
         VALUES (?, ?, ?);
     )";
 
@@ -331,7 +331,7 @@ bool FMLSQLiteStorage::LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets
 
     outBudgets.clear();
 
-    const char* sql = "SELECT category, item, budget_amount FROM budgets ORDER BY category, item;";
+    const char* sql = "SELECT budgetId, budget_amount FROM budgets ORDER BY budgetId;";
 
     sqlite3_stmt* stmt = nullptr;
     int result = sqlite3_prepare_v2(Database, sql, -1, &stmt, nullptr);
@@ -350,7 +350,7 @@ bool FMLSQLiteStorage::LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets
     return true;
 }
 
-bool FMLSQLiteStorage::DeleteBudget(const std::string& category, const std::string& item)
+bool FMLSQLiteStorage::DeleteBudget(const int budgetId)
 {
     if (!IsInitialized) return false;
 
@@ -360,8 +360,8 @@ bool FMLSQLiteStorage::DeleteBudget(const std::string& category, const std::stri
     int result = sqlite3_prepare_v2(Database, sql, -1, &stmt, nullptr);
     if (result != SQLITE_OK) return false;
 
-    sqlite3_bind_text(stmt, 1, category.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, item.c_str(), -1, SQLITE_TRANSIENT);
+    // sqlite3_bind_text(stmt, 1, category.c_str(), -1, SQLITE_TRANSIENT);
+    // sqlite3_bind_text(stmt, 2, item.c_str(), -1, SQLITE_TRANSIENT);
     result = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 

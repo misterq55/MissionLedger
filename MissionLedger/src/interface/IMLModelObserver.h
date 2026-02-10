@@ -13,12 +13,12 @@ public:
 
     // Transaction events
     virtual void OnTransactionAdded(const FMLTransactionData& transactionData) = 0;
-    virtual void OnTransactionRemoved(int transactionId) = 0;
+    virtual void OnTransactionDeleted(const int transactionId) = 0;
     virtual void OnTransactionUpdated(const FMLTransactionData& transactionData) = 0;
 
     // Budget events
     virtual void OnBudgetAdded(const FMLItemBudgetData& budgetData) = 0;
-    virtual void OnBudgetRemoved(const std::string& category, const std::string& item) = 0;
+    virtual void OnBudgetDeleted(const int budgetId) = 0;
     virtual void OnBudgetUpdated(const FMLItemBudgetData& budgetData) = 0;
     
     // Data events

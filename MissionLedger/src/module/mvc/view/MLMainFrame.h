@@ -32,11 +32,11 @@ public:
 
     // IMLModelObserver 인터페이스 구현
     void OnTransactionAdded(const FMLTransactionData& transactionData) override;
-    void OnTransactionRemoved(int transactionId) override;
+    void OnTransactionDeleted(const int transactionId) override;
     void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     void OnTransactionsCleared() override;
     void OnBudgetAdded(const FMLItemBudgetData& budgetData) override;
-    void OnBudgetRemoved(const std::string& category, const std::string& item) override;
+    void OnBudgetDeleted(const int budgetId) override;
     void OnBudgetUpdated(const FMLItemBudgetData& budgetData) override;
     void OnBudgetCleared() override;
     void OnDataLoaded() override;

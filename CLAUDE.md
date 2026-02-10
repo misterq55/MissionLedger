@@ -72,7 +72,7 @@ MissionLedger/
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-02-06):
+**Completed Features** (as of 2026-02-10):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -82,10 +82,18 @@ MissionLedger/
 - ✅ List footer with income/expense/balance totals (real-time summary with filter support)
 - ✅ Exchange rate support (foreign currency transactions with auto-conversion)
 - ✅ Entity-DTO architecture refactoring (Data-Oriented Design, -136 lines net reduction)
+- ✅ Budget CRUD operations (Add/Update/Delete/Get with Observer pattern)
 
-**Current Focus**: Phase 4 - Data Export & Distribution
-- ⏳ Excel/CSV export
-- ⏳ Installer with .ml file association
+**Current Focus**: Phase 3 - Budget System Implementation
+- ⏳ Budget data structure redesign (Type field + calculated fields for Transaction consistency)
+- ⏳ Budget-Transaction integration (auto-calculate ActualAmount from matching transactions)
+- ⏳ Budget UI implementation (list view, add/edit dialog, summary panel)
+- ⏳ Budget file I/O (database schema update, save/load implementation)
+
+**Next**: Phase 4 - Data Export & Distribution
+- 📋 Excel/CSV export
+- 📋 PDF export
+- 📋 Installer with .ml file association
 
 ## Coding Conventions
 

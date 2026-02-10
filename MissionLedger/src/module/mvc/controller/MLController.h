@@ -17,9 +17,9 @@ public:
 
 public:
     // Transaction operations
-    virtual void AddTransaction(const FMLTransactionData& transactionData) override;
+    virtual bool AddTransaction(const FMLTransactionData& transactionData) override;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) override;
-    virtual bool RemoveTransaction(const int transactionId) override;
+    virtual bool DeleteTransaction(const int transactionId) override;
 
     // Data retrieval for View
     virtual FMLTransactionData GetTransactionData(const int transactionId) override;
@@ -46,9 +46,9 @@ public:
     // Budget operations
     virtual bool AddBudget(const FMLItemBudgetData& budgetData) override;
     virtual bool UpdateBudget(const FMLItemBudgetData& budgetData) override;
-    virtual bool DeleteBudget(const std::string& category, const std::string& item) override;
+    virtual bool DeleteBudget(const int budgetId) override;
     virtual std::vector<FMLItemBudgetData> GetAllBudgets() const override;
-    virtual FMLItemBudgetData GetBudget(const std::string& category, const std::string& item) const override;
+    virtual FMLItemBudgetData GetBudget(const int budgetId) const override;
 
     // Budget Summary
     virtual FMLBudgetSummary GetBudgetSummary() const override;

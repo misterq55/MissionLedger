@@ -618,7 +618,7 @@ void FMLCLIView::OnTransactionAdded(const FMLTransactionData& transactionData)
     }
 }
 
-void FMLCLIView::OnTransactionRemoved(int transactionId)
+void FMLCLIView::OnTransactionDeleted(const int transactionId)
 {
     if (!SilentMode)
     {
@@ -666,11 +666,11 @@ void FMLCLIView::OnBudgetAdded(const FMLItemBudgetData& budgetData)
     }
 }
 
-void FMLCLIView::OnBudgetRemoved(const std::string& category, const std::string& item)
+void FMLCLIView::OnBudgetDeleted(const int budgetId)
 {
     if (!SilentMode)
     {
-        std::cout << "[이벤트] 예산 삭제됨 - 카테고리: " << category << std::endl;
+        std::cout << "[이벤트] 예산 삭제됨 - ID: " << budgetId << std::endl;
     }
 }
 

@@ -7,7 +7,7 @@
 #include "interface/IMLModel.h"
 
 class FMLTransaction;
-class FMLCategoryBudget;
+class FMLItemBudget;
 class IMLStorageProvider;
 
 class FMLModel : public IMLModel
@@ -21,18 +21,18 @@ public:
     virtual void AddObserver(std::shared_ptr<IMLModelObserver> modelObserver) override;
 
     // Transaction CRUD operations
-    virtual void AddTransaction(const FMLTransactionData& transactionData) override;
+    virtual bool AddTransaction(const FMLTransactionData& transactionData) override;
     virtual bool UpdateTransaction(const FMLTransactionData& transactionData) override;
-    virtual bool RemoveTransaction(const int transactionId) override;
+    virtual bool DeleteTransaction(const int transactionId) override;
 
     // Data retrieval - DTO 기반
-    virtual FMLTransactionData GetTransactionData(const int transactionId) override;
-    virtual std::vector<FMLTransactionData> GetAllTransactionData() override;
-    virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) override;
+    virtual FMLTransactionData GetTransactionData(const int transactionId) const override;
+    virtual std::vector<FMLTransactionData> GetAllTransactionData() const override;
+    virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) const override;
 
     // Business logic
-    virtual FMLTransactionSummary CalculateTransactionSummary() override;
-    virtual FMLTransactionSummary CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria) override;
+    virtual FMLTransactionSummary GetTransactionSummary() const override;
+    virtual FMLTransactionSummary GetFilteredTransactionSummary(const FMLFilterCriteria& criteria) const override;
     virtual std::vector<std::string> GetAllCategories() const override;
 
     // Persistence
@@ -51,9 +51,9 @@ public:
     // Budget CRUD operations
     virtual bool AddBudget(const FMLItemBudgetData& budgetData) override;
     virtual bool UpdateBudget(const FMLItemBudgetData& budgetData) override;
-    virtual bool DeleteBudget(const std::string& category, const std::string& item) override;
+    virtual bool DeleteBudget(const int budgetId) override;
     virtual std::vector<FMLItemBudgetData> GetAllBudgets() const override;
-    virtual FMLItemBudgetData GetBudget(const std::string& category, const std::string& item) const override;
+    virtual FMLItemBudgetData GetBudget(const int budgetId) const override;
 
     // Budget Summary
     virtual FMLBudgetSummary GetBudgetSummary() const override;
@@ -64,7 +64,7 @@ public:
 
 private:
     void clearAllTransactions();
-    FMLTransactionSummary calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData);
+    FMLTransactionSummary calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData) const;
 
     // 카테고리 캐싱
     void rebuildCategoryCache() const;
@@ -74,12 +74,11 @@ private:
     std::shared_ptr<IMLModelObserver> ModelObserver;
     std::shared_ptr<IMLStorageProvider> StorageProvider;
     std::map<int, std::shared_ptr<FMLTransaction>> Transactions;
-
-    // TODO: 예산 저장소 구조 설계 필요 (카테고리 > 항목 계층 구조)
-    // std::map<std::string, std::shared_ptr<FMLCategoryBudget>> Budgets;
+    std::map<int, std::shared_ptr<FMLItemBudget>> Budgets;
 
     std::string CurrentFilePath;
     int TransactionIdIndex = 0;
+    int BudgetIdIndex = 0;
     bool UnsavedChanges = false;
 
     // 카테고리 캐시 (Lazy 업데이트)

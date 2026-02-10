@@ -2,6 +2,7 @@
 #include <string>
 #include <cstdint>
 #include <map>
+#include <vector>
 
 enum class E_MLTransactionType
 {
@@ -63,27 +64,16 @@ struct FMLTransactionSummary {
 // 항목별 예산 데이터 (Item Budget Data)
 // 예: Category="항공", Item="항공료 선결제", BudgetAmount=3,000,000
 struct FMLItemBudgetData {
+    int BudgetId = -1;
     std::string Category;        // 카테고리 (예: "항공", "생활")
     std::string Item;            // 항목 (예: "항공료 선결제", "숙박비")
     int64_t BudgetAmount = 0;    // 예산 금액 (가용 금액)
 };
 
-// 항목 1개의 예산 vs 실제 요약 (Item Budget Summary)
-struct FMLItemBudgetSummary {
-    std::string Item;              // 항목명
-    int64_t BudgetAmount = 0;      // 예산 금액
-    int64_t ActualExpense = 0;     // 실제 지출 (Type=Expense인 Transaction 합계)
-    int64_t ActualIncome = 0;      // 실제 수입 (Type=Income인 Transaction 합계)
-    int64_t NetAmount = 0;         // 순액 (수입 - 지출)
-    int64_t Variance = 0;          // 차이 (실제 - 예산, 지출 기준)
-    int TransactionCount = 0;      // 실제 거래 건수
-    double Ratio = 0.0;            // 비율 (실제 / 예산 * 100)
-};
-
 // 카테고리 1개의 예산 vs 실제 요약 (Category Budget Summary)
 struct FMLCategoryBudgetSummary {
     std::string Category;                                  // 카테고리명
-    std::map<std::string, FMLItemBudgetSummary> Items;     // 항목별 상세 (Item → Summary)
+    std::vector<std::string> Items;     // 항목별 상세 
 
     // 카테고리 합계
     int64_t TotalBudget = 0;          // 모든 항목 예산 합계

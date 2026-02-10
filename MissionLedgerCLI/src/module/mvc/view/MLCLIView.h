@@ -40,11 +40,11 @@ public:
 
     // IMLModelObserver implementation
     virtual void OnTransactionAdded(const FMLTransactionData& transactionData) override;
-    virtual void OnTransactionRemoved(int transactionId) override;
+    virtual void OnTransactionDeleted(const int transactionId) override;
     virtual void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     virtual void OnTransactionsCleared() override;
     virtual void OnBudgetAdded(const FMLItemBudgetData& budgetData) override;
-    virtual void OnBudgetRemoved(const std::string& category, const std::string& item) override;
+    virtual void OnBudgetDeleted(const int budgetId) override;
     virtual void OnBudgetUpdated(const FMLItemBudgetData& budgetData) override;
     virtual void OnBudgetCleared() override;
     virtual void OnDataLoaded() override;

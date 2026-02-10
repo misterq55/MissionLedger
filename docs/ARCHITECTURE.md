@@ -475,9 +475,13 @@ The Observer pattern enables automatic UI updates when Model data changes.
 ```cpp
 class IMLModelObserver {
     virtual void OnTransactionAdded(const FMLTransactionData& data) = 0;
-    virtual void OnTransactionRemoved(int transactionId) = 0;
+    virtual void OnTransactionDeleted(const int transactionId) = 0;
     virtual void OnTransactionUpdated(const FMLTransactionData& data) = 0;
     virtual void OnTransactionsCleared() = 0;
+    virtual void OnBudgetAdded(const FMLItemBudgetData& budgetData) = 0;
+    virtual void OnBudgetDeleted(const int budgetId) = 0;
+    virtual void OnBudgetUpdated(const FMLItemBudgetData& budgetData) = 0;
+    virtual void OnBudgetCleared() = 0;
     virtual void OnDataLoaded() = 0;
     virtual void OnDataSaved() = 0;
 };
@@ -487,3 +491,141 @@ class IMLModelObserver {
 - Automatic UI synchronization with data changes
 - Decouples Model from View (Model doesn't know about View implementation)
 - Single observer design simplifies lifecycle management
+
+## Budget System Design
+
+The Budget system follows the same architectural patterns as Transactions for consistency and maintainability.
+
+### Design Philosophy: Transaction-Budget Consistency
+
+**Core Principle**: Budget system mirrors Transaction system architecture for unified learning curve and maintenance.
+
+| Aspect | Transaction | Budget |
+|--------|-------------|---------|
+| **CRUD DTO** | `FMLTransactionData` | `FMLItemBudgetData` |
+| **Entity** | `FMLTransaction` | `FMLItemBudget` |
+| **UI Display** | `DisplayTransactions(vector<TransactionData>)` | `DisplayBudgets(vector<ItemBudgetData>)` |
+| **Summary** | `FMLTransactionSummary` (total only) | `FMLBudgetSummary` (hierarchical) |
+
+### ItemBudgetData Structure
+
+Budget items use a **hybrid DTO pattern** combining input fields and calculated fields:
+
+```cpp
+struct FMLItemBudgetData {
+    // Primary Key
+    int BudgetId = -1;
+
+    // Input Fields (User-provided)
+    E_MLTransactionType Type;      // Income/Expense classification
+    std::string Category;           // Budget category (e.g., "항공", "생활")
+    std::string Item;               // Budget item (e.g., "항공료 선결제", "숙박비")
+    int64_t BudgetAmount = 0;       // Budgeted amount (user input)
+
+    // Calculated Fields (Auto-computed from Transactions)
+    int64_t ActualAmount = 0;       // Actual amount from matching transactions
+    int64_t Variance = 0;           // Variance (Actual - Budget)
+    int TransactionCount = 0;       // Number of matching transactions
+};
+```
+
+**Design Rationale**:
+- **Hybrid Pattern**: Combines input DTO + calculated fields in single structure
+- **Consistency**: Mirrors `FMLTransactionData.DateTime` pattern (input: empty, output: formatted)
+- **Simplicity**: Single structure avoids separate Input/Display DTOs
+- **Clarity**: Calculated fields marked as "ReadOnly" in comments
+
+### Budget-Transaction Integration
+
+**Key Concept**: Actual amounts are auto-calculated by matching transactions to budget items.
+
+**Matching Logic**:
+```cpp
+// Transactions with matching (Type, Category, Item) contribute to ActualAmount
+Budget: Type=Expense, Category="항공", Item="항공료 선결제", BudgetAmount=3,000,000
+  ↓ matches
+Transaction: Type=Expense, Category="항공", Item="항공료 선결제", Amount=2,800,000
+  ↓ result
+ActualAmount=2,800,000, Variance=-200,000 (under budget)
+```
+
+**GetAllBudgets() Behavior**:
+```cpp
+// Returns FMLItemBudgetData with calculated fields populated
+auto budgets = controller->GetAllBudgets();  // Scans transactions, calculates ActualAmount
+```
+
+### Budget Summary Hierarchy
+
+Unlike Transactions (single-level summary), Budgets use a **3-tier hierarchical structure**:
+
+```
+FMLBudgetSummary (Overall)
+  ├─ TotalBudget, TotalActualExpense, TotalActualIncome, TotalVariance
+  └─ Categories: map<string, FMLCategoryBudgetSummary>
+       └─ FMLCategoryBudgetSummary (Per Category)
+            ├─ TotalBudget, TotalActualExpense, TotalActualIncome
+            └─ Items: map<string, FMLItemBudgetSummary>
+                 └─ FMLItemBudgetSummary (Per Item)
+                      └─ BudgetAmount, ActualAmount, Variance
+```
+
+**Example**:
+```
+Overall Summary:
+  TotalBudget=5,000,000, TotalActualExpense=4,900,000, Variance=-100,000
+
+  Category "항공":
+    TotalBudget=3,000,000, TotalActualExpense=2,800,000
+    Items:
+      - "항공료 선결제": Budget=3,000,000, Actual=2,800,000, Variance=-200,000
+
+  Category "생활":
+    TotalBudget=2,000,000, TotalActualExpense=2,100,000
+    Items:
+      - "숙박비": Budget=2,000,000, Actual=2,100,000, Variance=+100,000
+```
+
+### UI Display Pattern
+
+**Budget List View**: Displays `FMLItemBudgetData` with all fields (input + calculated)
+
+```cpp
+void DisplayBudgets(const std::vector<FMLItemBudgetData>& budgets) {
+    for (const auto& budget : budgets) {
+        AddRow(budget.Category, budget.Item,
+               budget.BudgetAmount,    // User input
+               budget.ActualAmount,    // Auto-calculated
+               budget.Variance);       // Auto-calculated
+    }
+}
+```
+
+**Summary View**: Displays `FMLBudgetSummary` for hierarchical aggregation
+
+```cpp
+void DisplayBudgetSummary(const FMLBudgetSummary& summary) {
+    // Show overall totals
+    ShowTotal(summary.TotalBudget, summary.TotalActualExpense);
+
+    // Show per-category breakdown
+    for (const auto& [category, catSummary] : summary.Categories) {
+        ShowCategoryRow(category, catSummary.TotalBudget, catSummary.TotalActualExpense);
+    }
+}
+```
+
+### Consistency vs Domain Characteristics
+
+**Why Transaction and Budget share the same pattern despite different domains?**
+
+- **Transaction**: Displays raw input data (what user entered)
+- **Budget**: Displays input + calculated data (budget vs actual comparison)
+
+**Both use the same DTO-based UI pattern because**:
+1. **Consistency**: Easier to learn, maintain, and extend
+2. **Flexibility**: DTO can contain both input and calculated fields
+3. **Simplicity**: Single pattern across all domains
+4. **Precedent**: `FMLTransactionData.DateTime` already uses input/output duality
+
+**Trade-off**: Calculated fields in DTO slightly blur "pure input DTO" concept, but the benefit of consistency outweighs this theoretical concern.

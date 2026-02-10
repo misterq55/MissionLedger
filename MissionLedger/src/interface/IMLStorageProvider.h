@@ -113,5 +113,5 @@ public:
     /// <param name="category">카테고리명</param>
     /// <param name="item">항목명</param>
     /// <returns>성공 여부</returns>
-    virtual bool DeleteBudget(const std::string& category, const std::string& item) = 0;
+    virtual bool DeleteBudget(const int budgetId) = 0;
 };

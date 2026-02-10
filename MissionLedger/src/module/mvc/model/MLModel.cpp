@@ -1,6 +1,6 @@
 ﻿#include "MLModel.h"
 #include "module/mvc/model/transaction/MLTransaction.h"
-#include "module/mvc/model/budget/MLCategoryBudget.h"
+#include "module/mvc/model/budget/MLItemBudget.h"
 #include "MLDefine.h"
 #include <vector>
 #include <algorithm>
@@ -23,7 +23,7 @@ void FMLModel::AddObserver(std::shared_ptr<IMLModelObserver> modelObserver)
 }
 
 // Transaction CRUD operations
-void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
+bool FMLModel::AddTransaction(const FMLTransactionData& transactionData)
 {
     const int newId = TransactionIdIndex;
 
@@ -42,6 +42,8 @@ void FMLModel::AddTransaction(const FMLTransactionData& transactionData)
     {
         ModelObserver->OnTransactionAdded(newTransaction->GetData());
     }
+
+    return true;
 }
 
 bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
@@ -65,7 +67,7 @@ bool FMLModel::UpdateTransaction(const FMLTransactionData& transactionData)
     return true;
 }
 
-bool FMLModel::RemoveTransaction(const int transactionId)
+bool FMLModel::DeleteTransaction(const int transactionId)
 {
     auto it = Transactions.find(transactionId);
     if (it == Transactions.end())
@@ -79,14 +81,14 @@ bool FMLModel::RemoveTransaction(const int transactionId)
 
     if (ModelObserver)
     {
-        ModelObserver->OnTransactionRemoved(transactionId);
+        ModelObserver->OnTransactionDeleted(transactionId);
     }
 
     return true;
 }
 
 // Data retrieval - DTO 기반
-FMLTransactionData FMLModel::GetTransactionData(const int transactionId)
+FMLTransactionData FMLModel::GetTransactionData(const int transactionId) const
 {
     auto it = Transactions.find(transactionId);
     if (it != Transactions.end())
@@ -100,7 +102,7 @@ FMLTransactionData FMLModel::GetTransactionData(const int transactionId)
     return emptyData;
 }
 
-std::vector<FMLTransactionData> FMLModel::GetAllTransactionData()
+std::vector<FMLTransactionData> FMLModel::GetAllTransactionData() const
 {
     std::vector<FMLTransactionData> result;
     result.reserve(Transactions.size());
@@ -113,7 +115,7 @@ std::vector<FMLTransactionData> FMLModel::GetAllTransactionData()
     return result;
 }
 
-std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFilterCriteria& criteria)
+std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFilterCriteria& criteria) const
 {
     std::vector<FMLTransactionData> result;
 
@@ -133,12 +135,12 @@ std::vector<FMLTransactionData> FMLModel::GetFilteredTransactionData(const FMLFi
 
 // Business logic
 
-FMLTransactionSummary FMLModel::CalculateTransactionSummary()
+FMLTransactionSummary FMLModel::GetTransactionSummary() const
 {
     return calculateTransactionSummary(GetAllTransactionData());
 }
 
-FMLTransactionSummary FMLModel::CalculateFilteredTransactionSummary(const FMLFilterCriteria& criteria)
+FMLTransactionSummary FMLModel::GetFilteredTransactionSummary(const FMLFilterCriteria& criteria) const
 {
     return calculateTransactionSummary(GetFilteredTransactionData(criteria));
 }
@@ -329,7 +331,7 @@ void FMLModel::clearAllTransactions()
     invalidateCategoryCache();
 }
 
-FMLTransactionSummary FMLModel::calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData)
+FMLTransactionSummary FMLModel::calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData) const
 {
     FMLTransactionSummary transactionSummary;
     for (const auto& transaction : transactionData)
@@ -394,42 +396,125 @@ void FMLModel::invalidateCategoryCache()
 
 bool FMLModel::AddBudget(const FMLItemBudgetData& budgetData)
 {
-    // TODO: 구현 필요
-    return false;
+    const int newId = BudgetIdIndex;
+
+    // Entity 생성 및 데이터 설정
+    auto newBudget = std::make_shared<FMLItemBudget>();
+    FMLItemBudgetData dataWithId = budgetData;
+    dataWithId.BudgetId = newId;
+    newBudget->SetData(dataWithId);
+
+    Budgets.emplace(newId, newBudget);
+    BudgetIdIndex++;
+    UnsavedChanges = true;
+    invalidateCategoryCache();
+
+    if (ModelObserver)
+    {
+        ModelObserver->OnBudgetAdded(newBudget->GetData());
+    }
+
+    return true;
 }
 
 bool FMLModel::UpdateBudget(const FMLItemBudgetData& budgetData)
 {
-    // TODO: 구현 필요
-    return false;
+    auto it = Budgets.find(budgetData.BudgetId);
+    if (it == Budgets.end())
+    {
+        return false;
+    }
+
+    auto& budget = it->second;
+    budget->SetData(budgetData);
+    UnsavedChanges = true;
+    invalidateCategoryCache();
+
+    if (ModelObserver)
+    {
+        ModelObserver->OnBudgetUpdated(budgetData);
+    }
+
+    return true;
 }
 
-bool FMLModel::DeleteBudget(const std::string& category, const std::string& item)
+bool FMLModel::DeleteBudget(const int budgetId)
 {
-    // TODO: 구현 필요
-    return false;
+    auto it = Budgets.find(budgetId);
+    if (it == Budgets.end())
+    {
+        return false;
+    }
+
+    Budgets.erase(it);
+    UnsavedChanges = true;
+    invalidateCategoryCache();
+
+    if (ModelObserver)
+    {
+        ModelObserver->OnBudgetDeleted(budgetId);
+    }
+
+    return true;
 }
 
 std::vector<FMLItemBudgetData> FMLModel::GetAllBudgets() const
 {
-    // TODO: 구현 필요
-    return {};
+    std::vector<FMLItemBudgetData> result;
+    result.reserve(Budgets.size());
+
+    for (const auto& pair : Budgets)
+    {
+        result.push_back(pair.second->GetData());
+    }
+
+    return result;
 }
 
-FMLItemBudgetData FMLModel::GetBudget(const std::string& category, const std::string& item) const
+FMLItemBudgetData FMLModel::GetBudget(const int budgetId) const
 {
-    // TODO: 구현 필요
-    return {};
+    auto it = Budgets.find(budgetId);
+    if (it != Budgets.end())
+    {
+        return it->second->GetData();
+    }
+
+    // 빈 데이터 반환 (ID -1로 표시)
+    FMLItemBudgetData emptyData;
+    emptyData.BudgetId = -1;
+    return emptyData;
 }
 
 FMLBudgetSummary FMLModel::GetBudgetSummary() const
 {
-    // TODO: 구현 필요
-    return {};
+    FMLBudgetSummary summary;
+
+    for (const auto& pair : Budgets)
+    {
+        const auto& budgetData = pair.second->GetData();
+        summary.TotalBudget += budgetData.BudgetAmount;
+    }
+
+    return summary;
 }
 
 FMLBudgetSummary FMLModel::GetFilteredBudgetSummary(const FMLFilterCriteria& criteria) const
 {
-    // TODO: 구현 필요
-    return {};
+    FMLBudgetSummary summary;
+
+    for (const auto& pair : Budgets)
+    {
+        const auto& budgetData = pair.second->GetData();
+
+        // 카테고리 필터링
+        if (criteria.UseCategoryFilter && !criteria.CategoryFilter.empty()
+            && budgetData.Category != criteria.CategoryFilter)
+        {
+            continue;
+        }
+
+        summary.TotalBudget += budgetData.BudgetAmount;
+    }
+
+    return summary;
 }

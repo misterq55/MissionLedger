@@ -362,7 +362,7 @@ void wxMLMainFrame::OnTransactionAdded(const FMLTransactionData& transactionData
     updateSummaryPanel();
 }
 
-void wxMLMainFrame::OnTransactionRemoved(int transactionId)
+void wxMLMainFrame::OnTransactionDeleted(const int transactionId)
 {
     updateCategoryFilter();
 
@@ -415,7 +415,7 @@ void wxMLMainFrame::OnBudgetAdded(const FMLItemBudgetData& budgetData)
     updateTitle();  // UnsavedChanges 반영
 }
 
-void wxMLMainFrame::OnBudgetRemoved(const std::string& category, const std::string& item)
+void wxMLMainFrame::OnBudgetDeleted(const int budgetId)
 {
     // 예산 삭제 시 예산 리스트 업데이트
     updateBudgetList();
@@ -519,7 +519,7 @@ void wxMLMainFrame::OnDeleteTransaction(wxCommandEvent& event)
     // Controller를 통해 삭제
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (controller) {
-        if (controller->RemoveTransaction(SelectedTransactionId)) {
+        if (controller->DeleteTransaction(SelectedTransactionId)) {
             clearInputFields();
             SelectedTransactionId = -1;
             updateButtonStates();

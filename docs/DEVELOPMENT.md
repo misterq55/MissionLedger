@@ -92,9 +92,27 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Converted Storage to DTO-based (removed Entity dependency)
     - ✅ Net code reduction: -136 lines while adding functionality
 
+13. **Budget System Implementation** ⏳ IN PROGRESS (2026-02-10)
+    - ✅ Budget CRUD operations (Add/Update/Delete/Get)
+    - ✅ FMLItemBudget entity with Data-Oriented Design
+    - ✅ Observer pattern integration (OnBudgetAdded/Updated/Deleted)
+    - ✅ Controller layer delegation
+    - ✅ Storage interface definition (SaveBudget, LoadAllBudgets)
+    - ⏳ Data structure redesign for Transaction consistency
+      - ⏳ Add `Type` field (Income/Expense) to FMLItemBudgetData
+      - ⏳ Add calculated fields (ActualAmount, Variance, TransactionCount)
+      - ⏳ Implement Budget-Transaction matching logic
+    - ⏳ UI implementation (Budget tab in main window)
+      - ⏳ Budget list display with calculated fields
+      - ⏳ Budget add/edit dialog
+      - ⏳ Budget summary panel
+    - ⏳ File I/O implementation (currently commented out)
+      - ⏳ Database schema update (add type column)
+      - ⏳ Enable budget save/load in Model
+
 ### Phase 4: Data Export & Distribution ⏳ IN PROGRESS
 
-13. **Transaction Summary Display** ✅ COMPLETED (2026-01-30)
+14. **Transaction Summary Display** ✅ COMPLETED (2026-01-30)
     - ✅ List footer panel with summary totals
     - ✅ FMLTransactionSummary data structure
     - ✅ Real-time calculation (Income/Expense/Balance)
@@ -104,19 +122,19 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Observer integration (all data change events trigger summary update)
     - ✅ Helper methods (createSummaryPanel, updateSummaryPanel, displaySummary, formatAmountWithComma, buildCurrentFilterCriteria)
 
-14. **Excel/CSV Export** ⏳ PENDING
+15. **Excel/CSV Export** ⏳ PENDING
     - ⏳ CSV export with UTF-8 BOM (Korean support)
     - ⏳ Export current view (respects active filter)
     - ⏳ File menu integration
     - ⏳ Column headers and formatting
 
-15. **.ml File Registration** ⏳ PENDING
+16. **.ml File Registration** ⏳ PENDING
     - ⏳ Installer creation (Inno Setup / NSIS)
     - ⏳ Windows registry setup for file association
     - ⏳ Double-click .ml file → launch MissionLedger
     - ⏳ Icon association
 
-16. **PDF Export** 📋 PLANNED
+17. **PDF Export** 📋 PLANNED
     - 📋 Library: wxPdfDocument (wxWidgets integration, Korean font support)
     - 📋 Reference layout: 결산안.pdf
     - 📋 Estimated time: 2-3 hours (basic implementation)
@@ -240,6 +258,101 @@ void wxMLMainFrame::applyCurrentFilter()
   - `OnTransactionAdded`: `DisplayTransaction(transactionData)`
   - `OnTransactionRemoved`: `removeListItemByTransactionId(transactionId)`
   - `OnTransactionUpdated`: `DisplayTransaction(transactionData)`
+
+### Budget System Implementation Pattern
+
+The Budget system follows Transaction architecture for consistency, with additional calculated fields.
+
+#### Data Structure Design
+
+**FMLItemBudgetData**: Hybrid DTO (input + calculated fields)
+```cpp
+struct FMLItemBudgetData {
+    // Input Fields (User-provided)
+    int BudgetId = -1;
+    E_MLTransactionType Type;        // Income/Expense
+    std::string Category;
+    std::string Item;
+    int64_t BudgetAmount = 0;
+
+    // Calculated Fields (Auto-computed)
+    int64_t ActualAmount = 0;        // From transactions
+    int64_t Variance = 0;            // Actual - Budget
+    int TransactionCount = 0;        // Number of matching transactions
+};
+```
+
+#### Budget-Transaction Matching
+
+**Key Concept**: Actual amounts auto-calculated by matching (Type, Category, Item)
+
+```cpp
+std::vector<FMLItemBudgetData> FMLModel::GetAllBudgets() const {
+    std::vector<FMLItemBudgetData> result;
+
+    for (const auto& [id, budgetEntity] : Budgets) {
+        FMLItemBudgetData budget = budgetEntity->GetData();
+
+        // Calculate ActualAmount by scanning transactions
+        int64_t actual = 0;
+        int count = 0;
+        for (const auto& [tid, transaction] : Transactions) {
+            const auto& tData = transaction->GetData();
+            if (tData.Type == budget.Type &&
+                tData.Category == budget.Category &&
+                tData.Item == budget.Item) {
+                actual += tData.Amount;
+                count++;
+            }
+        }
+
+        budget.ActualAmount = actual;
+        budget.Variance = actual - budget.BudgetAmount;
+        budget.TransactionCount = count;
+        result.push_back(budget);
+    }
+
+    return result;
+}
+```
+
+#### UI Display Pattern
+
+**Budget List**: Displays `FMLItemBudgetData` with all fields
+```cpp
+void DisplayBudgets(const std::vector<FMLItemBudgetData>& budgets) {
+    budgetListCtrl->DeleteAllItems();
+
+    for (const auto& budget : budgets) {
+        long idx = budgetListCtrl->InsertItem(itemCount,
+                       wxString::FromUTF8(budget.Category.c_str()));
+        budgetListCtrl->SetItem(idx, 1, wxString::FromUTF8(budget.Item.c_str()));
+        budgetListCtrl->SetItem(idx, 2, formatAmount(budget.BudgetAmount));
+        budgetListCtrl->SetItem(idx, 3, formatAmount(budget.ActualAmount));
+        budgetListCtrl->SetItem(idx, 4, formatAmount(budget.Variance));
+        budgetListCtrl->SetItemData(idx, budget.BudgetId);  // Associate ID
+    }
+}
+```
+
+**Summary Panel**: Displays `FMLBudgetSummary` for hierarchical aggregation
+```cpp
+void DisplayBudgetSummary(const FMLBudgetSummary& summary) {
+    summaryTotalBudget->SetLabel(formatAmount(summary.TotalBudget));
+    summaryTotalActual->SetLabel(formatAmount(summary.TotalActualExpense));
+    summaryTotalVariance->SetLabel(formatAmount(summary.TotalVariance));
+}
+```
+
+#### Consistency with Transaction Pattern
+
+| Aspect | Transaction | Budget |
+|--------|-------------|---------|
+| **DTO** | `FMLTransactionData` | `FMLItemBudgetData` |
+| **Calculated Fields** | `DateTime` (empty → formatted) | `ActualAmount` (0 → calculated) |
+| **UI Display** | `DisplayTransactions()` | `DisplayBudgets()` |
+| **Summary** | `FMLTransactionSummary` | `FMLBudgetSummary` |
+| **Observer** | `OnTransactionAdded/Updated/Deleted` | `OnBudgetAdded/Updated/Deleted` |
 
 ### GUI Implementation Guidelines
 

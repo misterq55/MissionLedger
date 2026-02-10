@@ -4,13 +4,14 @@
 #include "MLDefine.h"
 
 // Transaction operations
-void FMLController::AddTransaction(const FMLTransactionData& transactionData)
+bool FMLController::AddTransaction(const FMLTransactionData& transactionData)
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
     {
-        model->AddTransaction(transactionData);
+        return model->AddTransaction(transactionData);
     }
+    return false;
 }
 
 bool FMLController::UpdateTransaction(const FMLTransactionData& transactionData)
@@ -23,12 +24,12 @@ bool FMLController::UpdateTransaction(const FMLTransactionData& transactionData)
     return false;
 }
 
-bool FMLController::RemoveTransaction(const int transactionId)
+bool FMLController::DeleteTransaction(const int transactionId)
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
     {
-        return model->RemoveTransaction(transactionId);
+        return model->DeleteTransaction(transactionId);
     }
     return false;
 }
@@ -78,7 +79,7 @@ FMLTransactionSummary FMLController::GetTransactionSummary()
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
     {
-        return model->CalculateTransactionSummary();
+        return model->GetTransactionSummary();
     }
 
     // Model이 없으면 빈 Summary 반환
@@ -91,7 +92,7 @@ FMLTransactionSummary FMLController::GetFilteredTransactionSummary(const FMLFilt
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
     {
-        return model->CalculateFilteredTransactionSummary(criteria);
+        return model->GetFilteredTransactionSummary(criteria);
     }
 
     // Model이 없으면 빈 Summary 반환
@@ -212,12 +213,12 @@ bool FMLController::UpdateBudget(const FMLItemBudgetData& budgetData)
     return false;
 }
 
-bool FMLController::DeleteBudget(const std::string& category, const std::string& item)
+bool FMLController::DeleteBudget(const int budgetId)
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
     {
-        return model->DeleteBudget(category, item);
+        return model->DeleteBudget(budgetId);
     }
     return false;
 }
@@ -232,12 +233,12 @@ std::vector<FMLItemBudgetData> FMLController::GetAllBudgets() const
     return {};
 }
 
-FMLItemBudgetData FMLController::GetBudget(const std::string& category, const std::string& item) const
+FMLItemBudgetData FMLController::GetBudget(const int budgetId) const
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
     {
-        return model->GetBudget(category, item);
+        return model->GetBudget(budgetId);
     }
     return {};
 }

@@ -29,7 +29,7 @@ public:
     // 예산 관련 메서드
     bool SaveBudget(const FMLItemBudgetData& budget) override;
     bool LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets) override;
-    bool DeleteBudget(const std::string& category, const std::string& item) override;
+    bool DeleteBudget(const int budgetId) override;
 
 private:
     /// <summary>
