@@ -26,6 +26,9 @@ struct FMLTransactionData {
     std::string Currency = "KRW";       // 통화 코드 (기본값: KRW)
     double OriginalAmount = 0.0;        // 원래 외화 금액
     double ExchangeRate = 1.0;          // 환율 (기본값: 1.0)
+
+    // 예산 연결 필드
+    int BudgetId = -1;                  // 연결된 예산 ID (-1이면 자동 매칭 또는 미연결)
 };
 
 struct FMLFilterCriteria {
@@ -58,16 +61,19 @@ struct FMLTransactionSummary {
 };
 
 // ========================================
-// 예산 관리 (항목별 예산)
+// 예산 관리
 // ========================================
 
-// 항목별 예산 데이터 (Item Budget Data)
-// 예: Category="항공", Item="항공료 선결제", BudgetAmount=3,000,000
-struct FMLItemBudgetData {
+// 예산 데이터 (Budget Data)
+// 예: Category="항공", Item="항공료 선결제", BudgetAmount=3,000,000, ActualAmount=2,800,000
+struct FMLBudgetData {
     int BudgetId = -1;
-    std::string Category;        // 카테고리 (예: "항공", "생활")
-    std::string Item;            // 항목 (예: "항공료 선결제", "숙박비")
-    int64_t BudgetAmount = 0;    // 예산 금액 (가용 금액)
+    E_MLTransactionType Type;      // Income/Expense
+    std::string Category;          // 카테고리 (필수, 예: "항공", "생활", "회비")
+    std::string Item;              // 항목 (선택, 예: "항공료 선결제", "숙박비", 비어있을 수 있음)
+    int64_t BudgetAmount = 0;      // 예산 금액 (수동 입력)
+    int64_t ActualAmount = 0;      // 실제 금액 (자동 계산, READ-ONLY, 연결된 Transaction들의 합계)
+    std::string Notes;             // 비고
 };
 
 // 카테고리 1개의 예산 vs 실제 요약 (Category Budget Summary)

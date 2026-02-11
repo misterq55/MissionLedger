@@ -98,14 +98,14 @@ public:
     /// </summary>
     /// <param name="budget">저장할 예산 데이터 (DTO)</param>
     /// <returns>성공 여부</returns>
-    virtual bool SaveBudget(const FMLItemBudgetData& budget) = 0;
+    virtual bool SaveBudget(const FMLBudgetData& budget) = 0;
 
     /// <summary>
     /// 저장소에서 모든 예산 로드
     /// </summary>
     /// <param name="outBudgets">로드된 예산 데이터가 저장될 벡터 (DTO)</param>
     /// <returns>성공 여부</returns>
-    virtual bool LoadAllBudgets(std::vector<FMLItemBudgetData>& outBudgets) = 0;
+    virtual bool LoadAllBudgets(std::vector<FMLBudgetData>& outBudgets) = 0;
 
     /// <summary>
     /// 특정 항목의 예산 삭제

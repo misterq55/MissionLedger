@@ -7,7 +7,7 @@
 struct FMLTransactionData;
 struct FMLFilterCriteria;
 struct FMLTransactionSummary;
-struct FMLItemBudgetData;
+struct FMLBudgetData;
 struct FMLBudgetSummary;
 class FMLTransaction;
 class IMLModelObserver;
@@ -31,11 +31,11 @@ public:
     virtual std::vector<FMLTransactionData> GetFilteredTransactionData(const FMLFilterCriteria& criteria) const = 0;
 
     // Budget CRUD operations (항목별 예산)
-    virtual bool AddBudget(const FMLItemBudgetData& budgetData) = 0;
-    virtual bool UpdateBudget(const FMLItemBudgetData& budgetData) = 0;
+    virtual bool AddBudget(const FMLBudgetData& budgetData) = 0;
+    virtual bool UpdateBudget(const FMLBudgetData& budgetData) = 0;
     virtual bool DeleteBudget(const int budgetId) = 0;
-    virtual std::vector<FMLItemBudgetData> GetAllBudgets() const = 0;
-    virtual FMLItemBudgetData GetBudget(const int budgetId) const = 0;
+    virtual std::vector<FMLBudgetData> GetAllBudgets() const = 0;
+    virtual FMLBudgetData GetBudget(const int budgetId) const = 0;
 
     // Budget Summary (계층 구조: 카테고리 > 항목)
     virtual FMLBudgetSummary GetBudgetSummary() const = 0;

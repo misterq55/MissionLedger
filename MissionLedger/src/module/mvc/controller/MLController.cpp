@@ -193,7 +193,7 @@ std::vector<std::string> FMLController::GetAllCategories() const
 
 // ========== 예산 관련 메서드 구현 (Model에 위임) ==========
 
-bool FMLController::AddBudget(const FMLItemBudgetData& budgetData)
+bool FMLController::AddBudget(const FMLBudgetData& budgetData)
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
@@ -203,7 +203,7 @@ bool FMLController::AddBudget(const FMLItemBudgetData& budgetData)
     return false;
 }
 
-bool FMLController::UpdateBudget(const FMLItemBudgetData& budgetData)
+bool FMLController::UpdateBudget(const FMLBudgetData& budgetData)
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
@@ -223,7 +223,7 @@ bool FMLController::DeleteBudget(const int budgetId)
     return false;
 }
 
-std::vector<FMLItemBudgetData> FMLController::GetAllBudgets() const
+std::vector<FMLBudgetData> FMLController::GetAllBudgets() const
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)
@@ -233,7 +233,7 @@ std::vector<FMLItemBudgetData> FMLController::GetAllBudgets() const
     return {};
 }
 
-FMLItemBudgetData FMLController::GetBudget(const int budgetId) const
+FMLBudgetData FMLController::GetBudget(const int budgetId) const
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();
     if (model)

@@ -37,15 +37,18 @@ public:
     virtual void AddTransaction(const FMLTransactionData& data) override;
     virtual void DisplayTransaction(const FMLTransactionData& data) override;
     virtual void DisplayTransactions(const std::vector<FMLTransactionData>& data) override;
+    virtual void AddBudget(const FMLBudgetData& data) override;
+    virtual void DisplayBudget(const FMLBudgetData& data) override;
+    virtual void DisplayBudgets(const std::vector<FMLBudgetData>& data) override;
 
     // IMLModelObserver implementation
     virtual void OnTransactionAdded(const FMLTransactionData& transactionData) override;
     virtual void OnTransactionDeleted(const int transactionId) override;
     virtual void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     virtual void OnTransactionsCleared() override;
-    virtual void OnBudgetAdded(const FMLItemBudgetData& budgetData) override;
+    virtual void OnBudgetAdded(const FMLBudgetData& budgetData) override;
     virtual void OnBudgetDeleted(const int budgetId) override;
-    virtual void OnBudgetUpdated(const FMLItemBudgetData& budgetData) override;
+    virtual void OnBudgetUpdated(const FMLBudgetData& budgetData) override;
     virtual void OnBudgetCleared() override;
     virtual void OnDataLoaded() override;
     virtual void OnDataSaved() override;

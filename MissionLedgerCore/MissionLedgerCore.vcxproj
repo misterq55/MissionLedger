@@ -155,7 +155,7 @@
     <ClInclude Include="..\MissionLedger\src\MLDefine.h" />
     <ClInclude Include="..\MissionLedger\src\module\common\holder\MLMVCHolder.h" />
     <ClInclude Include="..\MissionLedger\src\module\mvc\controller\MLController.h" />
-    <ClInclude Include="..\MissionLedger\src\module\mvc\model\budget\MLItemBudget.h" />
+    <ClInclude Include="..\MissionLedger\src\module\mvc\model\budget\MLBudget.h" />
     <ClInclude Include="..\MissionLedger\src\module\mvc\model\MLModel.h" />
     <ClInclude Include="..\MissionLedger\src\module\mvc\model\transaction\MLTransaction.h" />
     <ClInclude Include="..\MissionLedger\src\module\storage\MLSQLiteStorage.h" />

@@ -1,6 +1,6 @@
 ﻿#include "MLModel.h"
 #include "module/mvc/model/transaction/MLTransaction.h"
-#include "module/mvc/model/budget/MLItemBudget.h"
+#include "module/mvc/model/budget/MLBudget.h"
 #include "MLDefine.h"
 #include <vector>
 #include <algorithm>
@@ -202,7 +202,7 @@ bool FMLModel::OpenFile(const std::string& filePath)
 
     // TODO: 예산 로드 구현 필요
     // Budgets.clear();
-    // std::vector<FMLItemBudgetData> loadedBudgets;
+    // std::vector<FMLBudgetData> loadedBudgets;
     // if (StorageProvider->LoadAllBudgets(loadedBudgets))
     // {
     //     for (const auto& budgetData : loadedBudgets)
@@ -394,13 +394,13 @@ void FMLModel::invalidateCategoryCache()
 
 // ========== 예산 관련 메서드 구현 ==========
 
-bool FMLModel::AddBudget(const FMLItemBudgetData& budgetData)
+bool FMLModel::AddBudget(const FMLBudgetData& budgetData)
 {
     const int newId = BudgetIdIndex;
 
     // Entity 생성 및 데이터 설정
-    auto newBudget = std::make_shared<FMLItemBudget>();
-    FMLItemBudgetData dataWithId = budgetData;
+    auto newBudget = std::make_shared<FMLBudget>();
+    FMLBudgetData dataWithId = budgetData;
     dataWithId.BudgetId = newId;
     newBudget->SetData(dataWithId);
 
@@ -417,7 +417,7 @@ bool FMLModel::AddBudget(const FMLItemBudgetData& budgetData)
     return true;
 }
 
-bool FMLModel::UpdateBudget(const FMLItemBudgetData& budgetData)
+bool FMLModel::UpdateBudget(const FMLBudgetData& budgetData)
 {
     auto it = Budgets.find(budgetData.BudgetId);
     if (it == Budgets.end())
@@ -458,9 +458,9 @@ bool FMLModel::DeleteBudget(const int budgetId)
     return true;
 }
 
-std::vector<FMLItemBudgetData> FMLModel::GetAllBudgets() const
+std::vector<FMLBudgetData> FMLModel::GetAllBudgets() const
 {
-    std::vector<FMLItemBudgetData> result;
+    std::vector<FMLBudgetData> result;
     result.reserve(Budgets.size());
 
     for (const auto& pair : Budgets)
@@ -471,7 +471,7 @@ std::vector<FMLItemBudgetData> FMLModel::GetAllBudgets() const
     return result;
 }
 
-FMLItemBudgetData FMLModel::GetBudget(const int budgetId) const
+FMLBudgetData FMLModel::GetBudget(const int budgetId) const
 {
     auto it = Budgets.find(budgetId);
     if (it != Budgets.end())
@@ -480,7 +480,7 @@ FMLItemBudgetData FMLModel::GetBudget(const int budgetId) const
     }
 
     // 빈 데이터 반환 (ID -1로 표시)
-    FMLItemBudgetData emptyData;
+    FMLBudgetData emptyData;
     emptyData.BudgetId = -1;
     return emptyData;
 }

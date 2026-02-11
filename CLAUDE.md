@@ -72,7 +72,7 @@ MissionLedger/
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-02-10):
+**Completed Features** (as of 2026-02-11):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -82,13 +82,20 @@ MissionLedger/
 - ✅ List footer with income/expense/balance totals (real-time summary with filter support)
 - ✅ Exchange rate support (foreign currency transactions with auto-conversion)
 - ✅ Entity-DTO architecture refactoring (Data-Oriented Design, -136 lines net reduction)
-- ✅ Budget CRUD operations (Add/Update/Delete/Get with Observer pattern)
+- ✅ Budget system Phase 1-2: Data structure, CRUD operations, UI implementation
+  - Budget data structure with Type field and hierarchical Category/Item
+  - SQLite budgets table with AUTOINCREMENT
+  - Model/Controller CRUD methods with Observer pattern
+  - 2-panel UI layout (Category list + Item detail list)
+  - Inline input fields with Add/Update/Delete operations
+  - Budget summary panel with totals and variance display
+  - Transaction.BudgetId field for linking
 
-**Current Focus**: Phase 3 - Budget System Implementation
-- ⏳ Budget data structure redesign (Type field + calculated fields for Transaction consistency)
-- ⏳ Budget-Transaction integration (auto-calculate ActualAmount from matching transactions)
-- ⏳ Budget UI implementation (list view, add/edit dialog, summary panel)
-- ⏳ Budget file I/O (database schema update, save/load implementation)
+**Current Focus**: Phase 3 - Budget-Transaction Integration
+- ⏳ Auto-calculation of Budget.ActualAmount from linked transactions
+- ⏳ Initial auto-matching algorithm (Category + Item string matching)
+- ⏳ Transaction CRUD integration with Budget updates
+- ⏳ Budget rematch on budget add/update
 
 **Next**: Phase 4 - Data Export & Distribution
 - 📋 Excel/CSV export

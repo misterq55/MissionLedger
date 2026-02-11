@@ -25,19 +25,24 @@ public:
     virtual ~wxMLMainFrame() = default;
 
 public:
-    // IMLView 인터페이스 구현
+    // IMLView 인터페이스 구현 - Transaction
     void AddTransaction(const FMLTransactionData& data) override;
     void DisplayTransaction(const FMLTransactionData& data) override;
     void DisplayTransactions(const std::vector<FMLTransactionData>& data) override;
+
+    // IMLView 인터페이스 구현 - Budget
+    void AddBudget(const FMLBudgetData& data) override;
+    void DisplayBudget(const FMLBudgetData& data) override;
+    void DisplayBudgets(const std::vector<FMLBudgetData>& data) override;
 
     // IMLModelObserver 인터페이스 구현
     void OnTransactionAdded(const FMLTransactionData& transactionData) override;
     void OnTransactionDeleted(const int transactionId) override;
     void OnTransactionUpdated(const FMLTransactionData& transactionData) override;
     void OnTransactionsCleared() override;
-    void OnBudgetAdded(const FMLItemBudgetData& budgetData) override;
+    void OnBudgetAdded(const FMLBudgetData& budgetData) override;
     void OnBudgetDeleted(const int budgetId) override;
-    void OnBudgetUpdated(const FMLItemBudgetData& budgetData) override;
+    void OnBudgetUpdated(const FMLBudgetData& budgetData) override;
     void OnBudgetCleared() override;
     void OnDataLoaded() override;
     void OnDataSaved() override;
@@ -99,9 +104,14 @@ private:
 
     // 예산 헬퍼 메서드
     wxPanel* createBudgetTab();
-    void updateBudgetList();
+    void clearBudgetInputFields();
+    void loadBudgetToInput(int budgetId);
+    bool collectBudgetDataFromInput(FMLBudgetData& outData);
+    void updateCategoryList();
+    void updateBudgetItemList();
     void displayBudgetSummary(const FMLBudgetSummary& summary);
     void updateBudgetButtonStates();
+    void onCategorySelected(wxCommandEvent& event);
 
     // 리스트 헬퍼
     long findListItemByTransactionId(int transactionId);
@@ -157,15 +167,26 @@ private:
     wxStaticText* summaryExpenseText;
     wxStaticText* summaryBalanceText;
 
-    // UI 컨트롤들 - 예산 탭
-    wxListCtrl* budgetListCtrl;
+    // UI 컨트롤들 - 예산 탭 (입력 패널)
+    wxRadioButton* budgetIncomeRadio;
+    wxRadioButton* budgetExpenseRadio;
+    wxTextCtrl* budgetCategoryText;
+    wxTextCtrl* budgetItemText;
+    wxTextCtrl* budgetAmountText;
+    wxTextCtrl* budgetNotesText;
     wxButton* addBudgetButton;
-    wxButton* editBudgetButton;
+    wxButton* updateBudgetButton;
     wxButton* deleteBudgetButton;
+
+    // UI 컨트롤들 - 예산 탭 (2단 패널)
+    wxListBox* categoryListBox;           // 왼쪽: 카테고리 목록
+    wxListCtrl* budgetItemListCtrl;       // 오른쪽: 항목 목록
+
+    // UI 컨트롤들 - 예산 탭 (요약)
     wxPanel* budgetSummaryPanel;
-    wxStaticText* budgetSummaryIncomeText;
-    wxStaticText* budgetSummaryExpenseText;
-    wxStaticText* budgetSummaryVarianceText;
+    wxStaticText* budgetSummaryTotalBudgetText;
+    wxStaticText* budgetSummaryTotalActualText;
+    wxStaticText* budgetSummaryBalanceText;
 
 private:
     // Helper methods
@@ -184,4 +205,5 @@ private:
 
     // 예산 관련 상태
     std::string SelectedBudgetCategory;  // 선택된 예산 카테고리
+    int SelectedBudgetId = -1;           // 선택된 예산 항목 ID
 };

@@ -4,16 +4,16 @@
 
 // 항목 예산 Entity (Data-Oriented Design)
 // 예: Category="항공", Item="항공료 선결제", BudgetAmount=3,000,000
-class FMLItemBudget {
+class FMLBudget {
 private:
-    FMLItemBudgetData Data;
+    FMLBudgetData Data;
 
 public:
-    FMLItemBudget() {}
+    FMLBudget() {}
 
     // DTO 접근
-    const FMLItemBudgetData& GetData() const { return Data; }
-    void SetData(const FMLItemBudgetData& data) { Data = data; }
+    const FMLBudgetData& GetData() const { return Data; }
+    void SetData(const FMLBudgetData& data) { Data = data; }
 
     // 비즈니스 로직
     bool IsValid() const {

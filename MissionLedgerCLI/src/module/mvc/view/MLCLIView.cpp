@@ -658,7 +658,7 @@ void FMLCLIView::OnDataSaved()
     }
 }
 
-void FMLCLIView::OnBudgetAdded(const FMLItemBudgetData& budgetData)
+void FMLCLIView::OnBudgetAdded(const FMLBudgetData& budgetData)
 {
     if (!SilentMode)
     {
@@ -674,7 +674,7 @@ void FMLCLIView::OnBudgetDeleted(const int budgetId)
     }
 }
 
-void FMLCLIView::OnBudgetUpdated(const FMLItemBudgetData& budgetData)
+void FMLCLIView::OnBudgetUpdated(const FMLBudgetData& budgetData)
 {
     if (!SilentMode)
     {
@@ -761,4 +761,20 @@ std::string FMLCLIView::formatAmount(int64_t amount)
     }
     ss << std::fixed << amount << "원";
     return ss.str();
+}
+
+// Budget IMLView implementation (stub)
+void FMLCLIView::AddBudget(const FMLBudgetData& data)
+{
+    // CLI에서는 예산 기능을 지원하지 않으므로 stub으로 구현
+}
+
+void FMLCLIView::DisplayBudget(const FMLBudgetData& data)
+{
+    // CLI에서는 예산 기능을 지원하지 않으므로 stub으로 구현
+}
+
+void FMLCLIView::DisplayBudgets(const std::vector<FMLBudgetData>& data)
+{
+    // CLI에서는 예산 기능을 지원하지 않으므로 stub으로 구현
 }

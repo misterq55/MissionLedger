@@ -11,7 +11,7 @@ wxMLBudgetDialog::wxMLBudgetDialog(wxWindow* parent)
 }
 
 // 예산 수정 모드 생성자
-wxMLBudgetDialog::wxMLBudgetDialog(wxWindow* parent, const FMLItemBudgetData& budgetData)
+wxMLBudgetDialog::wxMLBudgetDialog(wxWindow* parent, const FMLBudgetData& budgetData)
     : wxDialog(parent, wxID_ANY, wxString::FromUTF8("예산 수정"), wxDefaultPosition, wxSize(400, 300))
     , IsEditMode(true)
     , OriginalCategory(budgetData.Category)
@@ -129,9 +129,9 @@ bool wxMLBudgetDialog::validateInput()
     return true;
 }
 
-FMLItemBudgetData wxMLBudgetDialog::GetBudgetData() const
+FMLBudgetData wxMLBudgetDialog::GetBudgetData() const
 {
-    FMLItemBudgetData data;
+    FMLBudgetData data;
     data.Category = categoryText->GetValue().Trim().ToUTF8().data();
 
     long long incomeAmount = 0;

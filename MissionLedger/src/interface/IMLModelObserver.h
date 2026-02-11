@@ -4,7 +4,7 @@
 
 class FMLTransaction;
 struct FMLTransactionData;
-struct FMLItemBudgetData;
+struct FMLBudgetData;
 
 class IMLModelObserver
 {
@@ -17,9 +17,9 @@ public:
     virtual void OnTransactionUpdated(const FMLTransactionData& transactionData) = 0;
 
     // Budget events
-    virtual void OnBudgetAdded(const FMLItemBudgetData& budgetData) = 0;
+    virtual void OnBudgetAdded(const FMLBudgetData& budgetData) = 0;
     virtual void OnBudgetDeleted(const int budgetId) = 0;
-    virtual void OnBudgetUpdated(const FMLItemBudgetData& budgetData) = 0;
+    virtual void OnBudgetUpdated(const FMLBudgetData& budgetData) = 0;
     
     // Data events
     virtual void OnTransactionsCleared() = 0;

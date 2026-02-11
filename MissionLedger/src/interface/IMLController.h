@@ -5,7 +5,7 @@
 struct FMLTransactionData;
 struct FMLFilterCriteria;
 struct FMLTransactionSummary;
-struct FMLItemBudgetData;
+struct FMLBudgetData;
 struct FMLBudgetSummary;
 
 class IMLController
@@ -41,11 +41,11 @@ public:
     virtual bool HasUnsavedChanges() const = 0;
 
     // Budget operations
-    virtual bool AddBudget(const FMLItemBudgetData& budgetData) = 0;
-    virtual bool UpdateBudget(const FMLItemBudgetData& budgetData) = 0;
+    virtual bool AddBudget(const FMLBudgetData& budgetData) = 0;
+    virtual bool UpdateBudget(const FMLBudgetData& budgetData) = 0;
     virtual bool DeleteBudget(const int budgetId) = 0;
-    virtual std::vector<FMLItemBudgetData> GetAllBudgets() const = 0;
-    virtual FMLItemBudgetData GetBudget(const int budgetId) const = 0;
+    virtual std::vector<FMLBudgetData> GetAllBudgets() const = 0;
+    virtual FMLBudgetData GetBudget(const int budgetId) const = 0;
 
     // Budget Summary
     virtual FMLBudgetSummary GetBudgetSummary() const = 0;

@@ -4,7 +4,7 @@
 struct FMLTransactionData;
 struct FMLTransactionSummary;
 struct FMLFilterCriteria;
-struct FMLItemBudgetData;
+struct FMLBudgetData;
 
 class IMLView
 {
@@ -17,7 +17,7 @@ public:
     virtual void DisplayTransactions(const std::vector<FMLTransactionData>& data) = 0;
 
     // Budget
-    // virtual void AddBudget(const FMLItemBudgetData& data) = 0;
-    // virtual void DisplayBudget(const FMLItemBudgetData& data) = 0;
-    // virtual void DisplayBudgets(const std::vector<FMLItemBudgetData>& data) = 0;
+    virtual void AddBudget(const FMLBudgetData& data) = 0;
+    virtual void DisplayBudget(const FMLBudgetData& data) = 0;
+    virtual void DisplayBudgets(const std::vector<FMLBudgetData>& data) = 0;
 };

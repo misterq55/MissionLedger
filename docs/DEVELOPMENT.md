@@ -92,23 +92,35 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Converted Storage to DTO-based (removed Entity dependency)
     - ✅ Net code reduction: -136 lines while adding functionality
 
-13. **Budget System Implementation** ⏳ IN PROGRESS (2026-02-10)
-    - ✅ Budget CRUD operations (Add/Update/Delete/Get)
-    - ✅ FMLItemBudget entity with Data-Oriented Design
-    - ✅ Observer pattern integration (OnBudgetAdded/Updated/Deleted)
-    - ✅ Controller layer delegation
-    - ✅ Storage interface definition (SaveBudget, LoadAllBudgets)
-    - ⏳ Data structure redesign for Transaction consistency
-      - ⏳ Add `Type` field (Income/Expense) to FMLItemBudgetData
-      - ⏳ Add calculated fields (ActualAmount, Variance, TransactionCount)
-      - ⏳ Implement Budget-Transaction matching logic
-    - ⏳ UI implementation (Budget tab in main window)
-      - ⏳ Budget list display with calculated fields
-      - ⏳ Budget add/edit dialog
-      - ⏳ Budget summary panel
-    - ⏳ File I/O implementation (currently commented out)
-      - ⏳ Database schema update (add type column)
-      - ⏳ Enable budget save/load in Model
+13. **Budget System Implementation** ⏳ IN PROGRESS (2026-02-11)
+
+    **Phase 1-2: Data Structure & CRUD** ✅ COMPLETED (2026-02-11)
+    - ✅ Budget data structure redesign (`FMLBudgetData`)
+      - ✅ Added `Type` field (Income/Expense) for Transaction consistency
+      - ✅ Hierarchical structure: Category (required) + Item (optional)
+      - ✅ `BudgetAmount` for manual input, `ActualAmount` for auto-calculation
+      - ✅ `BudgetId` with AUTOINCREMENT for unique identification
+    - ✅ Budget CRUD operations with Observer pattern
+      - ✅ Model: `AddBudget`, `UpdateBudget`, `DeleteBudget`, `GetBudget`, `GetAllBudgets`
+      - ✅ Controller: Full delegation of Budget operations
+      - ✅ Observer events: `OnBudgetAdded`, `OnBudgetUpdated`, `OnBudgetDeleted`, `OnBudgetCleared`
+    - ✅ Storage layer implementation (SQLite)
+      - ✅ `budgets` table with AUTOINCREMENT primary key
+      - ✅ `SaveBudget`, `LoadAllBudgets`, `DeleteBudget` methods
+      - ✅ Added `budget_id` column to `transactions` table for linking
+    - ✅ UI implementation (Budget tab)
+      - ✅ 2-panel layout: Category list (left) + Item detail list (right)
+      - ✅ Inline input fields (Type, Category, Item, Amount, Notes)
+      - ✅ Add/Update/Delete buttons with proper state management
+      - ✅ Budget summary panel (Total Budget, Total Actual, Balance)
+      - ✅ List selection integration with input fields
+
+    **Phase 3: Budget-Transaction Integration** ⏳ IN PROGRESS
+    - ⏳ Auto-calculation of `Budget.ActualAmount` from linked transactions
+    - ⏳ Initial auto-matching algorithm (Category + Item string matching with normalization)
+    - ⏳ Transaction CRUD integration (update Budget.ActualAmount on transaction changes)
+    - ⏳ Budget rematch on budget add/update
+    - ⏳ Summary calculation with variance display
 
 ### Phase 4: Data Export & Distribution ⏳ IN PROGRESS
 

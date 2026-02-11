@@ -408,33 +408,6 @@ void wxMLMainFrame::OnTransactionsCleared()
     updateSummaryPanel();
 }
 
-void wxMLMainFrame::OnBudgetAdded(const FMLItemBudgetData& budgetData)
-{
-    // 예산 추가 시 예산 리스트 업데이트
-    updateBudgetList();
-    updateTitle();  // UnsavedChanges 반영
-}
-
-void wxMLMainFrame::OnBudgetDeleted(const int budgetId)
-{
-    // 예산 삭제 시 예산 리스트 업데이트
-    updateBudgetList();
-    updateTitle();
-}
-
-void wxMLMainFrame::OnBudgetUpdated(const FMLItemBudgetData& budgetData)
-{
-    // 예산 업데이트 시 예산 리스트 업데이트
-    updateBudgetList();
-    updateTitle();
-}
-
-void wxMLMainFrame::OnBudgetCleared()
-{
-    // 예산 전체 클리어 시
-    updateBudgetList();
-    updateTitle();
-}
 
 void wxMLMainFrame::OnDataLoaded()
 {
@@ -442,7 +415,7 @@ void wxMLMainFrame::OnDataLoaded()
     updateCategoryFilter();
     applyCurrentFilter();
     updateSummaryPanel();
-    updateBudgetList();  // 예산 리스트도 업데이트
+    updateCategoryList();  // 예산 리스트도 업데이트
 }
 
 void wxMLMainFrame::OnDataSaved()
@@ -1452,269 +1425,456 @@ bool wxMLMainFrame::collectTransactionDataFromInput(FMLTransactionData& outData)
 wxPanel* wxMLMainFrame::createBudgetTab()
 {
     wxPanel* budgetTab = new wxPanel(notebook);
-    wxBoxSizer* budgetTabSizer = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
 
-    // 상단 버튼 패널
+    // ========== 입력 패널 ==========
+    wxPanel* inputPanel = new wxPanel(budgetTab);
+    wxBoxSizer* inputSizer = new wxBoxSizer(wxVERTICAL);
+
+    // 구분 (수입/지출)
+    wxBoxSizer* typeSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* typeLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("구분:"));
+    budgetIncomeRadio = new wxRadioButton(inputPanel, wxID_ANY, wxString::FromUTF8("수입"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
+    budgetExpenseRadio = new wxRadioButton(inputPanel, wxID_ANY, wxString::FromUTF8("지출"));
+    budgetExpenseRadio->SetValue(true);
+    typeSizer->Add(typeLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    typeSizer->Add(budgetIncomeRadio, 0, wxRIGHT, 10);
+    typeSizer->Add(budgetExpenseRadio, 0, 0, 0);
+    inputSizer->Add(typeSizer, 0, wxALL, 5);
+
+    // 카테고리
+    wxBoxSizer* categorySizer = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* categoryLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("카테고리:"));
+    budgetCategoryText = new wxTextCtrl(inputPanel, wxID_ANY, "", wxDefaultPosition, wxSize(200, -1));
+    categorySizer->Add(categoryLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    categorySizer->Add(budgetCategoryText, 1, wxEXPAND, 0);
+    inputSizer->Add(categorySizer, 0, wxEXPAND | wxALL, 5);
+
+    // 항목
+    wxBoxSizer* itemSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* itemLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("항목:"));
+    budgetItemText = new wxTextCtrl(inputPanel, wxID_ANY, "", wxDefaultPosition, wxSize(200, -1));
+    itemSizer->Add(itemLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    itemSizer->Add(budgetItemText, 1, wxEXPAND, 0);
+    inputSizer->Add(itemSizer, 0, wxEXPAND | wxALL, 5);
+
+    // 예산금액
+    wxBoxSizer* amountSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* amountLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("예산금액:"));
+    budgetAmountText = new wxTextCtrl(inputPanel, wxID_ANY, "", wxDefaultPosition, wxSize(200, -1));
+    amountSizer->Add(amountLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    amountSizer->Add(budgetAmountText, 1, wxEXPAND, 0);
+    inputSizer->Add(amountSizer, 0, wxEXPAND | wxALL, 5);
+
+    // 비고
+    wxBoxSizer* notesSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* notesLabel = new wxStaticText(inputPanel, wxID_ANY, wxString::FromUTF8("비고:"));
+    budgetNotesText = new wxTextCtrl(inputPanel, wxID_ANY, "", wxDefaultPosition, wxSize(200, -1));
+    notesSizer->Add(notesLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    notesSizer->Add(budgetNotesText, 1, wxEXPAND, 0);
+    inputSizer->Add(notesSizer, 0, wxEXPAND | wxALL, 5);
+
+    inputPanel->SetSizer(inputSizer);
+    mainSizer->Add(inputPanel, 0, wxEXPAND | wxALL, 10);
+
+    // ========== 버튼 패널 ==========
     wxBoxSizer* buttonSizer = new wxBoxSizer(wxHORIZONTAL);
     addBudgetButton = new wxButton(budgetTab, wxID_ANY, wxString::FromUTF8("추가"));
-    editBudgetButton = new wxButton(budgetTab, wxID_ANY, wxString::FromUTF8("수정"));
+    updateBudgetButton = new wxButton(budgetTab, wxID_ANY, wxString::FromUTF8("수정"));
     deleteBudgetButton = new wxButton(budgetTab, wxID_ANY, wxString::FromUTF8("삭제"));
-
-    // 초기 상태: 수정/삭제 버튼 비활성화
-    editBudgetButton->Enable(false);
+    updateBudgetButton->Enable(false);
     deleteBudgetButton->Enable(false);
-
     buttonSizer->Add(addBudgetButton, 0, wxRIGHT, 5);
-    buttonSizer->Add(editBudgetButton, 0, wxRIGHT, 5);
+    buttonSizer->Add(updateBudgetButton, 0, wxRIGHT, 5);
     buttonSizer->Add(deleteBudgetButton, 0, 0, 0);
+    mainSizer->Add(buttonSizer, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
-    budgetTabSizer->Add(buttonSizer, 0, wxALL, 10);
+    // ========== 2단 패널 (카테고리 + 항목) ==========
+    wxBoxSizer* listSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    // 예산 리스트 컨트롤
-    budgetListCtrl = new wxListCtrl(budgetTab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
+    // 왼쪽: 카테고리 목록
+    wxBoxSizer* categoryListSizer = new wxBoxSizer(wxVERTICAL);
+    wxStaticText* categoryListLabel = new wxStaticText(budgetTab, wxID_ANY, wxString::FromUTF8("카테고리"));
+    categoryListBox = new wxListBox(budgetTab, wxID_ANY, wxDefaultPosition, wxSize(150, -1));
+    categoryListSizer->Add(categoryListLabel, 0, wxBOTTOM, 5);
+    categoryListSizer->Add(categoryListBox, 1, wxEXPAND, 0);
+    listSizer->Add(categoryListSizer, 0, wxEXPAND | wxRIGHT, 10);
 
-    // 컬럼 추가
-    budgetListCtrl->InsertColumn(0, wxString::FromUTF8("카테고리"), wxLIST_FORMAT_LEFT, 150);
-    budgetListCtrl->InsertColumn(1, wxString::FromUTF8("수입 예산"), wxLIST_FORMAT_RIGHT, 120);
-    budgetListCtrl->InsertColumn(2, wxString::FromUTF8("지출 예산"), wxLIST_FORMAT_RIGHT, 120);
-    budgetListCtrl->InsertColumn(3, wxString::FromUTF8("실제 수입"), wxLIST_FORMAT_RIGHT, 120);
-    budgetListCtrl->InsertColumn(4, wxString::FromUTF8("실제 지출"), wxLIST_FORMAT_RIGHT, 120);
-    budgetListCtrl->InsertColumn(5, wxString::FromUTF8("수입 차이"), wxLIST_FORMAT_RIGHT, 120);
-    budgetListCtrl->InsertColumn(6, wxString::FromUTF8("지출 차이"), wxLIST_FORMAT_RIGHT, 120);
-    budgetListCtrl->InsertColumn(7, wxString::FromUTF8("거래 건수"), wxLIST_FORMAT_RIGHT, 100);
+    // 오른쪽: 항목 목록
+    wxBoxSizer* itemListSizer = new wxBoxSizer(wxVERTICAL);
+    wxStaticText* itemListLabel = new wxStaticText(budgetTab, wxID_ANY, wxString::FromUTF8("항목 목록"));
+    budgetItemListCtrl = new wxListCtrl(budgetTab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
+    budgetItemListCtrl->InsertColumn(0, wxString::FromUTF8("항목"), wxLIST_FORMAT_LEFT, 150);
+    budgetItemListCtrl->InsertColumn(1, wxString::FromUTF8("예산"), wxLIST_FORMAT_RIGHT, 120);
+    budgetItemListCtrl->InsertColumn(2, wxString::FromUTF8("실제"), wxLIST_FORMAT_RIGHT, 120);
+    budgetItemListCtrl->InsertColumn(3, wxString::FromUTF8("차이"), wxLIST_FORMAT_RIGHT, 120);
+    itemListSizer->Add(itemListLabel, 0, wxBOTTOM, 5);
+    itemListSizer->Add(budgetItemListCtrl, 1, wxEXPAND, 0);
+    listSizer->Add(itemListSizer, 1, wxEXPAND, 0);
 
-    budgetTabSizer->Add(budgetListCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
+    mainSizer->Add(listSizer, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
-    // 하단 요약 패널
+    // ========== 요약 패널 ==========
     budgetSummaryPanel = new wxPanel(budgetTab);
     budgetSummaryPanel->SetBackgroundColour(wxColour(245, 245, 245));
+    wxBoxSizer* summarySizer = new wxBoxSizer(wxHORIZONTAL);
 
-    wxBoxSizer* budgetSummarySizer = new wxBoxSizer(wxHORIZONTAL);
-
-    // 수입 라벨
-    wxStaticText* incomeLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("전체 수입 차이: "));
-    wxFont labelFont = incomeLabel->GetFont();
+    wxStaticText* budgetLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("총 예산: "));
+    wxFont labelFont = budgetLabel->GetFont();
     labelFont.SetWeight(wxFONTWEIGHT_BOLD);
-    incomeLabel->SetFont(labelFont);
-    budgetSummarySizer->Add(incomeLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+    budgetLabel->SetFont(labelFont);
+    summarySizer->Add(budgetLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
 
-    budgetSummaryIncomeText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
-    wxFont amountFont = budgetSummaryIncomeText->GetFont();
+    budgetSummaryTotalBudgetText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
+    wxFont amountFont = budgetSummaryTotalBudgetText->GetFont();
     amountFont.SetWeight(wxFONTWEIGHT_BOLD);
-    budgetSummaryIncomeText->SetFont(amountFont);
-    budgetSummarySizer->Add(budgetSummaryIncomeText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 40);
+    budgetSummaryTotalBudgetText->SetFont(amountFont);
+    summarySizer->Add(budgetSummaryTotalBudgetText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 40);
 
-    // 지출 라벨
-    wxStaticText* expenseLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("전체 지출 차이: "));
-    expenseLabel->SetFont(labelFont);
-    budgetSummarySizer->Add(expenseLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 20);
+    wxStaticText* actualLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("총 실제: "));
+    actualLabel->SetFont(labelFont);
+    summarySizer->Add(actualLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 20);
 
-    budgetSummaryExpenseText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
-    budgetSummaryExpenseText->SetFont(amountFont);
-    budgetSummarySizer->Add(budgetSummaryExpenseText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    budgetSummaryTotalActualText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
+    budgetSummaryTotalActualText->SetFont(amountFont);
+    summarySizer->Add(budgetSummaryTotalActualText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 40);
 
-    budgetSummaryPanel->SetSizer(budgetSummarySizer);
-    budgetTabSizer->Add(budgetSummaryPanel, 0, wxEXPAND | wxALL, 5);
+    wxStaticText* balanceLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("잔액: "));
+    balanceLabel->SetFont(labelFont);
+    summarySizer->Add(balanceLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 20);
 
-    budgetTab->SetSizer(budgetTabSizer);
+    budgetSummaryBalanceText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
+    budgetSummaryBalanceText->SetFont(amountFont);
+    summarySizer->Add(budgetSummaryBalanceText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
 
-    // 이벤트 바인딩
+    budgetSummaryPanel->SetSizer(summarySizer);
+    mainSizer->Add(budgetSummaryPanel, 0, wxEXPAND | wxALL, 5);
+
+    budgetTab->SetSizer(mainSizer);
+
+    // ========== 이벤트 바인딩 ==========
     addBudgetButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnAddBudget, this);
-    editBudgetButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnEditBudget, this);
+    updateBudgetButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnEditBudget, this);
     deleteBudgetButton->Bind(wxEVT_BUTTON, &wxMLMainFrame::OnDeleteBudget, this);
-    budgetListCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &wxMLMainFrame::OnBudgetListItemSelected, this);
-    budgetListCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnBudgetListItemDeselected, this);
+    categoryListBox->Bind(wxEVT_LISTBOX, &wxMLMainFrame::onCategorySelected, this);
+    budgetItemListCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &wxMLMainFrame::OnBudgetListItemSelected, this);
+    budgetItemListCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &wxMLMainFrame::OnBudgetListItemDeselected, this);
 
     return budgetTab;
 }
 
-// 예산 리스트 업데이트
-void wxMLMainFrame::updateBudgetList()
+// ========== Budget 헬퍼 메서드 구현 ==========
+
+// 예산 입력 필드 초기화
+void wxMLMainFrame::clearBudgetInputFields()
+{
+    budgetExpenseRadio->SetValue(true);
+    budgetCategoryText->Clear();
+    budgetItemText->Clear();
+    budgetAmountText->Clear();
+    budgetNotesText->Clear();
+}
+
+// 선택된 예산 데이터를 입력 필드에 로드
+void wxMLMainFrame::loadBudgetToInput(int budgetId)
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller) return;
 
-    // 화면 갱신 중지 (깜빡임 방지)
-    budgetListCtrl->Freeze();
+    FMLBudgetData data = controller->GetBudget(budgetId);
 
-    // 리스트 완전 클리어
-    budgetListCtrl->DeleteAllItems();
-
-    // 예산 요약 데이터 가져오기
-    FMLBudgetSummary summary = controller->GetBudgetSummary();
-
-    // 카테고리별 데이터 표시
-    for (const auto& pair : summary.Categories)
-    {
-        const auto& catSummary = pair.second;
-        long index = budgetListCtrl->InsertItem(budgetListCtrl->GetItemCount(),
-                                                  wxString::FromUTF8(catSummary.Category.c_str()));
-
-        // budgetListCtrl->SetItem(index, 1, formatAmountWithComma(catSummary.BudgetIncome));
-        // budgetListCtrl->SetItem(index, 2, formatAmountWithComma(catSummary.BudgetExpense));
-        // budgetListCtrl->SetItem(index, 3, formatAmountWithComma(catSummary.ActualIncome));
-        // budgetListCtrl->SetItem(index, 4, formatAmountWithComma(catSummary.ActualExpense));
-        // budgetListCtrl->SetItem(index, 5, formatAmountWithComma(catSummary.IncomeVariance));
-        // budgetListCtrl->SetItem(index, 6, formatAmountWithComma(catSummary.ExpenseVariance));
-        // budgetListCtrl->SetItem(index, 7, wxString::Format("%d", catSummary.TransactionCount));
-
-        // 카테고리 이름을 ItemData로 저장 (선택 시 사용)
-        // wxListCtrl의 ItemData는 long 타입이므로 카테고리를 직접 저장할 수 없음
-        // 대신 인덱스를 저장하고 나중에 GetItemText(index, 0)로 카테고리 이름 조회
+    // 거래 유형
+    if (data.Type == E_MLTransactionType::Income) {
+        budgetIncomeRadio->SetValue(true);
+    } else {
+        budgetExpenseRadio->SetValue(true);
     }
 
-    // 화면 갱신 재개
-    budgetListCtrl->Thaw();
+    // 텍스트 필드
+    budgetCategoryText->SetValue(wxString::FromUTF8(data.Category.c_str()));
+    budgetItemText->SetValue(wxString::FromUTF8(data.Item.c_str()));
+    budgetAmountText->SetValue(wxString::Format("%lld", data.BudgetAmount));
+    budgetNotesText->SetValue(wxString::FromUTF8(data.Notes.c_str()));
+}
 
-    // 요약 패널 업데이트
+// 입력 필드에서 예산 데이터 수집 및 검증
+bool wxMLMainFrame::collectBudgetDataFromInput(FMLBudgetData& outData)
+{
+    // 거래 유형
+    outData.Type = budgetIncomeRadio->GetValue() ? E_MLTransactionType::Income : E_MLTransactionType::Expense;
+
+    // 카테고리, 항목, 비고
+    outData.Category = budgetCategoryText->GetValue().ToUTF8().data();
+    outData.Item = budgetItemText->GetValue().ToUTF8().data();
+    outData.Notes = budgetNotesText->GetValue().ToUTF8().data();
+
+    // 카테고리 필수 체크
+    if (outData.Category.empty()) {
+        wxMessageBox(wxString::FromUTF8("카테고리를 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_WARNING);
+        budgetCategoryText->SetFocus();
+        return false;
+    }
+
+    // 예산 금액 파싱
+    wxString amountStr = budgetAmountText->GetValue();
+    if (amountStr.IsEmpty()) {
+        wxMessageBox(wxString::FromUTF8("예산 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_WARNING);
+        budgetAmountText->SetFocus();
+        return false;
+    }
+
+    long long budgetAmount = 0;
+    if (!amountStr.ToLongLong(&budgetAmount) || budgetAmount < 0) {
+        wxMessageBox(wxString::FromUTF8("유효한 예산 금액을 입력하세요."), wxString::FromUTF8("입력 오류"), wxOK | wxICON_WARNING);
+        budgetAmountText->SetFocus();
+        return false;
+    }
+
+    outData.BudgetAmount = budgetAmount;
+    outData.BudgetId = SelectedBudgetId;  // 수정 시 사용
+
+    return true;
+}
+
+// 카테고리 목록 업데이트
+void wxMLMainFrame::updateCategoryList()
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
+
+    categoryListBox->Freeze();
+    categoryListBox->Clear();
+
+    // 모든 예산 가져오기
+    auto budgets = controller->GetAllBudgets();
+
+    // 카테고리 추출 (중복 제거)
+    std::set<std::string> categories;
+    for (const auto& budget : budgets) {
+        categories.insert(budget.Category);
+    }
+
+    // 카테고리 목록에 추가
+    for (const auto& cat : categories) {
+        categoryListBox->Append(wxString::FromUTF8(cat.c_str()));
+    }
+
+    categoryListBox->Thaw();
+
+    // 요약 업데이트
+    FMLBudgetSummary summary = controller->GetBudgetSummary();
     displayBudgetSummary(summary);
 }
 
-// 예산 요약 표시
-void wxMLMainFrame::displayBudgetSummary(const FMLBudgetSummary& summary)
+// 선택된 카테고리의 항목 목록 업데이트
+void wxMLMainFrame::updateBudgetItemList()
 {
-    // wxString incomeVariance = formatAmountWithComma(summary.TotalIncomeVariance);
-    // wxString expenseVariance = formatAmountWithComma(summary.TotalExpenseVariance);
-    //
-    // budgetSummaryIncomeText->SetLabel(incomeVariance);
-    // budgetSummaryExpenseText->SetLabel(expenseVariance);
-    //
-    // // 색상 설정 (양수: 녹색, 음수: 빨강)
-    // if (summary.TotalIncomeVariance >= 0)
-    // {
-    //     budgetSummaryIncomeText->SetForegroundColour(wxColour(0, 128, 0)); // 녹색
-    // }
-    // else
-    // {
-    //     budgetSummaryIncomeText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
-    // }
-    //
-    // if (summary.TotalExpenseVariance <= 0)
-    // {
-    //     budgetSummaryExpenseText->SetForegroundColour(wxColour(0, 128, 0)); // 녹색 (지출은 적게 쓸수록 좋음)
-    // }
-    // else
-    // {
-    //     budgetSummaryExpenseText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
-    // }
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
+
+    budgetItemListCtrl->Freeze();
+    budgetItemListCtrl->DeleteAllItems();
+
+    if (SelectedBudgetCategory.empty()) {
+        budgetItemListCtrl->Thaw();
+        return;
+    }
+
+    // 선택된 카테고리의 예산 항목들 가져오기
+    auto budgets = controller->GetAllBudgets();
+
+    for (const auto& budget : budgets) {
+        if (budget.Category == SelectedBudgetCategory) {
+            long index = budgetItemListCtrl->InsertItem(budgetItemListCtrl->GetItemCount(),
+                                                         wxString::FromUTF8(budget.Item.c_str()));
+
+            budgetItemListCtrl->SetItem(index, 1, formatAmountWithComma(budget.BudgetAmount));
+            budgetItemListCtrl->SetItem(index, 2, formatAmountWithComma(budget.ActualAmount));
+
+            int64_t variance = budget.ActualAmount - budget.BudgetAmount;
+            budgetItemListCtrl->SetItem(index, 3, formatAmountWithComma(variance));
+
+            // BudgetId를 ItemData로 저장
+            budgetItemListCtrl->SetItemData(index, budget.BudgetId);
+        }
+    }
+
+    budgetItemListCtrl->Thaw();
 }
 
-// 예산 버튼 상태 업데이트
+// 예산 요약 표시 (재구현)
+void wxMLMainFrame::displayBudgetSummary(const FMLBudgetSummary& summary)
+{
+    wxString totalBudget = formatAmountWithComma(summary.TotalBudget);
+    wxString totalActual = formatAmountWithComma(summary.TotalActualIncome + summary.TotalActualExpense);
+    wxString balance = formatAmountWithComma(summary.TotalNetAmount);
+
+    budgetSummaryTotalBudgetText->SetLabel(totalBudget);
+    budgetSummaryTotalActualText->SetLabel(totalActual);
+    budgetSummaryBalanceText->SetLabel(balance);
+
+    // 잔액 색상 설정
+    if (summary.TotalNetAmount >= 0) {
+        budgetSummaryBalanceText->SetForegroundColour(wxColour(0, 128, 0)); // 녹색
+    } else {
+        budgetSummaryBalanceText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
+    }
+}
+
+// 예산 버튼 상태 업데이트 (재구현)
 void wxMLMainFrame::updateBudgetButtonStates()
 {
-    bool hasSelection = !SelectedBudgetCategory.empty();
-    editBudgetButton->Enable(hasSelection);
+    bool hasSelection = (SelectedBudgetId != -1);
+    updateBudgetButton->Enable(hasSelection);
     deleteBudgetButton->Enable(hasSelection);
 }
 
-// 예산 리스트 선택 이벤트
+// 카테고리 선택 이벤트
+void wxMLMainFrame::onCategorySelected(wxCommandEvent& event)
+{
+    int selection = categoryListBox->GetSelection();
+    if (selection != wxNOT_FOUND) {
+        SelectedBudgetCategory = categoryListBox->GetString(selection).ToUTF8().data();
+        updateBudgetItemList();
+    } else {
+        SelectedBudgetCategory.clear();
+    }
+
+    // 항목 선택 해제
+    SelectedBudgetId = -1;
+    updateBudgetButtonStates();
+}
+
+// ========== IMLView 메서드 구현 ==========
+
+void wxMLMainFrame::AddBudget(const FMLBudgetData& data)
+{
+    clearBudgetInputFields();
+    updateCategoryList();
+    updateTitle();
+}
+
+void wxMLMainFrame::DisplayBudget(const FMLBudgetData& data)
+{
+    // 개별 예산 표시는 updateBudgetItemList에서 처리
+    updateBudgetItemList();
+}
+
+void wxMLMainFrame::DisplayBudgets(const std::vector<FMLBudgetData>& data)
+{
+    updateCategoryList();
+}
+
+// ========== Observer 메서드 구현 ==========
+
+void wxMLMainFrame::OnBudgetAdded(const FMLBudgetData& budgetData)
+{
+    updateCategoryList();
+    updateTitle();
+}
+
+void wxMLMainFrame::OnBudgetDeleted(const int budgetId)
+{
+    if (SelectedBudgetId == budgetId) {
+        SelectedBudgetId = -1;
+        clearBudgetInputFields();
+    }
+    updateCategoryList();
+    updateTitle();
+}
+
+void wxMLMainFrame::OnBudgetUpdated(const FMLBudgetData& budgetData)
+{
+    updateBudgetItemList();
+    updateTitle();
+}
+
+void wxMLMainFrame::OnBudgetCleared()
+{
+    clearBudgetInputFields();
+    SelectedBudgetCategory.clear();
+    SelectedBudgetId = -1;
+    updateCategoryList();
+}
+
+// ========== 이벤트 핸들러 구현 ==========
+
+void wxMLMainFrame::OnAddBudget(wxCommandEvent& event)
+{
+    FMLBudgetData data;
+    if (!collectBudgetDataFromInput(data)) {
+        return;
+    }
+
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        if (controller->AddBudget(data)) {
+            clearBudgetInputFields();
+        } else {
+            wxMessageBox(wxString::FromUTF8("예산 추가에 실패했습니다."),
+                         wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+void wxMLMainFrame::OnEditBudget(wxCommandEvent& event)
+{
+    if (SelectedBudgetId == -1) return;
+
+    FMLBudgetData data;
+    if (!collectBudgetDataFromInput(data)) {
+        return;
+    }
+
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        if (controller->UpdateBudget(data)) {
+            clearBudgetInputFields();
+            SelectedBudgetId = -1;
+            updateBudgetButtonStates();
+        } else {
+            wxMessageBox(wxString::FromUTF8("예산 수정에 실패했습니다."),
+                         wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+void wxMLMainFrame::OnDeleteBudget(wxCommandEvent& event)
+{
+    if (SelectedBudgetId == -1) return;
+
+    int result = wxMessageBox(
+        wxString::FromUTF8("선택한 예산을 삭제하시겠습니까?"),
+        wxString::FromUTF8("삭제 확인"),
+        wxYES_NO | wxICON_QUESTION
+    );
+
+    if (result != wxYES) return;
+
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller) {
+        if (controller->DeleteBudget(SelectedBudgetId)) {
+            clearBudgetInputFields();
+            SelectedBudgetId = -1;
+            updateBudgetButtonStates();
+        } else {
+            wxMessageBox(wxString::FromUTF8("예산 삭제에 실패했습니다."),
+                         wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
 void wxMLMainFrame::OnBudgetListItemSelected(wxListEvent& event)
 {
     const long selectedIndex = event.GetIndex();
-    SelectedBudgetCategory = budgetListCtrl->GetItemText(selectedIndex, 0).ToUTF8().data();
+    SelectedBudgetId = static_cast<int>(budgetItemListCtrl->GetItemData(selectedIndex));
+    loadBudgetToInput(SelectedBudgetId);
     updateBudgetButtonStates();
 }
 
 void wxMLMainFrame::OnBudgetListItemDeselected(wxListEvent& event)
 {
-    SelectedBudgetCategory.clear();
+    SelectedBudgetId = -1;
+    clearBudgetInputFields();
     updateBudgetButtonStates();
 }
-
-// 예산 추가 이벤트
-void wxMLMainFrame::OnAddBudget(wxCommandEvent& event)
-{
-    wxMLBudgetDialog dialog(this);
-
-    if (dialog.ShowModal() == wxID_OK)
-    {
-        FMLItemBudgetData budgetData = dialog.GetBudgetData();
-
-        // Controller를 통해 예산 추가
-        auto controller = FMLMVCHolder::GetInstance().GetController();
-        if (controller)
-        {
-            if (controller->AddBudget(budgetData))
-            {
-                // Observer 패턴으로 자동 UI 업데이트됨 (OnBudgetAdded 호출)
-            }
-            else
-            {
-                wxMessageBox(wxString::FromUTF8("예산 추가에 실패했습니다.\n이미 존재하는 카테고리일 수 있습니다."),
-                             wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
-            }
-        }
-    }
-}
-
-// 예산 수정 이벤트
-void wxMLMainFrame::OnEditBudget(wxCommandEvent& event)
-{
-    if (SelectedBudgetCategory.empty()) {
-        wxMessageBox(wxString::FromUTF8("수정할 예산을 선택하세요."),
-                     wxString::FromUTF8("알림"), wxOK | wxICON_WARNING);
-        return;
-    }
-
-    // // Controller에서 기존 예산 데이터 가져오기
-    // auto controller = FMLMVCHolder::GetInstance().GetController();
-    // if (!controller) return;
-    //
-    // FMLItemBudgetData existingData = controller->GetBudget(SelectedBudgetCategory);
-    //
-    // // 수정 다이얼로그 표시
-    // wxMLBudgetDialog dialog(this, existingData);
-    //
-    // if (dialog.ShowModal() == wxID_OK)
-    // {
-    //     FMLItemBudgetData updatedData = dialog.GetBudgetData();
-    //
-    //     // Controller를 통해 예산 업데이트
-    //     if (controller->UpdateBudget(updatedData))
-    //     {
-    //         // Observer 패턴으로 자동 UI 업데이트됨 (OnBudgetUpdated 호출)
-    //     }
-    //     else
-    //     {
-    //         wxMessageBox(wxString::FromUTF8("예산 수정에 실패했습니다."),
-    //                      wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
-    //     }
-    // }
-}
-
-// 예산 삭제 이벤트
-void wxMLMainFrame::OnDeleteBudget(wxCommandEvent& event)
-{
-    if (SelectedBudgetCategory.empty()) {
-        wxMessageBox(wxString::FromUTF8("삭제할 예산을 선택하세요."),
-                     wxString::FromUTF8("알림"), wxOK | wxICON_WARNING);
-        return;
-    }
-
-    // 삭제 확인
-    const int result = wxMessageBox(
-        wxString::FromUTF8("선택한 카테고리(") + wxString::FromUTF8(SelectedBudgetCategory.c_str()) +
-        wxString::FromUTF8(")의 예산을 삭제하시겠습니까?"),
-        wxString::FromUTF8("삭제 확인"),
-        wxYES_NO | wxICON_QUESTION
-    );
-
-    if (result != wxYES) {
-        return;
-    }
-
-    // Controller를 통해 삭제
-    // auto controller = FMLMVCHolder::GetInstance().GetController();
-    // if (controller) {
-    //     if (controller->DeleteBudget(SelectedBudgetCategory)) {
-    //         SelectedBudgetCategory.clear();
-    //         updateBudgetButtonStates();
-    //         updateBudgetList();
-    //         updateTitle();  // UnsavedChanges 반영
-    //     } else {
-    //         wxMessageBox(wxString::FromUTF8("예산 삭제에 실패했습니다."),
-    //                      wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
-    //     }
-    // }
-}
-
