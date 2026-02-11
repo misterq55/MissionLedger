@@ -1504,10 +1504,8 @@ wxPanel* wxMLMainFrame::createBudgetTab()
     wxBoxSizer* itemListSizer = new wxBoxSizer(wxVERTICAL);
     wxStaticText* itemListLabel = new wxStaticText(budgetTab, wxID_ANY, wxString::FromUTF8("항목 목록"));
     budgetItemListCtrl = new wxListCtrl(budgetTab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
-    budgetItemListCtrl->InsertColumn(0, wxString::FromUTF8("항목"), wxLIST_FORMAT_LEFT, 150);
-    budgetItemListCtrl->InsertColumn(1, wxString::FromUTF8("예산"), wxLIST_FORMAT_RIGHT, 120);
-    budgetItemListCtrl->InsertColumn(2, wxString::FromUTF8("실제"), wxLIST_FORMAT_RIGHT, 120);
-    budgetItemListCtrl->InsertColumn(3, wxString::FromUTF8("차이"), wxLIST_FORMAT_RIGHT, 120);
+    budgetItemListCtrl->InsertColumn(0, wxString::FromUTF8("항목"), wxLIST_FORMAT_LEFT, 200);
+    budgetItemListCtrl->InsertColumn(1, wxString::FromUTF8("예산"), wxLIST_FORMAT_RIGHT, 150);
     itemListSizer->Add(itemListLabel, 0, wxBOTTOM, 5);
     itemListSizer->Add(budgetItemListCtrl, 1, wxEXPAND, 0);
     listSizer->Add(itemListSizer, 1, wxEXPAND, 0);
@@ -1529,23 +1527,7 @@ wxPanel* wxMLMainFrame::createBudgetTab()
     wxFont amountFont = budgetSummaryTotalBudgetText->GetFont();
     amountFont.SetWeight(wxFONTWEIGHT_BOLD);
     budgetSummaryTotalBudgetText->SetFont(amountFont);
-    summarySizer->Add(budgetSummaryTotalBudgetText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 40);
-
-    wxStaticText* actualLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("총 실제: "));
-    actualLabel->SetFont(labelFont);
-    summarySizer->Add(actualLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 20);
-
-    budgetSummaryTotalActualText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
-    budgetSummaryTotalActualText->SetFont(amountFont);
-    summarySizer->Add(budgetSummaryTotalActualText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 40);
-
-    wxStaticText* balanceLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("잔액: "));
-    balanceLabel->SetFont(labelFont);
-    summarySizer->Add(balanceLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 20);
-
-    budgetSummaryBalanceText = new wxStaticText(budgetSummaryPanel, wxID_ANY, "0");
-    budgetSummaryBalanceText->SetFont(amountFont);
-    summarySizer->Add(budgetSummaryBalanceText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+    summarySizer->Add(budgetSummaryTotalBudgetText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
 
     budgetSummaryPanel->SetSizer(summarySizer);
     mainSizer->Add(budgetSummaryPanel, 0, wxEXPAND | wxALL, 5);
@@ -1689,10 +1671,6 @@ void wxMLMainFrame::updateBudgetItemList()
                                                          wxString::FromUTF8(budget.Item.c_str()));
 
             budgetItemListCtrl->SetItem(index, 1, formatAmountWithComma(budget.BudgetAmount));
-            budgetItemListCtrl->SetItem(index, 2, formatAmountWithComma(budget.ActualAmount));
-
-            int64_t variance = budget.ActualAmount - budget.BudgetAmount;
-            budgetItemListCtrl->SetItem(index, 3, formatAmountWithComma(variance));
 
             // BudgetId를 ItemData로 저장
             budgetItemListCtrl->SetItemData(index, budget.BudgetId);
@@ -1706,19 +1684,7 @@ void wxMLMainFrame::updateBudgetItemList()
 void wxMLMainFrame::displayBudgetSummary(const FMLBudgetSummary& summary)
 {
     wxString totalBudget = formatAmountWithComma(summary.TotalBudget);
-    wxString totalActual = formatAmountWithComma(summary.TotalActualIncome + summary.TotalActualExpense);
-    wxString balance = formatAmountWithComma(summary.TotalNetAmount);
-
     budgetSummaryTotalBudgetText->SetLabel(totalBudget);
-    budgetSummaryTotalActualText->SetLabel(totalActual);
-    budgetSummaryBalanceText->SetLabel(balance);
-
-    // 잔액 색상 설정
-    if (summary.TotalNetAmount >= 0) {
-        budgetSummaryBalanceText->SetForegroundColour(wxColour(0, 128, 0)); // 녹색
-    } else {
-        budgetSummaryBalanceText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
-    }
 }
 
 // 예산 버튼 상태 업데이트 (재구현)

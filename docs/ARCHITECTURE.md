@@ -492,27 +492,27 @@ class IMLModelObserver {
 - Decouples Model from View (Model doesn't know about View implementation)
 - Single observer design simplifies lifecycle management
 
-## Budget System Design
+## Budget System Design (Updated 2026-02-12)
 
 The Budget system follows the same architectural patterns as Transactions for consistency and maintainability.
 
-### Design Philosophy: Transaction-Budget Consistency
+### Design Philosophy: Simplified Budget Planning
 
-**Core Principle**: Budget system mirrors Transaction system architecture for unified learning curve and maintenance.
+**Core Principle**: Budget system focuses on budget planning only, with actual amount comparison deferred to settlement report generation.
 
 | Aspect | Transaction | Budget |
 |--------|-------------|---------|
-| **CRUD DTO** | `FMLTransactionData` | `FMLItemBudgetData` |
-| **Entity** | `FMLTransaction` | `FMLItemBudget` |
-| **UI Display** | `DisplayTransactions(vector<TransactionData>)` | `DisplayBudgets(vector<ItemBudgetData>)` |
-| **Summary** | `FMLTransactionSummary` (total only) | `FMLBudgetSummary` (hierarchical) |
+| **CRUD DTO** | `FMLTransactionData` | `FMLBudgetData` |
+| **Entity** | `FMLTransaction` | `FMLBudget` |
+| **UI Display** | `DisplayTransactions(vector<TransactionData>)` | `DisplayBudgets(vector<BudgetData>)` |
+| **Summary** | `FMLTransactionSummary` (real-time) | `FMLBudgetSummary` (budget planning only) |
 
-### ItemBudgetData Structure
+### BudgetData Structure
 
-Budget items use a **hybrid DTO pattern** combining input fields and calculated fields:
+Budget items use a **simplified input-focused DTO pattern**:
 
 ```cpp
-struct FMLItemBudgetData {
+struct FMLBudgetData {
     // Primary Key
     int BudgetId = -1;
 
@@ -521,111 +521,104 @@ struct FMLItemBudgetData {
     std::string Category;           // Budget category (e.g., "항공", "생활")
     std::string Item;               // Budget item (e.g., "항공료 선결제", "숙박비")
     int64_t BudgetAmount = 0;       // Budgeted amount (user input)
+    std::string Notes;              // Optional notes
 
-    // Calculated Fields (Auto-computed from Transactions)
-    int64_t ActualAmount = 0;       // Actual amount from matching transactions
-    int64_t Variance = 0;           // Variance (Actual - Budget)
-    int TransactionCount = 0;       // Number of matching transactions
+    // Reserved Fields (for future use)
+    int64_t ActualAmount = 0;       // Reserved: Always 0 in current design
 };
 ```
 
 **Design Rationale**:
-- **Hybrid Pattern**: Combines input DTO + calculated fields in single structure
-- **Consistency**: Mirrors `FMLTransactionData.DateTime` pattern (input: empty, output: formatted)
-- **Simplicity**: Single structure avoids separate Input/Display DTOs
-- **Clarity**: Calculated fields marked as "ReadOnly" in comments
+- **Simplicity**: Budget tab = budget planning only (BudgetAmount input)
+- **Separation of Concerns**: Actual amount calculation is settlement report's responsibility
+- **Future-proof**: `ActualAmount` field reserved for potential future real-time tracking
+- **Clarity**: No confusion between budget planning and actual expense tracking
 
-### Budget-Transaction Integration
+### Budget-Transaction Integration (Postponed)
 
-**Key Concept**: Actual amounts are auto-calculated by matching transactions to budget items.
+**Design Decision**: Real-time budget-transaction integration postponed to Phase 4 settlement report.
 
-**Matching Logic**:
+**Rationale**:
+- Mission project workflow: Budget planning (pre-trip) → Transaction recording (during trip) → Settlement report (post-trip)
+- Real-time tracking adds complexity without significant value for this use case
+- Simpler architecture = faster delivery of core features
+
+**Current Behavior**:
 ```cpp
-// Transactions with matching (Type, Category, Item) contribute to ActualAmount
+// Budget tab: Budget planning only
 Budget: Type=Expense, Category="항공", Item="항공료 선결제", BudgetAmount=3,000,000
-  ↓ matches
-Transaction: Type=Expense, Category="항공", Item="항공료 선결제", Amount=2,800,000
-  ↓ result
-ActualAmount=2,800,000, Variance=-200,000 (under budget)
-```
+ActualAmount=0  // Always 0, not calculated
 
-**GetAllBudgets() Behavior**:
-```cpp
-// Returns FMLItemBudgetData with calculated fields populated
-auto budgets = controller->GetAllBudgets();  // Scans transactions, calculates ActualAmount
-```
-
-### Budget Summary Hierarchy
-
-Unlike Transactions (single-level summary), Budgets use a **3-tier hierarchical structure**:
-
-```
-FMLBudgetSummary (Overall)
-  ├─ TotalBudget, TotalActualExpense, TotalActualIncome, TotalVariance
-  └─ Categories: map<string, FMLCategoryBudgetSummary>
-       └─ FMLCategoryBudgetSummary (Per Category)
-            ├─ TotalBudget, TotalActualExpense, TotalActualIncome
-            └─ Items: map<string, FMLItemBudgetSummary>
-                 └─ FMLItemBudgetSummary (Per Item)
-                      └─ BudgetAmount, ActualAmount, Variance
-```
-
-**Example**:
-```
-Overall Summary:
-  TotalBudget=5,000,000, TotalActualExpense=4,900,000, Variance=-100,000
-
-  Category "항공":
-    TotalBudget=3,000,000, TotalActualExpense=2,800,000
-    Items:
-      - "항공료 선결제": Budget=3,000,000, Actual=2,800,000, Variance=-200,000
-
-  Category "생활":
-    TotalBudget=2,000,000, TotalActualExpense=2,100,000
-    Items:
-      - "숙박비": Budget=2,000,000, Actual=2,100,000, Variance=+100,000
-```
-
-### UI Display Pattern
-
-**Budget List View**: Displays `FMLItemBudgetData` with all fields (input + calculated)
-
-```cpp
-void DisplayBudgets(const std::vector<FMLItemBudgetData>& budgets) {
-    for (const auto& budget : budgets) {
-        AddRow(budget.Category, budget.Item,
-               budget.BudgetAmount,    // User input
-               budget.ActualAmount,    // Auto-calculated
-               budget.Variance);       // Auto-calculated
-    }
+// Settlement report (Phase 4): Comparison at export time
+GenerateSettlementReport() {
+    // Aggregate transactions by category
+    // Compare with budgets
+    // Calculate variance and ratios
+    // Export to Excel/PDF
 }
 ```
 
-**Summary View**: Displays `FMLBudgetSummary` for hierarchical aggregation
+### Budget Summary
+
+Budget summary displays **budget totals only** (simplified design):
 
 ```cpp
-void DisplayBudgetSummary(const FMLBudgetSummary& summary) {
-    // Show overall totals
-    ShowTotal(summary.TotalBudget, summary.TotalActualExpense);
-
-    // Show per-category breakdown
-    for (const auto& [category, catSummary] : summary.Categories) {
-        ShowCategoryRow(category, catSummary.TotalBudget, catSummary.TotalActualExpense);
-    }
-}
+struct FMLBudgetSummary {
+    int64_t TotalBudget = 0;          // Total budget amount
+    int64_t TotalIncomeBudget = 0;    // Income budget subtotal
+    int64_t TotalExpenseBudget = 0;   // Expense budget subtotal
+    // Note: No actual/variance fields in current design
+};
 ```
 
-### Consistency vs Domain Characteristics
+**UI Display**:
+- Budget summary panel shows "Total Budget: XXX원" only
+- No real-time actual amount or variance display
+- Clean, simple interface focused on budget planning
 
-**Why Transaction and Budget share the same pattern despite different domains?**
+### Settlement Report (Phase 4)
 
-- **Transaction**: Displays raw input data (what user entered)
-- **Budget**: Displays input + calculated data (budget vs actual comparison)
+Budget vs Actual comparison will be performed during settlement report generation:
 
-**Both use the same DTO-based UI pattern because**:
-1. **Consistency**: Easier to learn, maintain, and extend
-2. **Flexibility**: DTO can contain both input and calculated fields
-3. **Simplicity**: Single pattern across all domains
-4. **Precedent**: `FMLTransactionData.DateTime` already uses input/output duality
+```cpp
+struct FMLCategorySettlement {
+    std::string Category;
+    E_MLTransactionType Type;
+    int64_t BudgetAmount;      // From Budget table
+    int64_t ActualAmount;      // Aggregated from Transactions
+    int64_t Variance;          // Calculated at report time
+    double Ratio;              // Actual/Budget percentage
+    int TransactionCount;      // Number of transactions
+};
 
-**Trade-off**: Calculated fields in DTO slightly blur "pure input DTO" concept, but the benefit of consistency outweighs this theoretical concern.
+struct FMLSettlementReport {
+    std::string ReportTitle;
+    std::string StartDate;
+    std::string EndDate;
+
+    int64_t TotalIncome;
+    int64_t TotalExpense;
+    int64_t Balance;
+
+    std::vector<FMLCategorySettlement> CategorySettlements;
+
+    int64_t TotalIncomeBudget;
+    int64_t TotalExpenseBudget;
+    int64_t TotalIncomeActual;
+    int64_t TotalExpenseActual;
+};
+```
+
+**Settlement Generation Flow**:
+1. Aggregate transactions by (Type, Category)
+2. Match with budgets by (Type, Category)
+3. Calculate ActualAmount, Variance, Ratio
+4. Generate report (Excel/PDF)
+
+### Design Benefits
+
+1. **Simplicity**: Budget tab has single responsibility (planning)
+2. **Performance**: No real-time calculation overhead
+3. **Clarity**: Clear separation between planning and settlement
+4. **Flexibility**: Settlement report can use sophisticated matching/aggregation logic without affecting UI
+5. **Future-proof**: Can add real-time tracking later if needed (ActualAmount field already exists)

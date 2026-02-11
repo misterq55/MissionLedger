@@ -61,6 +61,10 @@ private:
     int cmdOpen(const std::string& filePath);
     int cmdNew(const std::string& filePath);
     int cmdSave();
+    int cmdBudgetList(const std::string& filePath);
+    int cmdBudgetAdd(const std::map<std::string, std::string>& options);
+    int cmdBudgetUpdate(const std::map<std::string, std::string>& options);
+    int cmdBudgetDelete(const std::map<std::string, std::string>& options);
 
     // 명령줄 인수 파싱 헬퍼
     std::map<std::string, std::string> parseOptions(int argc, char* argv[], int startIndex);
@@ -73,11 +77,15 @@ private:
     void handleSaveFile();
     void handleAddTransaction();
     void handleListTransactions();
+    void handleAddBudget();
+    void handleListBudgets();
 
     // 출력 헬퍼
     void printTransaction(const FMLTransactionData& data, bool showHeader = false);
+    void printBudget(const FMLBudgetData& data, bool showHeader = false);
     void printSeparator();
     std::string getTypeString(E_MLTransactionType type);
+    std::string getBudgetTypeString(E_MLTransactionType type);
     std::string formatAmount(int64_t amount);
 
     // 상태

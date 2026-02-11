@@ -72,7 +72,7 @@ MissionLedger/
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-02-11):
+**Completed Features** (as of 2026-02-12):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -82,24 +82,27 @@ MissionLedger/
 - ✅ List footer with income/expense/balance totals (real-time summary with filter support)
 - ✅ Exchange rate support (foreign currency transactions with auto-conversion)
 - ✅ Entity-DTO architecture refactoring (Data-Oriented Design, -136 lines net reduction)
-- ✅ Budget system Phase 1-2: Data structure, CRUD operations, UI implementation
+- ✅ Budget system Phase 1-2: Complete budget management
   - Budget data structure with Type field and hierarchical Category/Item
   - SQLite budgets table with AUTOINCREMENT
   - Model/Controller CRUD methods with Observer pattern
   - 2-panel UI layout (Category list + Item detail list)
   - Inline input fields with Add/Update/Delete operations
-  - Budget summary panel with totals and variance display
-  - Transaction.BudgetId field for linking
+  - Budget summary panel (budget amount only, no real-time calculation)
+  - Complete save/load/delete functionality
+  - CLI support (budget list/add/update/delete)
+  - Transaction.BudgetId and ActualAmount fields reserved for future use
 
-**Current Focus**: Phase 3 - Budget-Transaction Integration
-- ⏳ Auto-calculation of Budget.ActualAmount from linked transactions
-- ⏳ Initial auto-matching algorithm (Category + Item string matching)
-- ⏳ Transaction CRUD integration with Budget updates
-- ⏳ Budget rematch on budget add/update
+**Design Decision**: Real-time Budget Tracking
+- ⏸️ Phase 3 (Budget-Transaction Integration) postponed
+- Budget ActualAmount calculation deferred to settlement report generation
+- Simplified architecture: Budget tab = budget planning only
+- Settlement comparison will be performed during Excel/PDF export
 
-**Next**: Phase 4 - Data Export & Distribution
-- 📋 Excel/CSV export
-- 📋 PDF export
+**Current Focus**: Phase 4 - Settlement Report & Data Export
+- 🎯 Settlement aggregation logic (Category-based transaction aggregation)
+- 📋 Excel/CSV export (transaction list + budget comparison)
+- 📋 PDF export (final settlement report)
 - 📋 Installer with .ml file association
 
 ## Coding Conventions

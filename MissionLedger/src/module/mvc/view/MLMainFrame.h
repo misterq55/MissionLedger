@@ -185,8 +185,6 @@ private:
     // UI 컨트롤들 - 예산 탭 (요약)
     wxPanel* budgetSummaryPanel;
     wxStaticText* budgetSummaryTotalBudgetText;
-    wxStaticText* budgetSummaryTotalActualText;
-    wxStaticText* budgetSummaryBalanceText;
 
 private:
     // Helper methods

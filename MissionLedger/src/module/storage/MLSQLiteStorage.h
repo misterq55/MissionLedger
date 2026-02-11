@@ -30,6 +30,7 @@ public:
     bool SaveBudget(const FMLBudgetData& budget) override;
     bool LoadAllBudgets(std::vector<FMLBudgetData>& outBudgets) override;
     bool DeleteBudget(const int budgetId) override;
+    bool DeleteAllBudgets() override;
 
 private:
     /// <summary>

@@ -110,8 +110,13 @@ public:
     /// <summary>
     /// 특정 항목의 예산 삭제
     /// </summary>
-    /// <param name="category">카테고리명</param>
-    /// <param name="item">항목명</param>
+    /// <param name="budgetId">예산 ID</param>
     /// <returns>성공 여부</returns>
     virtual bool DeleteBudget(const int budgetId) = 0;
+
+    /// <summary>
+    /// 모든 예산 삭제
+    /// </summary>
+    /// <returns>성공 여부</returns>
+    virtual bool DeleteAllBudgets() = 0;
 };

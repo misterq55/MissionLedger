@@ -92,13 +92,13 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Converted Storage to DTO-based (removed Entity dependency)
     - ✅ Net code reduction: -136 lines while adding functionality
 
-13. **Budget System Implementation** ⏳ IN PROGRESS (2026-02-11)
+13. **Budget System Implementation** ✅ COMPLETED (2026-02-12)
 
-    **Phase 1-2: Data Structure & CRUD** ✅ COMPLETED (2026-02-11)
+    **Phase 1-2: Data Structure & CRUD** ✅ COMPLETED (2026-02-12)
     - ✅ Budget data structure redesign (`FMLBudgetData`)
       - ✅ Added `Type` field (Income/Expense) for Transaction consistency
       - ✅ Hierarchical structure: Category (required) + Item (optional)
-      - ✅ `BudgetAmount` for manual input, `ActualAmount` for auto-calculation
+      - ✅ `BudgetAmount` for manual input, `ActualAmount` reserved for future use
       - ✅ `BudgetId` with AUTOINCREMENT for unique identification
     - ✅ Budget CRUD operations with Observer pattern
       - ✅ Model: `AddBudget`, `UpdateBudget`, `DeleteBudget`, `GetBudget`, `GetAllBudgets`
@@ -106,23 +106,31 @@ The project follows a phased approach for implementation, prioritizing core func
       - ✅ Observer events: `OnBudgetAdded`, `OnBudgetUpdated`, `OnBudgetDeleted`, `OnBudgetCleared`
     - ✅ Storage layer implementation (SQLite)
       - ✅ `budgets` table with AUTOINCREMENT primary key
-      - ✅ `SaveBudget`, `LoadAllBudgets`, `DeleteBudget` methods
-      - ✅ Added `budget_id` column to `transactions` table for linking
+      - ✅ `SaveBudget`, `LoadAllBudgets`, `DeleteBudget`, `DeleteAllBudgets` methods
+      - ✅ Complete save/load/delete cycle working correctly
+      - ✅ Added `budget_id` column to `transactions` table (reserved for future use)
     - ✅ UI implementation (Budget tab)
       - ✅ 2-panel layout: Category list (left) + Item detail list (right)
       - ✅ Inline input fields (Type, Category, Item, Amount, Notes)
       - ✅ Add/Update/Delete buttons with proper state management
-      - ✅ Budget summary panel (Total Budget, Total Actual, Balance)
+      - ✅ Budget summary panel (Total Budget only - simplified design)
       - ✅ List selection integration with input fields
+      - ✅ Removed real-time actual amount and variance display
+    - ✅ CLI implementation
+      - ✅ `budget list` - Display all budgets
+      - ✅ `budget add` - Add new budget with options
+      - ✅ `budget update` - Update existing budget
+      - ✅ `budget delete` - Delete budget by ID
+      - ✅ Command-line and interactive modes
 
-    **Phase 3: Budget-Transaction Integration** ⏳ IN PROGRESS
-    - ⏳ Auto-calculation of `Budget.ActualAmount` from linked transactions
-    - ⏳ Initial auto-matching algorithm (Category + Item string matching with normalization)
-    - ⏳ Transaction CRUD integration (update Budget.ActualAmount on transaction changes)
-    - ⏳ Budget rematch on budget add/update
-    - ⏳ Summary calculation with variance display
+    **Phase 3: Budget-Transaction Integration** ⏸️ POSTPONED
+    - **Design Decision**: Real-time budget tracking postponed
+    - Rationale: For mission project settlement, post-trip comparison is more important than real-time monitoring
+    - Budget tab simplified to budget planning only (BudgetAmount input)
+    - ActualAmount calculation deferred to settlement report generation (Phase 4)
+    - `Transaction.BudgetId` and `ActualAmount` fields reserved for future implementation if needed
 
-### Phase 4: Data Export & Distribution ⏳ IN PROGRESS
+### Phase 4: Settlement Report & Data Export ⏳ IN PROGRESS
 
 14. **Transaction Summary Display** ✅ COMPLETED (2026-01-30)
     - ✅ List footer panel with summary totals
@@ -134,23 +142,38 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Observer integration (all data change events trigger summary update)
     - ✅ Helper methods (createSummaryPanel, updateSummaryPanel, displaySummary, formatAmountWithComma, buildCurrentFilterCriteria)
 
-15. **Excel/CSV Export** ⏳ PENDING
+15. **Settlement Aggregation Logic** 🎯 NEXT
+    - 🎯 Data structure design (`FMLCategorySettlement`, `FMLSettlementReport`)
+    - 🎯 Category-based transaction aggregation
+    - 🎯 Budget vs Actual comparison calculation
+    - 🎯 Variance and ratio computation
+    - 🎯 Date range and period summary
+    - 🎯 Model layer implementation
+    - 🎯 Controller delegation
+
+16. **Excel/CSV Export** ⏳ PENDING
     - ⏳ CSV export with UTF-8 BOM (Korean support)
-    - ⏳ Export current view (respects active filter)
+    - ⏳ Transaction list export
+    - ⏳ Budget comparison table export
+    - ⏳ Settlement report export
     - ⏳ File menu integration
     - ⏳ Column headers and formatting
 
-16. **.ml File Registration** ⏳ PENDING
+17. **PDF Export** ⏳ PENDING
+    - ⏳ Library: wxPdfDocument (wxWidgets integration, Korean font support)
+    - ⏳ Settlement report layout design
+    - ⏳ Cover page (project name, period)
+    - ⏳ Summary page (income/expense totals)
+    - ⏳ Category detail page (budget vs actual comparison)
+    - ⏳ Transaction detail page (optional)
+    - ⏳ Korean font integration
+    - ⏳ Reference layout: 결산안.pdf
+
+18. **.ml File Registration** ⏳ PENDING
     - ⏳ Installer creation (Inno Setup / NSIS)
     - ⏳ Windows registry setup for file association
     - ⏳ Double-click .ml file → launch MissionLedger
     - ⏳ Icon association
-
-17. **PDF Export** 📋 PLANNED
-    - 📋 Library: wxPdfDocument (wxWidgets integration, Korean font support)
-    - 📋 Reference layout: 결산안.pdf
-    - 📋 Estimated time: 2-3 hours (basic implementation)
-    - 📋 Features: Transaction table, summary, Korean fonts
 
 ### Deferred Features
 - Multiple document interface (MDI) support

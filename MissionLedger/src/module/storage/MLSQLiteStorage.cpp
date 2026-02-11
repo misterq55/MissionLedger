@@ -395,3 +395,21 @@ bool FMLSQLiteStorage::DeleteBudget(const int budgetId)
 
     return result == SQLITE_DONE;
 }
+
+bool FMLSQLiteStorage::DeleteAllBudgets()
+{
+    if (!IsInitialized) return false;
+
+    const char* sql = "DELETE FROM budgets;";
+
+    char* errorMsg = nullptr;
+    int result = sqlite3_exec(Database, sql, nullptr, nullptr, &errorMsg);
+
+    if (result != SQLITE_OK)
+    {
+        sqlite3_free(errorMsg);
+        return false;
+    }
+
+    return true;
+}

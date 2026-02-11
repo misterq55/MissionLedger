@@ -12,7 +12,9 @@
       "Bash(mkdir:*)",
       "Bash(python:*)",
       "Bash(powershell:*)",
-      "Bash(del convert_encoding.py convert_to_utf8bom.ps1)"
+      "Bash(del convert_encoding.py convert_to_utf8bom.ps1)",
+      "Bash(MSYS_NO_PATHCONV=1 \"C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\":*)",
+      "Bash(x64/Release/MissionLedgerCLI.exe:*)"
     ],
     "deny": [],
     "ask": []

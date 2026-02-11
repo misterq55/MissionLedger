@@ -200,18 +200,36 @@ bool FMLModel::OpenFile(const std::string& filePath)
     const int lastId = StorageProvider->GetLastTransactionId();
     TransactionIdIndex = (lastId >= 0) ? lastId + 1 : 0;
 
-    // TODO: 예산 로드 구현 필요
-    // Budgets.clear();
-    // std::vector<FMLBudgetData> loadedBudgets;
-    // if (StorageProvider->LoadAllBudgets(loadedBudgets))
-    // {
-    //     for (const auto& budgetData : loadedBudgets)
-    //     {
-    //         auto budgetEntity = std::make_shared<FMLCategoryBudget>();
-    //         budgetEntity->SetData(budgetData);
-    //         Budgets[budgetData.Category] = budgetEntity;
-    //     }
-    // }
+    // 예산 로드
+    Budgets.clear();
+    std::vector<FMLBudgetData> loadedBudgets;
+    if (StorageProvider->LoadAllBudgets(loadedBudgets))
+    {
+        for (const auto& budgetData : loadedBudgets)
+        {
+            auto budgetEntity = std::make_shared<FMLBudget>();
+            budgetEntity->SetData(budgetData);
+            Budgets.emplace(budgetData.BudgetId, budgetEntity);
+        }
+
+        // BudgetIdIndex 갱신 (가장 큰 BudgetId + 1)
+        if (!loadedBudgets.empty())
+        {
+            int maxBudgetId = -1;
+            for (const auto& budgetData : loadedBudgets)
+            {
+                if (budgetData.BudgetId > maxBudgetId)
+                {
+                    maxBudgetId = budgetData.BudgetId;
+                }
+            }
+            BudgetIdIndex = maxBudgetId + 1;
+        }
+        else
+        {
+            BudgetIdIndex = 0;
+        }
+    }
 
     CurrentFilePath = filePath;
     UnsavedChanges = false;
@@ -253,14 +271,19 @@ bool FMLModel::SaveFile()
         return false;
     }
 
-    // TODO: 예산 저장 구현 필요
-    // for (const auto& pair : Budgets)
-    // {
-    //     if (!StorageProvider->SaveBudget(pair.second->GetData()))
-    //     {
-    //         return false;
-    //     }
-    // }
+    // 예산 저장 (기존 예산을 모두 삭제하고 현재 메모리의 예산만 저장)
+    if (!StorageProvider->DeleteAllBudgets())
+    {
+        return false;
+    }
+
+    for (const auto& pair : Budgets)
+    {
+        if (!StorageProvider->SaveBudget(pair.second->GetData()))
+        {
+            return false;
+        }
+    }
 
     UnsavedChanges = false;
 
@@ -294,8 +317,7 @@ void FMLModel::NewFile()
 {
     // 기존 데이터 정리
     clearAllTransactions();
-    // TODO: 예산 클리어 구현 필요
-    // Budgets.clear();
+    Budgets.clear();
 
     // 스토리지 연결 닫기
     if (StorageProvider)
@@ -305,12 +327,14 @@ void FMLModel::NewFile()
 
     CurrentFilePath.clear();
     TransactionIdIndex = 0;
+    BudgetIdIndex = 0;
     UnsavedChanges = false;
 
     // Observer에게 데이터 클리어 알림
     if (ModelObserver)
     {
         ModelObserver->OnTransactionsCleared();
+        ModelObserver->OnBudgetCleared();
     }
 }
 
