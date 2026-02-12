@@ -121,6 +121,28 @@ bool FMLController::LoadData()
     return false;
 }
 
+bool FMLController::ExportSettlementToPDF(const std::string& filePath)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->ExportSettlementToPDF(filePath);
+    }
+
+    return false;
+}
+
+bool FMLController::ExportTransactionListToPDF(const std::string& filePath)
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    if (model)
+    {
+        return model->ExportTransactionListToPDF(filePath);
+    }
+
+    return false;
+}
+
 // File operations
 void FMLController::NewFile()
 {

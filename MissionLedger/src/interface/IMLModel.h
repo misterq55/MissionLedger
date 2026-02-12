@@ -35,6 +35,7 @@ public:
     virtual bool UpdateBudget(const FMLBudgetData& budgetData) = 0;
     virtual bool DeleteBudget(const int budgetId) = 0;
     virtual std::vector<FMLBudgetData> GetAllBudgets() const = 0;
+    virtual std::vector<FMLBudgetData> GetAllBudgets(const FMLFilterCriteria& criteria) const = 0;
     virtual FMLBudgetData GetBudget(const int budgetId) const = 0;
 
     // Budget Summary (계층 구조: 카테고리 > 항목)
@@ -50,6 +51,8 @@ public:
     virtual bool Save() = 0;
     virtual bool Load() = 0;
     virtual void ExportToExcel() = 0;
+    virtual bool ExportSettlementToPDF(const std::string& filePath) = 0;
+    virtual bool ExportTransactionListToPDF(const std::string& filePath) = 0;
 
     // File Operations
     virtual bool OpenFile(const std::string& filePath) = 0;

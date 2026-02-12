@@ -20,6 +20,8 @@ enum
     ID_OPEN_FILE = wxID_OPEN,
     ID_SAVE_FILE = wxID_SAVE,
     ID_SAVE_FILE_AS = wxID_SAVEAS,
+    ID_EXPORT_SETTLEMENT_PDF = wxID_HIGHEST + 1,
+    ID_EXPORT_TRANSACTIONS_PDF = wxID_HIGHEST + 2,
     ID_EXIT = wxID_EXIT
 };
 
@@ -563,6 +565,9 @@ void wxMLMainFrame::createMenuBar()
     fileMenu->Append(ID_SAVE_FILE, wxString::FromUTF8("저장(&S)\tCtrl+S"));
     fileMenu->Append(ID_SAVE_FILE_AS, wxString::FromUTF8("다른 이름으로 저장(&A)...\tCtrl+Shift+S"));
     fileMenu->AppendSeparator();
+    fileMenu->Append(ID_EXPORT_SETTLEMENT_PDF, wxString::FromUTF8("결산 보고서 내보내기(&E)...\tCtrl+E"));
+    fileMenu->Append(ID_EXPORT_TRANSACTIONS_PDF, wxString::FromUTF8("거래 내역서 내보내기(&T)...\tCtrl+T"));
+    fileMenu->AppendSeparator();
     fileMenu->Append(ID_EXIT, wxString::FromUTF8("종료(&X)\tAlt+F4"));
 
     menuBar->Append(fileMenu, wxString::FromUTF8("파일(&F)"));
@@ -574,6 +579,8 @@ void wxMLMainFrame::createMenuBar()
     Bind(wxEVT_MENU, &wxMLMainFrame::OnOpenFile, this, ID_OPEN_FILE);
     Bind(wxEVT_MENU, &wxMLMainFrame::OnSaveFile, this, ID_SAVE_FILE);
     Bind(wxEVT_MENU, &wxMLMainFrame::OnSaveFileAs, this, ID_SAVE_FILE_AS);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnExportSettlementPDF, this, ID_EXPORT_SETTLEMENT_PDF);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnExportTransactionsPDF, this, ID_EXPORT_TRANSACTIONS_PDF);
     Bind(wxEVT_MENU, &wxMLMainFrame::OnExit, this, ID_EXIT);
 }
 
@@ -670,6 +677,74 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
         else
         {
             wxMessageBox(wxString::FromUTF8("파일 저장에 실패했습니다."),
+                wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+void wxMLMainFrame::OnExportSettlementPDF(wxCommandEvent& event)
+{
+    wxFileDialog saveDialog(this,
+        wxString::FromUTF8("결산 보고서 내보내기"),
+        wxEmptyString,
+        wxString::FromUTF8("결산보고서.pdf"),
+        wxString::FromUTF8("PDF 파일 (*.pdf)|*.pdf"),
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+    if (saveDialog.ShowModal() == wxID_CANCEL) return;
+
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller)
+    {
+        wxString filePath = saveDialog.GetPath();
+        // .pdf 확장자 확인
+        if (!filePath.EndsWith(".pdf"))
+        {
+            filePath += ".pdf";
+        }
+
+        if (controller->ExportSettlementToPDF(filePath.ToUTF8().data()))
+        {
+            wxMessageBox(wxString::FromUTF8("결산 보고서가 성공적으로 생성되었습니다."),
+                wxString::FromUTF8("완료"), wxOK | wxICON_INFORMATION);
+        }
+        else
+        {
+            wxMessageBox(wxString::FromUTF8("결산 보고서 생성에 실패했습니다."),
+                wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
+        }
+    }
+}
+
+void wxMLMainFrame::OnExportTransactionsPDF(wxCommandEvent& event)
+{
+    wxFileDialog saveDialog(this,
+        wxString::FromUTF8("거래 내역서 내보내기"),
+        wxEmptyString,
+        wxString::FromUTF8("거래내역서.pdf"),
+        wxString::FromUTF8("PDF 파일 (*.pdf)|*.pdf"),
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+    if (saveDialog.ShowModal() == wxID_CANCEL) return;
+
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (controller)
+    {
+        wxString filePath = saveDialog.GetPath();
+        // .pdf 확장자 확인
+        if (!filePath.EndsWith(".pdf"))
+        {
+            filePath += ".pdf";
+        }
+
+        if (controller->ExportTransactionListToPDF(filePath.ToUTF8().data()))
+        {
+            wxMessageBox(wxString::FromUTF8("거래 내역서가 성공적으로 생성되었습니다."),
+                wxString::FromUTF8("완료"), wxOK | wxICON_INFORMATION);
+        }
+        else
+        {
+            wxMessageBox(wxString::FromUTF8("거래 내역서 생성에 실패했습니다."),
                 wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
         }
     }

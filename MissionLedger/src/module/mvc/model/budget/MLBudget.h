@@ -37,4 +37,52 @@ public:
     int64_t GetRemainingBudget(int64_t actualAmount) const {
         return Data.BudgetAmount - actualAmount;
     }
+    
+    // 필터 확인
+    bool MatchesFilter(const FMLFilterCriteria& criteria) const {
+        // 거래 유형 필터
+        if (criteria.UseTypeFilter && Data.Type != criteria.TypeFilter)
+        {
+            return false;
+        }
+
+        // 카테고리 필터
+        if (criteria.UseCategoryFilter && Data.Category != criteria.CategoryFilter)
+        {
+            return false;
+        }
+
+        // 검색어 필터 (Category, Item, Notes에서 검색)
+        if (criteria.UseTextSearch)
+        {
+            bool found = false;
+
+            // Category에서 검색
+            if (Data.Category.find(criteria.SearchText) != std::string::npos)
+            {
+                found = true;
+            }
+
+            // Item에서 검색
+            if (!found && !Data.Item.empty() &&
+                Data.Item.find(criteria.SearchText) != std::string::npos)
+            {
+                found = true;
+            }
+
+            // Notes에서 검색
+            if (!found && !Data.Notes.empty() &&
+                Data.Notes.find(criteria.SearchText) != std::string::npos)
+            {
+                found = true;
+            }
+
+            if (!found)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 };

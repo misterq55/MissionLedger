@@ -60,6 +60,8 @@ private:
     void OnOpenFile(wxCommandEvent& event);
     void OnSaveFile(wxCommandEvent& event);
     void OnSaveFileAs(wxCommandEvent& event);
+    void OnExportSettlementPDF(wxCommandEvent& event);
+    void OnExportTransactionsPDF(wxCommandEvent& event);
     void OnExit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
 

@@ -2,7 +2,6 @@
 #include <string>
 #include <cstdint>
 #include <map>
-#include <vector>
 
 enum class E_MLTransactionType
 {
@@ -76,33 +75,27 @@ struct FMLBudgetData {
     std::string Notes;             // 비고
 };
 
-// 카테고리 1개의 예산 vs 실제 요약 (Category Budget Summary)
-struct FMLCategoryBudgetSummary {
-    std::string Category;                                  // 카테고리명
-    std::vector<std::string> Items;     // 항목별 상세 
-
-    // 카테고리 합계
-    int64_t TotalBudget = 0;          // 모든 항목 예산 합계
-    int64_t TotalActualExpense = 0;   // 실제 총 지출
-    int64_t TotalActualIncome = 0;    // 실제 총 수입
-    int64_t TotalNetAmount = 0;       // 순액 (수입 - 지출)
-    int64_t TotalVariance = 0;        // 차이 (실제 - 예산)
-    int TransactionCount = 0;         // 거래 건수
-    double Ratio = 0.0;               // 비율
-};
-
 // 전체 예산 요약 (Overall Budget Summary - Hierarchical Structure)
 struct FMLBudgetSummary {
-    // 카테고리별 상세 데이터 (Category → Category Summary)
-    std::map<std::string, FMLCategoryBudgetSummary> Categories;
-
     // 전체 합계
     int64_t TotalBudget = 0;          // 모든 항목 예산 합계
-    int64_t TotalActualExpense = 0;   // 실제 총 지출
-    int64_t TotalActualIncome = 0;    // 실제 총 수입
-    int64_t TotalNetAmount = 0;       // 순액
-    int64_t TotalVariance = 0;        // 차이
-    int CategoryCount = 0;            // 카테고리 수
-    int ItemCount = 0;                // 항목 수
-    double Ratio = 0.0;               // 비율
+};
+
+// 결산안 데이터
+struct FMLSettlmentData {
+    // 예산 데이터
+    std::map<std::string, int64_t> BudgetIncomeCategories;
+    std::map<std::string, int64_t> BudgetExpenseCategories;
+    int64_t TotalIncome = 0;
+    int64_t TotalExpense = 0;
+
+    // 실적 데이터
+    std::map<std::string, int64_t> ActualIncomeCategories;
+    std::map<std::string, int64_t> ActualExpenseCategories;
+    int64_t TotalActualIncome = 0;
+    int64_t TotalActualExpense = 0;
+
+    // 기타
+    int64_t TotalBalance = 0;
+    std::map<std::string, double> ExchangeRates;
 };

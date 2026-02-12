@@ -65,6 +65,8 @@ private:
     int cmdBudgetAdd(const std::map<std::string, std::string>& options);
     int cmdBudgetUpdate(const std::map<std::string, std::string>& options);
     int cmdBudgetDelete(const std::map<std::string, std::string>& options);
+    int cmdExportSettlement(const std::string& inputFilePath, const std::string& outputFilePath);
+    int cmdExportTransactions(const std::string& inputFilePath, const std::string& outputFilePath);
 
     // 명령줄 인수 파싱 헬퍼
     std::map<std::string, std::string> parseOptions(int argc, char* argv[], int startIndex);

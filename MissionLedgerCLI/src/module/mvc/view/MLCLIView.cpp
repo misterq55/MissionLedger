@@ -105,6 +105,26 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
             return 1;
         }
     }
+    else if (command == "export-settlement")
+    {
+        if (argc < 4)
+        {
+            std::cerr << "오류: 입력 파일과 출력 파일 경로가 필요합니다." << std::endl;
+            std::cerr << "사용법: MissionLedgerCLI export-settlement <입력파일.ml> <출력파일.pdf>" << std::endl;
+            return 1;
+        }
+        return cmdExportSettlement(argv[2], argv[3]);
+    }
+    else if (command == "export-transactions")
+    {
+        if (argc < 4)
+        {
+            std::cerr << "오류: 입력 파일과 출력 파일 경로가 필요합니다." << std::endl;
+            std::cerr << "사용법: MissionLedgerCLI export-transactions <입력파일.ml> <출력파일.pdf>" << std::endl;
+            return 1;
+        }
+        return cmdExportTransactions(argv[2], argv[3]);
+    }
     else
     {
         std::cerr << "알 수 없는 명령어: " << command << std::endl;
@@ -143,12 +163,14 @@ void FMLCLIView::printUsage()
 {
     std::cout << "사용법: MissionLedgerCLI <명령어> [옵션]\n" << std::endl;
     std::cout << "명령어:" << std::endl;
-    std::cout << "  help                    도움말 표시" << std::endl;
-    std::cout << "  list [파일]             트랜잭션 목록 표시" << std::endl;
-    std::cout << "  add [옵션]              트랜잭션 추가" << std::endl;
-    std::cout << "  open <파일>             파일 열기 (대화형 모드 진입)" << std::endl;
-    std::cout << "  new [파일]              새 파일 생성" << std::endl;
-    std::cout << "  budget <하위명령어>     예산 관리" << std::endl;
+    std::cout << "  help                              도움말 표시" << std::endl;
+    std::cout << "  list [파일]                       트랜잭션 목록 표시" << std::endl;
+    std::cout << "  add [옵션]                        트랜잭션 추가" << std::endl;
+    std::cout << "  open <파일>                       파일 열기 (대화형 모드 진입)" << std::endl;
+    std::cout << "  new [파일]                        새 파일 생성" << std::endl;
+    std::cout << "  budget <하위명령어>               예산 관리" << std::endl;
+    std::cout << "  export-settlement <입력> <출력>   결산 보고서 PDF 내보내기" << std::endl;
+    std::cout << "  export-transactions <입력> <출력> 거래 내역서 PDF 내보내기" << std::endl;
     std::cout << "\nadd 명령어 옵션:" << std::endl;
     std::cout << "  --file <파일>           대상 파일 (필수)" << std::endl;
     std::cout << "  --type <income|expense> 거래 유형 (필수)" << std::endl;
@@ -181,6 +203,8 @@ void FMLCLIView::printUsage()
     std::cout << "  MissionLedgerCLI budget add --file data.ml --type expense --category \"식비\" --item \"외식\" --amount 500000" << std::endl;
     std::cout << "  MissionLedgerCLI budget update --file data.ml --id 1 --amount 600000" << std::endl;
     std::cout << "  MissionLedgerCLI budget delete --file data.ml --id 1" << std::endl;
+    std::cout << "  MissionLedgerCLI export-settlement data.ml 결산보고서.pdf" << std::endl;
+    std::cout << "  MissionLedgerCLI export-transactions data.ml 거래내역서.pdf" << std::endl;
     std::cout << "  MissionLedgerCLI open data.ml" << std::endl;
     std::cout << "\n인수 없이 실행하면 대화형 모드로 진입합니다." << std::endl;
 }
@@ -677,6 +701,58 @@ int FMLCLIView::cmdBudgetDelete(const std::map<std::string, std::string>& option
     else
     {
         std::cerr << "오류: 파일 저장에 실패했습니다." << std::endl;
+        return 1;
+    }
+}
+
+int FMLCLIView::cmdExportSettlement(const std::string& inputFilePath, const std::string& outputFilePath)
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+
+    // 입력 파일 열기
+    if (!controller->OpenFile(inputFilePath))
+    {
+        std::cerr << "오류: 파일을 열 수 없습니다: " << inputFilePath << std::endl;
+        return 1;
+    }
+
+    std::cout << "결산 보고서 생성 중..." << std::endl;
+
+    // PDF 내보내기
+    if (controller->ExportSettlementToPDF(outputFilePath))
+    {
+        std::cout << "결산 보고서가 성공적으로 생성되었습니다: " << outputFilePath << std::endl;
+        return 0;
+    }
+    else
+    {
+        std::cerr << "오류: 결산 보고서 생성에 실패했습니다." << std::endl;
+        return 1;
+    }
+}
+
+int FMLCLIView::cmdExportTransactions(const std::string& inputFilePath, const std::string& outputFilePath)
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+
+    // 입력 파일 열기
+    if (!controller->OpenFile(inputFilePath))
+    {
+        std::cerr << "오류: 파일을 열 수 없습니다: " << inputFilePath << std::endl;
+        return 1;
+    }
+
+    std::cout << "거래 내역서 생성 중..." << std::endl;
+
+    // PDF 내보내기
+    if (controller->ExportTransactionListToPDF(outputFilePath))
+    {
+        std::cout << "거래 내역서가 성공적으로 생성되었습니다: " << outputFilePath << std::endl;
+        return 0;
+    }
+    else
+    {
+        std::cerr << "오류: 거래 내역서 생성에 실패했습니다." << std::endl;
         return 1;
     }
 }

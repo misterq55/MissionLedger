@@ -8,6 +8,7 @@
 
 #include "interface/IMLModelObserver.h"
 #include "interface/IMLStorageProvider.h"
+#include "module/export/MLPDFExporter.h"
 
 FMLModel::FMLModel()
 {
@@ -160,6 +161,85 @@ bool FMLModel::Load()
 void FMLModel::ExportToExcel()
 {
     // TODO: Excel export 구현
+}
+
+bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
+{
+    // 결산안 데이터
+    FMLSettlmentData settlmentData;
+
+    // 예산 데이터 집계
+    for (const auto& budget : Budgets)
+    {
+        const auto& budgetData = budget.second->GetData();
+        if (budgetData.Type == E_MLTransactionType::Income)
+        {
+            settlmentData.TotalIncome += budgetData.BudgetAmount;
+            settlmentData.BudgetIncomeCategories[budgetData.Category] += budgetData.BudgetAmount;
+        }
+        else if (budgetData.Type == E_MLTransactionType::Expense)
+        {
+            settlmentData.TotalExpense += budgetData.BudgetAmount;
+            settlmentData.BudgetExpenseCategories[budgetData.Category] += budgetData.BudgetAmount;
+        }
+    }
+
+    // 실적 데이터 집계
+    for (const auto& transaction : Transactions)
+    {
+        const auto& transactionData = transaction.second->GetData();
+        if (transactionData.Type == E_MLTransactionType::Income)
+        {
+            settlmentData.TotalActualIncome += transactionData.Amount;
+            settlmentData.ActualIncomeCategories[transactionData.Category] += transactionData.Amount;
+        }
+        else if (transactionData.Type == E_MLTransactionType::Expense)
+        {
+            settlmentData.TotalActualExpense += transactionData.Amount;
+            settlmentData.ActualExpenseCategories[transactionData.Category] += transactionData.Amount;
+        }
+    }
+
+    settlmentData.TotalBalance = settlmentData.TotalActualIncome - settlmentData.TotalActualExpense;
+    
+    // 환율 정보
+    std::map<std::string, double> exchangeRates;
+    std::map<std::string, int> exchangeRateCounts;
+    
+    for (const auto& transaction : Transactions)
+    {
+        const auto& transactionData = transaction.second->GetData();
+        if (transactionData.UseExchangeRate)
+        {
+            if (exchangeRates.find(transactionData.Currency) != exchangeRates.end())
+            {
+                exchangeRates[transactionData.Currency] += transactionData.ExchangeRate;
+                exchangeRateCounts[transactionData.Currency]++;
+            }
+            else
+            {
+                exchangeRates[transactionData.Currency] = transactionData.ExchangeRate;
+                exchangeRateCounts[transactionData.Currency] = 1;
+            }
+        }
+    }
+    
+    for (const auto& exchangeRate : exchangeRates)
+    {
+        settlmentData.ExchangeRates[exchangeRate.first] = (exchangeRate.second / exchangeRateCounts[exchangeRate.first]);
+    }
+
+    // PDF 생성
+    return FMLPDFExporter::ExportSettlement(settlmentData, filePath);
+}
+
+bool FMLModel::ExportTransactionListToPDF(const std::string& filePath)
+{
+    // 모든 거래 데이터 가져오기
+    std::vector<FMLTransactionData> transactions = GetAllTransactionData();
+
+    // PDF 생성
+    return FMLPDFExporter::ExportTransactionList(transactions, filePath);
 }
 
 // File Operations
@@ -495,6 +575,23 @@ std::vector<FMLBudgetData> FMLModel::GetAllBudgets() const
     return result;
 }
 
+std::vector<FMLBudgetData> FMLModel::GetAllBudgets(const FMLFilterCriteria& criteria) const
+{
+    std::vector<FMLBudgetData> result;
+    result.reserve(Budgets.size());
+    
+    for (const auto& pair : Budgets)
+    {
+        const auto& budget = pair.second;
+        if (budget->MatchesFilter(criteria))
+        {
+            result.push_back(pair.second->GetData());
+        }
+    }
+    
+    return result;
+}
+
 FMLBudgetData FMLModel::GetBudget(const int budgetId) const
 {
     auto it = Budgets.find(budgetId);
@@ -512,11 +609,11 @@ FMLBudgetData FMLModel::GetBudget(const int budgetId) const
 FMLBudgetSummary FMLModel::GetBudgetSummary() const
 {
     FMLBudgetSummary summary;
+    std::vector<FMLBudgetData> budgets = GetAllBudgets();
 
-    for (const auto& pair : Budgets)
+    for (const auto& budget : budgets)
     {
-        const auto& budgetData = pair.second->GetData();
-        summary.TotalBudget += budgetData.BudgetAmount;
+        summary.TotalBudget += budget.BudgetAmount;
     }
 
     return summary;
@@ -526,18 +623,11 @@ FMLBudgetSummary FMLModel::GetFilteredBudgetSummary(const FMLFilterCriteria& cri
 {
     FMLBudgetSummary summary;
 
-    for (const auto& pair : Budgets)
+    std::vector<FMLBudgetData> budgets = GetAllBudgets(criteria);
+
+    for (const auto& budget : budgets)
     {
-        const auto& budgetData = pair.second->GetData();
-
-        // 카테고리 필터링
-        if (criteria.UseCategoryFilter && !criteria.CategoryFilter.empty()
-            && budgetData.Category != criteria.CategoryFilter)
-        {
-            continue;
-        }
-
-        summary.TotalBudget += budgetData.BudgetAmount;
+        summary.TotalBudget += budget.BudgetAmount;
     }
 
     return summary;

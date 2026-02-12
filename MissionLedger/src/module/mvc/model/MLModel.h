@@ -39,6 +39,8 @@ public:
     virtual bool Save() override;
     virtual bool Load() override;
     virtual void ExportToExcel() override;
+    virtual bool ExportSettlementToPDF(const std::string& filePath) override;
+    virtual bool ExportTransactionListToPDF(const std::string& filePath) override;
 
     // File Operations
     virtual bool OpenFile(const std::string& filePath) override;
@@ -53,6 +55,7 @@ public:
     virtual bool UpdateBudget(const FMLBudgetData& budgetData) override;
     virtual bool DeleteBudget(const int budgetId) override;
     virtual std::vector<FMLBudgetData> GetAllBudgets() const override;
+    virtual std::vector<FMLBudgetData> GetAllBudgets(const FMLFilterCriteria& criteria) const override;
     virtual FMLBudgetData GetBudget(const int budgetId) const override;
 
     // Budget Summary

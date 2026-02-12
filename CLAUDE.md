@@ -92,17 +92,25 @@ MissionLedger/
   - Complete save/load/delete functionality
   - CLI support (budget list/add/update/delete)
   - Transaction.BudgetId and ActualAmount fields reserved for future use
+- ✅ Settlement PDF Export: Complete implementation
+  - FMLSettlmentData structure with separate budget/actual categories
+  - PDF-Writer library integration (static library pattern)
+  - Korean font support (Malgun Gothic TTF embedding)
+  - Full settlement report layout (budget vs actual comparison)
+  - Category-based income/expense aggregation
+  - Exchange rate information display
+  - GUI menu: File → Export Settlement PDF (Ctrl+E)
+  - CLI command: export-settlement <input.ml> <output.pdf>
 
 **Design Decision**: Real-time Budget Tracking
 - ⏸️ Phase 3 (Budget-Transaction Integration) postponed
 - Budget ActualAmount calculation deferred to settlement report generation
 - Simplified architecture: Budget tab = budget planning only
-- Settlement comparison will be performed during Excel/PDF export
+- Settlement comparison performed during PDF export (not real-time)
 
-**Current Focus**: Phase 4 - Settlement Report & Data Export
-- 🎯 Settlement aggregation logic (Category-based transaction aggregation)
+**Next Steps**:
+- 📋 Transaction list PDF export (거래 내역서)
 - 📋 Excel/CSV export (transaction list + budget comparison)
-- 📋 PDF export (final settlement report)
 - 📋 Installer with .ml file association
 
 ## Coding Conventions

@@ -31,6 +31,8 @@ public:
     // Persistence
     virtual bool SaveData() = 0;
     virtual bool LoadData() = 0;
+    virtual bool ExportSettlementToPDF(const std::string& filePath) = 0;
+    virtual bool ExportTransactionListToPDF(const std::string& filePath) = 0;
 
     // File operations
     virtual void NewFile() = 0;
