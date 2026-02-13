@@ -159,15 +159,35 @@ The project follows a phased approach for implementation, prioritizing core func
     - ⏳ File menu integration
     - ⏳ Column headers and formatting
 
-17. **PDF Export** ⏳ PENDING
-    - ⏳ Library: wxPdfDocument (wxWidgets integration, Korean font support)
-    - ⏳ Settlement report layout design
-    - ⏳ Cover page (project name, period)
-    - ⏳ Summary page (income/expense totals)
-    - ⏳ Category detail page (budget vs actual comparison)
-    - ⏳ Transaction detail page (optional)
-    - ⏳ Korean font integration
-    - ⏳ Reference layout: 결산안.pdf
+17. **PDF Export** ✅ COMPLETED (2026-02-13)
+
+    **Settlement PDF Export** ✅ COMPLETED (2026-02-11)
+    - ✅ Library: PDF-Writer (static library integration)
+    - ✅ Korean font support (Malgun Gothic TTF embedding)
+    - ✅ Settlement report layout (budget vs actual comparison)
+    - ✅ Category-based income/expense aggregation
+    - ✅ Exchange rate information display
+    - ✅ GUI menu: File → Export Settlement PDF (Ctrl+E)
+    - ✅ CLI command: export-settlement <input.ml> <output.pdf>
+    - ✅ Reference layout: 결산안.pdf
+
+    **Transaction List PDF Export** ✅ COMPLETED (2026-02-13)
+    - ✅ Individual transaction listing with hierarchical grouping (Category → Item → Transactions)
+    - ✅ Cell merging for same Category and Item
+    - ✅ Multi-line text wrapping for Item and Description columns (UTF-8 safe)
+    - ✅ **Vertical center alignment** for multi-line text in Item and Description columns
+    - ✅ Dynamic row height calculation based on text content
+    - ✅ Mid-group page breaks for optimal space utilization
+    - ✅ **Exchange rate information** displayed inline with amount (e.g., "1,000,000원 (PHP 40,000 @ 25.0)")
+    - ✅ **Optimized column widths**: Category(50) Item(60) Description(170) Amount(135) Date(60) Receipt(50)
+    - ✅ Category-wise subtotals with formatted table layout
+    - ✅ Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
+    - ✅ GUI menu: File → Export Transaction List PDF (Ctrl+T)
+    - ✅ CLI command: export-transactions <input.ml> [output.pdf]
+
+    **Current Enhancement** 🔄 IN PROGRESS
+    - 🔄 Settlement PDF Enhancement: Improving layout, visual design, and data presentation
+    - ✅ Budget data import completed (26 items from 결산안.pdf)
 
 18. **.ml File Registration** ⏳ PENDING
     - ⏳ Installer creation (Inno Setup / NSIS)

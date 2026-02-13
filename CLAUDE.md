@@ -101,13 +101,15 @@ MissionLedger/
   - Exchange rate information display
   - GUI menu: File → Export Settlement PDF (Ctrl+E)
   - CLI command: export-settlement <input.ml> <output.pdf>
-- ✅ Transaction List PDF Export: Complete implementation
+- ✅ Transaction List PDF Export: Complete implementation with enhancements
   - Individual transaction listing with hierarchical grouping (Category → Item → Transactions)
   - Cell merging for same Category and Item
   - Multi-line text wrapping for Item and Description columns (UTF-8 safe)
+  - **Vertical center alignment** for multi-line text in Item and Description columns
   - Dynamic row height calculation based on text content
   - Mid-group page breaks for optimal space utilization
-  - Column widths: Category(50) Item(60) Description(200) Amount(95) Date(70) Receipt(50)
+  - **Exchange rate information** displayed inline with amount (e.g., "1,000,000원 (PHP 40,000 @ 25.0)")
+  - **Optimized column widths**: Category(50) Item(60) Description(170) Amount(135) Date(60) Receipt(50)
   - Category-wise subtotals with formatted table layout
   - Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
   - GUI menu: File → Export Transaction List PDF (Ctrl+T)
@@ -119,10 +121,15 @@ MissionLedger/
 - Simplified architecture: Budget tab = budget planning only
 - Settlement comparison performed during PDF export (not real-time)
 
+**Current Work** (as of 2026-02-13):
+- 🔄 Settlement PDF Enhancement: Improving budget vs actual comparison layout and formatting
+  - Budget data import completed (26 items from 결산안.pdf)
+  - Next: Layout optimization, visual improvements, data presentation enhancements
+
 **Next Steps**:
 - 📋 Excel/CSV export (transaction list + budget comparison)
 - 📋 Installer with .ml file association
-- 📋 Additional PDF export improvements (horizontal alignment, custom templates)
+- 📋 Additional PDF export improvements (custom templates, formatting options)
 
 ## Coding Conventions
 
