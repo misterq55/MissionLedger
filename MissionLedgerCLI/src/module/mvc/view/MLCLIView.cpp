@@ -117,13 +117,35 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
     }
     else if (command == "export-transactions")
     {
-        if (argc < 4)
+        if (argc < 3)
         {
-            std::cerr << "오류: 입력 파일과 출력 파일 경로가 필요합니다." << std::endl;
-            std::cerr << "사용법: MissionLedgerCLI export-transactions <입력파일.ml> <출력파일.pdf>" << std::endl;
+            std::cerr << "오류: 입력 파일 경로가 필요합니다." << std::endl;
+            std::cerr << "사용법: MissionLedgerCLI export-transactions <입력파일.ml> [출력파일.pdf]" << std::endl;
             return 1;
         }
-        return cmdExportTransactions(argv[2], argv[3]);
+
+        std::string inputFile = argv[2];
+        std::string outputFile;
+
+        if (argc >= 4)
+        {
+            outputFile = argv[3];
+        }
+        else
+        {
+            // 출력 파일명 생성: 입력파일.ml -> 입력파일.pdf
+            size_t lastDot = inputFile.find_last_of('.');
+            if (lastDot != std::string::npos)
+            {
+                outputFile = inputFile.substr(0, lastDot) + ".pdf";
+            }
+            else
+            {
+                outputFile = inputFile + ".pdf";
+            }
+        }
+
+        return cmdExportTransactions(inputFile, outputFile);
     }
     else
     {
@@ -170,7 +192,7 @@ void FMLCLIView::printUsage()
     std::cout << "  new [파일]                        새 파일 생성" << std::endl;
     std::cout << "  budget <하위명령어>               예산 관리" << std::endl;
     std::cout << "  export-settlement <입력> <출력>   결산 보고서 PDF 내보내기" << std::endl;
-    std::cout << "  export-transactions <입력> <출력> 거래 내역서 PDF 내보내기" << std::endl;
+    std::cout << "  export-transactions <입력> [출력] 거래 내역서 PDF 내보내기 (출력 생략시 입력.pdf)" << std::endl;
     std::cout << "\nadd 명령어 옵션:" << std::endl;
     std::cout << "  --file <파일>           대상 파일 (필수)" << std::endl;
     std::cout << "  --type <income|expense> 거래 유형 (필수)" << std::endl;
@@ -204,6 +226,7 @@ void FMLCLIView::printUsage()
     std::cout << "  MissionLedgerCLI budget update --file data.ml --id 1 --amount 600000" << std::endl;
     std::cout << "  MissionLedgerCLI budget delete --file data.ml --id 1" << std::endl;
     std::cout << "  MissionLedgerCLI export-settlement data.ml 결산보고서.pdf" << std::endl;
+    std::cout << "  MissionLedgerCLI export-transactions data.ml            # data.pdf로 자동 생성" << std::endl;
     std::cout << "  MissionLedgerCLI export-transactions data.ml 거래내역서.pdf" << std::endl;
     std::cout << "  MissionLedgerCLI open data.ml" << std::endl;
     std::cout << "\n인수 없이 실행하면 대화형 모드로 진입합니다." << std::endl;

@@ -72,7 +72,7 @@ MissionLedger/
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-02-12):
+**Completed Features** (as of 2026-02-13):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -101,6 +101,17 @@ MissionLedger/
   - Exchange rate information display
   - GUI menu: File → Export Settlement PDF (Ctrl+E)
   - CLI command: export-settlement <input.ml> <output.pdf>
+- ✅ Transaction List PDF Export: Complete implementation
+  - Individual transaction listing with hierarchical grouping (Category → Item → Transactions)
+  - Cell merging for same Category and Item
+  - Multi-line text wrapping for Item and Description columns (UTF-8 safe)
+  - Dynamic row height calculation based on text content
+  - Mid-group page breaks for optimal space utilization
+  - Column widths: Category(50) Item(60) Description(200) Amount(95) Date(70) Receipt(50)
+  - Category-wise subtotals with formatted table layout
+  - Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
+  - GUI menu: File → Export Transaction List PDF (Ctrl+T)
+  - CLI command: export-transactions <input.ml> [output.pdf]
 
 **Design Decision**: Real-time Budget Tracking
 - ⏸️ Phase 3 (Budget-Transaction Integration) postponed
@@ -109,9 +120,9 @@ MissionLedger/
 - Settlement comparison performed during PDF export (not real-time)
 
 **Next Steps**:
-- 📋 Transaction list PDF export (거래 내역서)
 - 📋 Excel/CSV export (transaction list + budget comparison)
 - 📋 Installer with .ml file association
+- 📋 Additional PDF export improvements (horizontal alignment, custom templates)
 
 ## Coding Conventions
 
