@@ -498,6 +498,11 @@ static void drawCategoryGroup(
         // 항목 텍스트의 최소 필요 높이 확보
         double itemTextHeight = itemLines.size() * rowHeight;
         if (itemHeight < itemTextHeight) {
+            // 부족한 높이를 첫 번째 거래에 추가
+            double deficit = itemTextHeight - itemHeight;
+            if (!transactionHeights.empty()) {
+                transactionHeights[0] += deficit;
+            }
             itemHeight = itemTextHeight;
         }
 
@@ -547,8 +552,15 @@ static void drawCategoryGroup(
         ctx->S();
         ctx->Q();
 
-        // 항목 텍스트 (상단 정렬, 여러 줄 표시)
-        double itemTextY = yPos - fontSize - 8;  // 충분한 상단 여백
+        // 항목 텍스트 (세로 중앙 정렬, 여러 줄 표시)
+        // 전체 텍스트의 시각적 높이 계산
+        double totalItemVisualHeight = fontSize * itemLines.size() + 3 * (itemLines.size() - 1);
+        double cellBottom = yPos - itemHeight;
+        // 위쪽 여백 계산 (최소 여백 보장)
+        double topPadding = (itemHeight - totalItemVisualHeight) / 2;
+        if (topPadding < 2) topPadding = 2;  // 최소 여백
+        // 첫 줄의 baseline 위치
+        double itemTextY = cellBottom + itemHeight - topPadding - fontSize;
         for (const auto& line : itemLines)
         {
             ctx->BT();
@@ -579,7 +591,14 @@ static void drawCategoryGroup(
             ctx->Q();
 
             std::vector<std::string> descLines = wrapText(transaction.Description, colWidths[2] - 6, fontSize);
-            double textY = rowY + txHeight - fontSize - 8;  // 충분한 상단 여백
+            // 내용 텍스트 (세로 중앙 정렬)
+            // 전체 텍스트의 시각적 높이 계산
+            double totalDescVisualHeight = fontSize * descLines.size() + 3 * (descLines.size() - 1);
+            // 위쪽 여백 계산 (최소 여백 보장)
+            double descTopPadding = (txHeight - totalDescVisualHeight) / 2;
+            if (descTopPadding < 2) descTopPadding = 2;  // 최소 여백
+            // 첫 줄의 baseline 위치
+            double textY = rowY + txHeight - descTopPadding - fontSize;
             for (const auto& line : descLines)
             {
                 ctx->BT();
