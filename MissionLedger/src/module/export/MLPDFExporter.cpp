@@ -610,7 +610,7 @@ static void drawCategoryGroup(
                 textY -= fontSize + 3;
             }
 
-            // 금액 셀 (오른쪽 정렬)
+            // 금액 셀 (오른쪽 정렬, 환율 정보 포함)
             double amountX = contentStartX + colWidths[2];
             ctx->q();
             ctx->w(0.5);
@@ -620,11 +620,21 @@ static void drawCategoryGroup(
             ctx->Q();
 
             std::string amountStr = formatAmountHelper(transaction.Amount) + "원";
-            double estimatedWidth = amountStr.length() * fontSize * 0.45;
+            if (transaction.UseExchangeRate && transaction.Currency != "KRW") {
+                // 환율 정보 추가 (한 줄로)
+                std::ostringstream oss;
+                oss << std::fixed << std::setprecision(1);
+                oss << " (" << transaction.Currency << " "
+                    << formatAmountHelper(static_cast<int64_t>(transaction.OriginalAmount))
+                    << " @ " << transaction.ExchangeRate << ")";
+                amountStr += oss.str();
+            }
+
+            double estimatedWidth = amountStr.length() * fontSize * 0.465;
             ctx->BT();
             ctx->k(0, 0, 0, 1);
             ctx->Tf(font, fontSize);
-            ctx->Tm(1, 0, 0, 1, amountX + colWidths[3] - estimatedWidth - 5, rowY + (txHeight - fontSize) / 2 + 2);
+            ctx->Tm(1, 0, 0, 1, amountX + colWidths[3] - estimatedWidth - 6, rowY + (txHeight - fontSize) / 2 + 2);
             ctx->Tj(amountStr);
             ctx->ET();
 
@@ -720,7 +730,7 @@ bool FMLPDFExporter::ExportTransactionList(
         const double sectionSpacing = 20.0;  // 섹션 간격 증가: 12 → 20
 
         // 열 너비 정의 (구분, 항목, 내용, 금액, 년월일, 영수증번호) - 세로 방향 최적화
-        const double colWidths[6] = {50, 60, 200, 95, 70, 50};  // 구분, 항목, 내용, 금액, 년월일, 영수증번호
+        const double colWidths[6] = {50, 60, 170, 135, 60, 50};  // 구분, 항목, 내용, 금액, 년월일, 영수증번호
         double tableWidth = 0;
         for (int i = 0; i < 6; i++) {
             tableWidth += colWidths[i];
