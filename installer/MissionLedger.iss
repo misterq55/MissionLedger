@@ -58,8 +58,9 @@ Name: "desktopicon"; Description: "바탕화면 바로가기 만들기(&D)"; Gro
 [Files]
 ; 실행 파일 및 라이브러리
 Source: "..\x64\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; 배포 폰트 (PDF 내보내기용)
-Source: "..\MissionLedger\fonts\*"; DestDir: "{app}\fonts"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "README.md"
+; 배포 폰트 (PDF 내보내기용) - 폰트 파일이 있을 경우에만 포함
+; Note: Noto Sans KR 폰트를 MissionLedger\fonts\ 디렉토리에 다운로드하면 자동 포함됩니다
+; Source: "..\MissionLedger\fonts\*.ttf"; DestDir: "{app}\fonts"; Flags: ignoreversion skipifsourcedoesntexist
 ; 문서
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
