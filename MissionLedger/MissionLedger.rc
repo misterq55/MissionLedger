@@ -1,0 +1,83 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+#include "src/MLVersion.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Korean (Korea) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_KOR)
+LANGUAGE LANG_KOREAN, SUBLANG_DEFAULT
+#pragma code_page(65001) // UTF-8
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_APPICON             ICON                    "resources\\app.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION ML_VERSION_MAJOR,ML_VERSION_MINOR,ML_VERSION_PATCH,ML_VERSION_BUILD
+ PRODUCTVERSION ML_VERSION_MAJOR,ML_VERSION_MINOR,ML_VERSION_PATCH,ML_VERSION_BUILD
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041204b0"  // Korean (Korea), Unicode
+        BEGIN
+            VALUE "CompanyName", ML_COMPANY_NAME
+            VALUE "FileDescription", ML_FILE_DESCRIPTION
+            VALUE "FileVersion", ML_VERSION_FULL_STRING
+            VALUE "InternalName", ML_INTERNAL_NAME
+            VALUE "LegalCopyright", ML_COPYRIGHT
+            VALUE "OriginalFilename", ML_ORIGINAL_FILENAME
+            VALUE "ProductName", ML_PRODUCT_NAME
+            VALUE "ProductVersion", ML_VERSION_STRING
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x412, 1200  // Korean (Korea), Unicode
+    END
+END
+
+#endif    // Korean (Korea) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED

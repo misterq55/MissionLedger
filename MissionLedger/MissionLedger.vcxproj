@@ -146,8 +146,16 @@
     <ClCompile Include="src\module\mvc\view\MLMainFrame.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="src\MLVersion.h" />
     <ClInclude Include="src\module\mvc\view\MLBudgetDialog.h" />
     <ClInclude Include="src\module\mvc\view\MLMainFrame.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MissionLedger.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\app.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MissionLedgerCore\MissionLedgerCore.vcxproj">
