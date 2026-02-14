@@ -113,6 +113,217 @@ static void drawTableRow(
     ctx->ET();
 }
 
+// 3컬럼 테이블 행 그리기 (카테고리/항목, 예산, 실적)
+static void drawTableRow3Col(
+    PageContentContext* ctx,
+    double x, double y,
+    double width, double height,
+    const std::string& col1, const std::string& col2, const std::string& col3,
+    PDFUsedFont* font, double fontSize,
+    bool isHeader)
+{
+    const double col1Width = width * 0.5;  // 카테고리/항목: 50%
+    const double col2Width = width * 0.25; // 예산: 25%
+    const double col3Width = width * 0.25; // 실적: 25%
+    const double padding = 5.0;
+
+    // 헤더 배경 (회색)
+    if (isHeader)
+    {
+        ctx->q();
+        ctx->k(0, 0, 0, 0.1);
+        ctx->re(x, y, width, height);
+        ctx->f();
+        ctx->Q();
+    }
+
+    // 테두리
+    ctx->q();
+    ctx->w(0.5);
+    ctx->k(0, 0, 0, 1);
+    ctx->re(x, y, width, height);
+    ctx->S();
+
+    // 세로 구분선 2개
+    ctx->m(x + col1Width, y);
+    ctx->l(x + col1Width, y + height);
+    ctx->S();
+
+    ctx->m(x + col1Width + col2Width, y);
+    ctx->l(x + col1Width + col2Width, y + height);
+    ctx->S();
+    ctx->Q();
+
+    // 텍스트 출력
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+
+    // 첫 번째 열 (왼쪽 정렬)
+    ctx->Tm(1, 0, 0, 1, x + padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col1);
+    ctx->ET();
+
+    // 두 번째 열 (오른쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    double estimatedWidth2 = col2.length() * fontSize * 0.4;
+    ctx->Tm(1, 0, 0, 1, x + col1Width + col2Width - estimatedWidth2 - padding - 5, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col2);
+    ctx->ET();
+
+    // 세 번째 열 (오른쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    double estimatedWidth3 = col3.length() * fontSize * 0.4;
+    ctx->Tm(1, 0, 0, 1, x + width - estimatedWidth3 - padding - 5, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col3);
+    ctx->ET();
+}
+
+// 4컬럼 테이블 헤더 그리기 (카테고리, 항목, 예산, 실적)
+static void drawTableRow4ColHeader(
+    PageContentContext* ctx,
+    double x, double y,
+    double width, double height,
+    const std::string& col1, const std::string& col2, const std::string& col3, const std::string& col4,
+    PDFUsedFont* font, double fontSize)
+{
+    const double col1Width = width * 0.2;  // 카테고리: 20%
+    const double col2Width = width * 0.3;  // 항목: 30%
+    const double col3Width = width * 0.25; // 예산: 25%
+    const double col4Width = width * 0.25; // 실적: 25%
+    const double padding = 5.0;
+
+    // 헤더 배경 (회색)
+    ctx->q();
+    ctx->k(0, 0, 0, 0.1);
+    ctx->re(x, y, width, height);
+    ctx->f();
+    ctx->Q();
+
+    // 테두리
+    ctx->q();
+    ctx->w(0.5);
+    ctx->k(0, 0, 0, 1);
+    ctx->re(x, y, width, height);
+    ctx->S();
+
+    // 세로 구분선 3개
+    ctx->m(x + col1Width, y);
+    ctx->l(x + col1Width, y + height);
+    ctx->S();
+
+    ctx->m(x + col1Width + col2Width, y);
+    ctx->l(x + col1Width + col2Width, y + height);
+    ctx->S();
+
+    ctx->m(x + col1Width + col2Width + col3Width, y);
+    ctx->l(x + col1Width + col2Width + col3Width, y + height);
+    ctx->S();
+    ctx->Q();
+
+    // 텍스트 출력
+    // 카테고리
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    ctx->Tm(1, 0, 0, 1, x + padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col1);
+    ctx->ET();
+
+    // 항목
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    ctx->Tm(1, 0, 0, 1, x + col1Width + padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col2);
+    ctx->ET();
+
+    // 예산 (오른쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    double estimatedWidth3 = col3.length() * fontSize * 0.4;
+    ctx->Tm(1, 0, 0, 1, x + col1Width + col2Width + col3Width - estimatedWidth3 - padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col3);
+    ctx->ET();
+
+    // 실적 (오른쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    double estimatedWidth4 = col4.length() * fontSize * 0.4;
+    ctx->Tm(1, 0, 0, 1, x + width - estimatedWidth4 - padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col4);
+    ctx->ET();
+}
+
+// 4컬럼 테이블 항목 행 그리기 (항목, 예산, 실적만 - 카테고리는 나중에 병합)
+static void drawTableRow4ColItem(
+    PageContentContext* ctx,
+    double x, double y,
+    double width, double height,
+    const std::string& col2, const std::string& col3, const std::string& col4,
+    PDFUsedFont* font, double fontSize)
+{
+    const double col1Width = width * 0.2;  // 카테고리: 20%
+    const double col2Width = width * 0.3;  // 항목: 30%
+    const double col3Width = width * 0.25; // 예산: 25%
+    const double col4Width = width * 0.25; // 실적: 25%
+    const double padding = 5.0;
+
+    double itemX = x + col1Width;
+
+    // 테두리 (항목, 예산, 실적 셀만)
+    ctx->q();
+    ctx->w(0.5);
+    ctx->k(0, 0, 0, 1);
+
+    // 항목 셀
+    ctx->re(itemX, y, col2Width, height);
+    ctx->S();
+
+    // 예산 셀
+    ctx->re(itemX + col2Width, y, col3Width, height);
+    ctx->S();
+
+    // 실적 셀
+    ctx->re(itemX + col2Width + col3Width, y, col4Width, height);
+    ctx->S();
+
+    ctx->Q();
+
+    // 텍스트 출력
+    // 항목 (왼쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    ctx->Tm(1, 0, 0, 1, itemX + padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col2);
+    ctx->ET();
+
+    // 예산 (오른쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    double estimatedWidth3 = col3.length() * fontSize * 0.4;
+    ctx->Tm(1, 0, 0, 1, itemX + col2Width + col3Width - estimatedWidth3 - padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col3);
+    ctx->ET();
+
+    // 실적 (오른쪽 정렬)
+    ctx->BT();
+    ctx->k(0, 0, 0, 1);
+    ctx->Tf(font, fontSize);
+    double estimatedWidth4 = col4.length() * fontSize * 0.4;
+    ctx->Tm(1, 0, 0, 1, x + width - estimatedWidth4 - padding, y + (height - fontSize) / 2 + 2);
+    ctx->Tj(col4);
+    ctx->ET();
+}
+
 // 결산 보고서 PDF 생성
 bool FMLPDFExporter::ExportSettlement(
     const FMLSettlmentData& data,
@@ -142,173 +353,253 @@ bool FMLPDFExporter::ExportSettlement(
         const double rowHeight = 20.0;
         const double headerHeight = 25.0;
         const double sectionSpacing = 15.0;
+        const double pageWidth = 595.0;
+        const double bottomMargin = 80.0; // 하단 여백
 
-        // === 제목 ===
+        // 페이지 넘김 체크 람다 함수
+        auto checkAndCreateNewPage = [&]() {
+            if (yPos < bottomMargin) {
+                pdfWriter.EndPageContentContext(contentContext);
+                pdfWriter.WritePageAndRelease(page);
+
+                page = new PDFPage();
+                page->SetMediaBox(PDFRectangle(0, 0, 595, 842));
+                contentContext = pdfWriter.StartPageContentContext(page);
+                yPos = 800.0;
+            }
+        };
+
+        // === 제목 (중앙 정렬 + 자동 크기 조절) ===
+        double titleFontSize = 20.0;
+
+        // UTF-8 문자 개수 계산 (한글=3바이트, 영문=1바이트)
+        size_t charCount = 0;
+        for (size_t i = 0; i < data.Title.length(); )
+        {
+            unsigned char c = static_cast<unsigned char>(data.Title[i]);
+            if (c < 0x80) { i += 1; charCount++; }       // ASCII (1바이트)
+            else if (c < 0xE0) { i += 2; charCount++; }  // 2바이트 문자
+            else if (c < 0xF0) { i += 3; charCount++; }  // 3바이트 문자 (한글 등)
+            else { i += 4; charCount++; }                // 4바이트 문자
+        }
+
+        // 제목 너비 추정 (한글 기준 fontSize * 0.7 정도)
+        double titleWidth = charCount * titleFontSize * 0.7;
+        const double maxTitleWidth = pageWidth - 100.0;  // 좌우 여백 50씩
+
+        // 제목이 너무 길면 폰트 크기 축소
+        if (titleWidth > maxTitleWidth)
+        {
+            titleFontSize = titleFontSize * maxTitleWidth / titleWidth;
+            titleWidth = charCount * titleFontSize * 0.7;
+        }
+
+        // 중앙 정렬 위치 계산
+        const double titleX = (pageWidth - titleWidth) / 2.0;
+
         contentContext->BT();
         contentContext->k(0, 0, 0, 1); // Black
-        contentContext->Tf(fontBold, 24);
-        contentContext->Tm(1, 0, 0, 1, 220, yPos);
-        contentContext->Tj("결산 보고서");
+        contentContext->Tf(fontBold, titleFontSize);
+        contentContext->Tm(1, 0, 0, 1, titleX, yPos);
+        contentContext->Tj(data.Title);
         contentContext->ET();
 
         yPos -= 40.0;
 
-        // === 예산 섹션 ===
-        contentContext->BT();
-        contentContext->Tf(fontBold, 16);
-        contentContext->Tm(1, 0, 0, 1, leftMargin, yPos);
-        contentContext->Tj("예산");
-        contentContext->ET();
-        yPos -= 25.0;
-
-        // 헤더 행
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
-                     "카테고리", "금액", fontBold, 11, true);
-        yPos -= headerHeight;
-
-        // 수입 소제목
+        // === 1. 요약 - 총 수입 / 총 지출 (예산) ===
+        checkAndCreateNewPage();
         drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                     "[수입]", "", fontBold, 10, false);
+                     "총 수입 (예산)", formatAmount(data.TotalIncome) + "원", fontBold, 10, false);
         yPos -= rowHeight;
 
-        // 예산 수입 데이터
-        for (const auto& category : data.BudgetIncomeCategories)
-        {
-            std::string amountStr = formatAmount(category.second) + "원";
-            drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                         "  " + category.first, amountStr, fontRegular, 10, false);
-            yPos -= rowHeight;
-        }
-
-        // 지출 소제목
+        checkAndCreateNewPage();
         drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                     "[지출]", "", fontBold, 10, false);
+                     "총 지출 (예산)", formatAmount(data.TotalExpense) + "원", fontBold, 10, false);
+        yPos -= rowHeight + sectionSpacing;
+
+        // === 1. 요약 - 총 실수입 / 총 실지출 / 잔액 (실적) ===
+        checkAndCreateNewPage();
+        drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
+                     "총 실수입", formatAmount(data.TotalActualIncome) + "원", fontBold, 10, false);
         yPos -= rowHeight;
 
-        // 예산 지출 데이터
-        for (const auto& category : data.BudgetExpenseCategories)
-        {
-            std::string amountStr = formatAmount(category.second) + "원";
-            drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                         "  " + category.first, amountStr, fontRegular, 10, false);
-            yPos -= rowHeight;
-        }
-
-        // 예산 합계 행
-        std::string budgetTotalIncome = formatAmount(data.TotalIncome) + "원";
-        std::string budgetTotalExpense = formatAmount(data.TotalExpense) + "원";
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
-                     "합계 (수입 / 지출)", budgetTotalIncome + " / " + budgetTotalExpense,
-                     fontBold, 11, true);
-        yPos -= headerHeight + sectionSpacing;
-
-        // === 실적 섹션 ===
-        contentContext->BT();
-        contentContext->Tf(fontBold, 16);
-        contentContext->Tm(1, 0, 0, 1, leftMargin, yPos);
-        contentContext->Tj("실적");
-        contentContext->ET();
-        yPos -= 25.0;
-
-        // 헤더 행
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
-                     "카테고리", "금액", fontBold, 11, true);
-        yPos -= headerHeight;
-
-        // 수입 소제목
+        checkAndCreateNewPage();
         drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                     "[수입]", "", fontBold, 10, false);
+                     "총 실지출", formatAmount(data.TotalActualExpense) + "원", fontBold, 10, false);
         yPos -= rowHeight;
 
-        // 실적 수입 데이터
-        for (const auto& category : data.ActualIncomeCategories)
-        {
-            std::string amountStr = formatAmount(category.second) + "원";
-            drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                         "  " + category.first, amountStr, fontRegular, 10, false);
-            yPos -= rowHeight;
-        }
-
-        // 지출 소제목
+        checkAndCreateNewPage();
         drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                     "[지출]", "", fontBold, 10, false);
-        yPos -= rowHeight;
+                     "잔액", formatAmount(data.TotalBalance) + "원", fontBold, 10, false);
+        yPos -= rowHeight + sectionSpacing;
 
-        // 실적 지출 데이터
-        for (const auto& category : data.ActualExpenseCategories)
-        {
-            std::string amountStr = formatAmount(category.second) + "원";
-            drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                         "  " + category.first, amountStr, fontRegular, 10, false);
-            yPos -= rowHeight;
-        }
-
-        // 실적 합계 행
-        std::string actualTotalIncome = formatAmount(data.TotalActualIncome) + "원";
-        std::string actualTotalExpense = formatAmount(data.TotalActualExpense) + "원";
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
-                     "합계 (수입 / 지출)", actualTotalIncome + " / " + actualTotalExpense,
-                     fontBold, 11, true);
-        yPos -= headerHeight + sectionSpacing;
-
-        // === 비교 섹션 ===
-        contentContext->BT();
-        contentContext->Tf(fontBold, 16);
-        contentContext->Tm(1, 0, 0, 1, leftMargin, yPos);
-        contentContext->Tj("예산 대비 실적");
-        contentContext->ET();
-        yPos -= 25.0;
-
-        // 헤더 행
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
-                     "항목", "차이", fontBold, 11, true);
-        yPos -= headerHeight;
-
-        int64_t incomeDiff = data.TotalActualIncome - data.TotalIncome;
-        int64_t expenseDiff = data.TotalActualExpense - data.TotalExpense;
-
-        // 수입 차이
-        std::string incomeDiffStr = formatAmount(incomeDiff) + "원";
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                     "수입 차이", incomeDiffStr, fontRegular, 10, false);
-        yPos -= rowHeight;
-
-        // 지출 차이
-        std::string expenseDiffStr = formatAmount(expenseDiff) + "원";
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
-                     "지출 차이", expenseDiffStr, fontRegular, 10, false);
-        yPos -= rowHeight;
-
-        // 잔액
-        std::string balanceStr = formatAmount(data.TotalBalance) + "원";
-        drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
-                     "잔액", balanceStr, fontBold, 11, true);
-        yPos -= headerHeight + sectionSpacing;
-
-        // === 환율 정보 ===
+        // === 2. 환율 정보 ===
         if (!data.ExchangeRates.empty())
         {
+            checkAndCreateNewPage();
             contentContext->BT();
-            contentContext->Tf(fontBold, 16);
+            contentContext->Tf(fontBold, 14);
             contentContext->Tm(1, 0, 0, 1, leftMargin, yPos);
             contentContext->Tj("환율 정보");
             contentContext->ET();
-            yPos -= 25.0;
+            yPos -= 30.0;
 
             // 헤더 행
+            checkAndCreateNewPage();
             drawTableRow(contentContext, leftMargin, yPos, tableWidth, headerHeight,
                          "통화", "평균 환율", fontBold, 11, true);
             yPos -= headerHeight;
 
             for (const auto& rate : data.ExchangeRates)
             {
+                checkAndCreateNewPage();
                 std::stringstream ss;
                 ss << std::fixed << std::setprecision(2) << rate.second << "원";
                 drawTableRow(contentContext, leftMargin, yPos, tableWidth, rowHeight,
                              rate.first, ss.str(), fontRegular, 10, false);
                 yPos -= rowHeight;
             }
+
+            yPos -= sectionSpacing;
         }
+
+        // === 3. 수입 비교 (예산 vs 실적) ===
+        checkAndCreateNewPage();
+        contentContext->BT();
+        contentContext->Tf(fontBold, 14);
+        contentContext->Tm(1, 0, 0, 1, leftMargin, yPos);
+        contentContext->Tj("수입 비교");
+        contentContext->ET();
+        yPos -= 30.0;
+
+        // 헤더 행 (3열: 카테고리, 예산, 실적)
+        checkAndCreateNewPage();
+        drawTableRow3Col(contentContext, leftMargin, yPos, tableWidth, headerHeight,
+                        "카테고리", "예산", "실적", fontBold, 11, true);
+        yPos -= headerHeight;
+
+        // 수입 데이터 - 모든 카테고리 수집 (예산 + 실적)
+        std::set<std::string> incomeCategories;
+        for (const auto& cat : data.BudgetIncomeCategories) {
+            incomeCategories.insert(cat.first);
+        }
+        for (const auto& cat : data.ActualIncomeCategories) {
+            incomeCategories.insert(cat.first);
+        }
+
+        // 카테고리별 데이터 출력
+        for (const auto& category : incomeCategories)
+        {
+            checkAndCreateNewPage();
+            int64_t budgetAmount = 0;
+            int64_t actualAmount = 0;
+
+            auto budgetIt = data.BudgetIncomeCategories.find(category);
+            if (budgetIt != data.BudgetIncomeCategories.end()) {
+                budgetAmount = budgetIt->second;
+            }
+
+            auto actualIt = data.ActualIncomeCategories.find(category);
+            if (actualIt != data.ActualIncomeCategories.end()) {
+                actualAmount = actualIt->second;
+            }
+
+            drawTableRow3Col(contentContext, leftMargin, yPos, tableWidth, rowHeight,
+                           category,
+                           formatAmount(budgetAmount) + "원",
+                           formatAmount(actualAmount) + "원",
+                           fontRegular, 10, false);
+            yPos -= rowHeight;
+        }
+
+        // 합계 행
+        checkAndCreateNewPage();
+        drawTableRow3Col(contentContext, leftMargin, yPos, tableWidth, headerHeight,
+                        "합계",
+                        formatAmount(data.TotalIncome) + "원",
+                        formatAmount(data.TotalActualIncome) + "원",
+                        fontBold, 9, true);
+        yPos -= headerHeight + sectionSpacing;
+
+        // === 4. 지출 비교 (예산 vs 실적) ===
+        checkAndCreateNewPage();
+        contentContext->BT();
+        contentContext->Tf(fontBold, 14);
+        contentContext->Tm(1, 0, 0, 1, leftMargin, yPos);
+        contentContext->Tj("지출 비교");
+        contentContext->ET();
+        yPos -= 30.0;
+
+        // 헤더 행 (3열: 카테고리, 예산, 실적)
+        checkAndCreateNewPage();
+        drawTableRow3Col(contentContext, leftMargin, yPos, tableWidth, headerHeight,
+                        "카테고리", "예산", "실적", fontBold, 11, true);
+        yPos -= headerHeight;
+
+        // 지출 데이터 - 카테고리별 합계 계산
+        std::map<std::string, int64_t> budgetExpenseCategories;
+        std::map<std::string, int64_t> actualExpenseCategories;
+
+        // 예산 지출 카테고리별 합계
+        for (const auto& category : data.BudgetExpenseItems) {
+            int64_t categoryTotal = 0;
+            for (const auto& item : category.second) {
+                categoryTotal += item.second;
+            }
+            budgetExpenseCategories[category.first] = categoryTotal;
+        }
+
+        // 실적 지출 카테고리별 합계
+        for (const auto& category : data.ActualExpenseItems) {
+            int64_t categoryTotal = 0;
+            for (const auto& item : category.second) {
+                categoryTotal += item.second;
+            }
+            actualExpenseCategories[category.first] = categoryTotal;
+        }
+
+        // 모든 카테고리 수집
+        std::set<std::string> allExpenseCategories;
+        for (const auto& cat : budgetExpenseCategories) {
+            allExpenseCategories.insert(cat.first);
+        }
+        for (const auto& cat : actualExpenseCategories) {
+            allExpenseCategories.insert(cat.first);
+        }
+
+        // 카테고리별 데이터 출력
+        for (const auto& category : allExpenseCategories)
+        {
+            checkAndCreateNewPage();
+            int64_t budgetAmount = 0;
+            int64_t actualAmount = 0;
+
+            auto budgetIt = budgetExpenseCategories.find(category);
+            if (budgetIt != budgetExpenseCategories.end()) {
+                budgetAmount = budgetIt->second;
+            }
+
+            auto actualIt = actualExpenseCategories.find(category);
+            if (actualIt != actualExpenseCategories.end()) {
+                actualAmount = actualIt->second;
+            }
+
+            drawTableRow3Col(contentContext, leftMargin, yPos, tableWidth, rowHeight,
+                           category,
+                           formatAmount(budgetAmount) + "원",
+                           formatAmount(actualAmount) + "원",
+                           fontRegular, 10, false);
+            yPos -= rowHeight;
+        }
+
+        // 합계 행
+        checkAndCreateNewPage();
+        drawTableRow3Col(contentContext, leftMargin, yPos, tableWidth, headerHeight,
+                        "합계",
+                        formatAmount(data.TotalExpense) + "원",
+                        formatAmount(data.TotalActualExpense) + "원",
+                        fontBold, 9, true);
+        yPos -= headerHeight;
 
         pdfWriter.EndPageContentContext(contentContext);
         pdfWriter.WritePageAndRelease(page);

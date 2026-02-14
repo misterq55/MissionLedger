@@ -130,7 +130,7 @@ The project follows a phased approach for implementation, prioritizing core func
     - ActualAmount calculation deferred to settlement report generation (Phase 4)
     - `Transaction.BudgetId` and `ActualAmount` fields reserved for future implementation if needed
 
-### Phase 4: Settlement Report & Data Export ⏳ IN PROGRESS
+### Phase 4: Settlement Report & Data Export ✅ MOSTLY COMPLETED
 
 14. **Transaction Summary Display** ✅ COMPLETED (2026-01-30)
     - ✅ List footer panel with summary totals
@@ -142,16 +142,15 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Observer integration (all data change events trigger summary update)
     - ✅ Helper methods (createSummaryPanel, updateSummaryPanel, displaySummary, formatAmountWithComma, buildCurrentFilterCriteria)
 
-15. **Settlement Aggregation Logic** 🎯 NEXT
-    - 🎯 Data structure design (`FMLCategorySettlement`, `FMLSettlementReport`)
-    - 🎯 Category-based transaction aggregation
-    - 🎯 Budget vs Actual comparison calculation
-    - 🎯 Variance and ratio computation
-    - 🎯 Date range and period summary
-    - 🎯 Model layer implementation
-    - 🎯 Controller delegation
+15. **Settlement Aggregation Logic** ✅ COMPLETED (2026-02-14)
+    - ✅ Data structure design (`FMLSettlmentData` with hierarchical budget/actual)
+    - ✅ Category-based transaction aggregation
+    - ✅ Budget vs Actual comparison calculation
+    - ✅ Exchange rate tracking and display
+    - ✅ Model layer implementation (ExportSettlementToPDF)
+    - ✅ Controller delegation
 
-16. **Excel/CSV Export** ⏳ PENDING
+16. **Excel/CSV Export** 🎯 NEXT
     - ⏳ CSV export with UTF-8 BOM (Korean support)
     - ⏳ Transaction list export
     - ⏳ Budget comparison table export
@@ -159,17 +158,19 @@ The project follows a phased approach for implementation, prioritizing core func
     - ⏳ File menu integration
     - ⏳ Column headers and formatting
 
-17. **PDF Export** ✅ COMPLETED (2026-02-13)
+17. **PDF Export** ✅ COMPLETED (2026-02-14)
 
-    **Settlement PDF Export** ✅ COMPLETED (2026-02-11)
+    **Settlement PDF Export** ✅ COMPLETED (2026-02-14)
     - ✅ Library: PDF-Writer (static library integration)
     - ✅ Korean font support (Malgun Gothic TTF embedding)
-    - ✅ Settlement report layout (budget vs actual comparison)
-    - ✅ Category-based income/expense aggregation
-    - ✅ Exchange rate information display
+    - ✅ **5-section layout**: Summary (budget + actual totals/balance), Exchange rates, Income comparison, Expense comparison
+    - ✅ Category-level aggregation (income/expense totals only, no item breakdown for clean presentation)
+    - ✅ Side-by-side budget vs actual comparison (3-column tables: Category, Budget, Actual)
+    - ✅ Auto-generated title and filename from .ml file
+    - ✅ Optimized spacing (30pt subtitle gaps) and alignment (10pt right margin for amounts)
+    - ✅ Exchange rate information display with average rates
     - ✅ GUI menu: File → Export Settlement PDF (Ctrl+E)
     - ✅ CLI command: export-settlement <input.ml> <output.pdf>
-    - ✅ Reference layout: 결산안.pdf
 
     **Transaction List PDF Export** ✅ COMPLETED (2026-02-13)
     - ✅ Individual transaction listing with hierarchical grouping (Category → Item → Transactions)
@@ -184,10 +185,6 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
     - ✅ GUI menu: File → Export Transaction List PDF (Ctrl+T)
     - ✅ CLI command: export-transactions <input.ml> [output.pdf]
-
-    **Current Enhancement** 🔄 IN PROGRESS
-    - 🔄 Settlement PDF Enhancement: Improving layout, visual design, and data presentation
-    - ✅ Budget data import completed (26 items from 결산안.pdf)
 
 18. **.ml File Registration** ⏳ PENDING
     - ⏳ Installer creation (Inno Setup / NSIS)

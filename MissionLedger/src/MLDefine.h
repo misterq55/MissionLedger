@@ -83,17 +83,28 @@ struct FMLBudgetSummary {
 
 // 결산안 데이터
 struct FMLSettlmentData {
-    // 예산 데이터
+    // 제목
+    std::string Title = "결산 보고서";
+
+    // 예산 데이터 - 카테고리별 합계 (하위 호환용)
     std::map<std::string, int64_t> BudgetIncomeCategories;
     std::map<std::string, int64_t> BudgetExpenseCategories;
     int64_t TotalIncome = 0;
     int64_t TotalExpense = 0;
 
-    // 실적 데이터
+    // 예산 데이터 - 중분류 (카테고리 → 항목 → 금액)
+    std::map<std::string, std::map<std::string, int64_t>> BudgetIncomeItems;
+    std::map<std::string, std::map<std::string, int64_t>> BudgetExpenseItems;
+
+    // 실적 데이터 - 카테고리별 합계 (하위 호환용)
     std::map<std::string, int64_t> ActualIncomeCategories;
     std::map<std::string, int64_t> ActualExpenseCategories;
     int64_t TotalActualIncome = 0;
     int64_t TotalActualExpense = 0;
+
+    // 실적 데이터 - 중분류 (카테고리 → 항목 → 금액)
+    std::map<std::string, std::map<std::string, int64_t>> ActualIncomeItems;
+    std::map<std::string, std::map<std::string, int64_t>> ActualExpenseItems;
 
     // 기타
     int64_t TotalBalance = 0;

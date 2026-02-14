@@ -684,35 +684,43 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
 
 void wxMLMainFrame::OnExportSettlementPDF(wxCommandEvent& event)
 {
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
+
+    // 현재 .ml 파일 경로에서 기본 파일명 생성
+    wxString defaultFilename = wxString::FromUTF8("결산보고서.pdf");
+    std::string currentFilePath = controller->GetCurrentFilePath();
+    if (!currentFilePath.empty())
+    {
+        wxFileName fn(wxString::FromUTF8(currentFilePath));
+        defaultFilename = fn.GetName() + ".pdf";  // 확장자를 제거하고 .pdf 추가
+    }
+
     wxFileDialog saveDialog(this,
         wxString::FromUTF8("결산 보고서 내보내기"),
         wxEmptyString,
-        wxString::FromUTF8("결산보고서.pdf"),
+        defaultFilename,
         wxString::FromUTF8("PDF 파일 (*.pdf)|*.pdf"),
         wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 
     if (saveDialog.ShowModal() == wxID_CANCEL) return;
 
-    auto controller = FMLMVCHolder::GetInstance().GetController();
-    if (controller)
+    wxString filePath = saveDialog.GetPath();
+    // .pdf 확장자 확인
+    if (!filePath.EndsWith(".pdf"))
     {
-        wxString filePath = saveDialog.GetPath();
-        // .pdf 확장자 확인
-        if (!filePath.EndsWith(".pdf"))
-        {
-            filePath += ".pdf";
-        }
+        filePath += ".pdf";
+    }
 
-        if (controller->ExportSettlementToPDF(filePath.ToUTF8().data()))
-        {
-            wxMessageBox(wxString::FromUTF8("결산 보고서가 성공적으로 생성되었습니다."),
-                wxString::FromUTF8("완료"), wxOK | wxICON_INFORMATION);
-        }
-        else
-        {
-            wxMessageBox(wxString::FromUTF8("결산 보고서 생성에 실패했습니다."),
-                wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
-        }
+    if (controller->ExportSettlementToPDF(filePath.ToUTF8().data()))
+    {
+        wxMessageBox(wxString::FromUTF8("결산 보고서가 성공적으로 생성되었습니다."),
+            wxString::FromUTF8("완료"), wxOK | wxICON_INFORMATION);
+    }
+    else
+    {
+        wxMessageBox(wxString::FromUTF8("결산 보고서 생성에 실패했습니다."),
+            wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
     }
 }
 

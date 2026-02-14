@@ -99,7 +99,7 @@ After this, you can build the entire solution normally with MSBuild.
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-02-13):
+**Completed Features** (as of 2026-02-14):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -119,13 +119,15 @@ After this, you can build the entire solution normally with MSBuild.
   - Complete save/load/delete functionality
   - CLI support (budget list/add/update/delete)
   - Transaction.BudgetId and ActualAmount fields reserved for future use
-- ✅ Settlement PDF Export: Complete implementation
-  - FMLSettlmentData structure with separate budget/actual categories
+- ✅ Settlement PDF Export: Complete implementation with optimized layout
+  - FMLSettlmentData structure with hierarchical budget/actual data (Category → Item)
   - PDF-Writer library integration (static library pattern)
   - Korean font support (Malgun Gothic TTF embedding)
-  - Full settlement report layout (budget vs actual comparison)
-  - Category-based income/expense aggregation
-  - Exchange rate information display
+  - **5-section layout**: Summary (budget totals + actual totals/balance), Exchange rates, Income comparison, Expense comparison
+  - Category-level aggregation (income/expense totals only, no item breakdown)
+  - Side-by-side budget vs actual comparison (3-column tables: Category, Budget, Actual)
+  - Auto-generated title and filename from .ml file (e.g., "2024 필리핀 단기 선교.ml" → PDF title and default filename)
+  - Optimized spacing (30pt subtitle gaps) and alignment (10pt right margin for amounts)
   - GUI menu: File → Export Settlement PDF (Ctrl+E)
   - CLI command: export-settlement <input.ml> <output.pdf>
 - ✅ Transaction List PDF Export: Complete implementation with enhancements
@@ -148,15 +150,10 @@ After this, you can build the entire solution normally with MSBuild.
 - Simplified architecture: Budget tab = budget planning only
 - Settlement comparison performed during PDF export (not real-time)
 
-**Current Work** (as of 2026-02-13):
-- 🔄 Settlement PDF Enhancement: Improving budget vs actual comparison layout and formatting
-  - Budget data import completed (26 items from 결산안.pdf)
-  - Next: Layout optimization, visual improvements, data presentation enhancements
-
 **Next Steps**:
-- 📋 Excel/CSV export (transaction list + budget comparison)
+- 📋 Excel/CSV export (transaction list + settlement report)
 - 📋 Installer with .ml file association
-- 📋 Additional PDF export improvements (custom templates, formatting options)
+- 📋 Additional features (multi-currency support, custom report templates, etc.)
 
 ## Coding Conventions
 

@@ -168,6 +168,25 @@ bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
     // 결산안 데이터
     FMLSettlmentData settlmentData;
 
+    // 현재 파일 경로에서 제목 추출
+    if (!CurrentFilePath.empty())
+    {
+        size_t lastSlash = CurrentFilePath.find_last_of("/\\");
+        std::string filename = (lastSlash != std::string::npos)
+            ? CurrentFilePath.substr(lastSlash + 1)
+            : CurrentFilePath;
+
+        size_t lastDot = filename.find_last_of(".");
+        if (lastDot != std::string::npos)
+        {
+            settlmentData.Title = filename.substr(0, lastDot);
+        }
+        else
+        {
+            settlmentData.Title = filename;
+        }
+    }
+
     // 예산 데이터 집계
     for (const auto& budget : Budgets)
     {
@@ -176,11 +195,15 @@ bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
         {
             settlmentData.TotalIncome += budgetData.BudgetAmount;
             settlmentData.BudgetIncomeCategories[budgetData.Category] += budgetData.BudgetAmount;
+            // 중분류 집계 (카테고리 → 항목)
+            settlmentData.BudgetIncomeItems[budgetData.Category][budgetData.Item] += budgetData.BudgetAmount;
         }
         else if (budgetData.Type == E_MLTransactionType::Expense)
         {
             settlmentData.TotalExpense += budgetData.BudgetAmount;
             settlmentData.BudgetExpenseCategories[budgetData.Category] += budgetData.BudgetAmount;
+            // 중분류 집계 (카테고리 → 항목)
+            settlmentData.BudgetExpenseItems[budgetData.Category][budgetData.Item] += budgetData.BudgetAmount;
         }
     }
 
@@ -192,11 +215,15 @@ bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
         {
             settlmentData.TotalActualIncome += transactionData.Amount;
             settlmentData.ActualIncomeCategories[transactionData.Category] += transactionData.Amount;
+            // 중분류 집계 (카테고리 → 항목)
+            settlmentData.ActualIncomeItems[transactionData.Category][transactionData.Item] += transactionData.Amount;
         }
         else if (transactionData.Type == E_MLTransactionType::Expense)
         {
             settlmentData.TotalActualExpense += transactionData.Amount;
             settlmentData.ActualExpenseCategories[transactionData.Category] += transactionData.Amount;
+            // 중분류 집계 (카테고리 → 항목)
+            settlmentData.ActualExpenseItems[transactionData.Category][transactionData.Item] += transactionData.Amount;
         }
     }
 
