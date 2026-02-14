@@ -49,26 +49,53 @@ MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBu
 
 - **wxWidgets 3.2.8**: GUI framework at `C:\wxWidgets-3.2.8` (WXWIN environment variable required)
 - **Visual Studio 2022**: Windows 10 SDK, v143 toolset
-- **SQLite**: Embedded via amalgamation (src/module/third_party/sqlite/)
+- **SQLite**: Embedded via amalgamation (third_party/sqlite/)
+- **PDF-Writer**: PDF generation library (third_party/pdfwriter/)
 - **Platform**: Windows x64
 
 ### Code Structure
 
 ```
-MissionLedger/
-├── main.cpp                     # Application entry point
-└── src/
-    ├── MLDefine.h              # Core enums and data structures
-    ├── interface/              # Abstract interfaces (IMLModel, IMLView, IMLController, etc.)
-    └── module/
-        ├── common/holder/      # FMLMVCHolder singleton
-        ├── storage/            # FMLSQLiteStorage implementation
-        ├── third_party/sqlite/ # SQLite amalgamation
-        └── mvc/
-            ├── model/          # FMLModel, FMLTransaction
-            ├── controller/     # FMLController
-            └── view/           # wxMLMainFrame (MLMainFrame.h/cpp)
+MissionLedger/                   # Solution root
+├── third_party/                 # Third-party libraries (shared)
+│   ├── sqlite/                  # SQLite amalgamation
+│   └── pdfwriter/               # PDF-Writer library (CMake-based)
+├── MissionLedger/               # Main GUI application
+│   ├── main.cpp                 # Application entry point
+│   └── src/
+│       ├── MLDefine.h          # Core enums and data structures
+│       ├── interface/          # Abstract interfaces
+│       └── module/
+│           ├── common/holder/  # FMLMVCHolder singleton
+│           ├── storage/        # FMLSQLiteStorage implementation
+│           ├── export/         # PDF export functionality
+│           └── mvc/
+│               ├── model/      # FMLModel, FMLTransaction
+│               ├── controller/ # FMLController
+│               └── view/       # wxMLMainFrame
+├── MissionLedgerCore/          # Core business logic library
+└── MissionLedgerCLI/           # Command-line interface
 ```
+
+### First-Time Setup (Other Computers)
+
+When cloning this repository on a new computer, you must generate PDF-Writer build files using CMake:
+
+```bash
+# Navigate to PDF-Writer directory
+cd third_party/pdfwriter
+mkdir -p build
+cd build
+
+# Generate Visual Studio project files
+cmake .. -G "Visual Studio 17 2022" -A x64
+
+# Build Debug and Release libraries
+cmake --build . --config Debug
+cmake --build . --config Release
+```
+
+After this, you can build the entire solution normally with MSBuild.
 
 ## Current Implementation Status
 

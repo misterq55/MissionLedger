@@ -9,19 +9,19 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MissionLedger", "MissionLed
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MissionLedgerCLI", "MissionLedgerCLI\MissionLedgerCLI.vcxproj", "{A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PDFWriter", "MissionLedger\src\third_party\pdfwriter\build\PDFWriter\PDFWriter.vcxproj", "{080EA624-9C4C-3E52-A5FD-1EF961A2F994}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PDFWriter", "third_party\pdfwriter\build\PDFWriter\PDFWriter.vcxproj", "{080EA624-9C4C-3E52-A5FD-1EF961A2F994}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Zlib", "MissionLedger\src\third_party\pdfwriter\build\Zlib\Zlib.vcxproj", "{B5D542EE-DC58-3891-9EF2-C76B8D2FFC72}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Zlib", "third_party\pdfwriter\build\Zlib\Zlib.vcxproj", "{B5D542EE-DC58-3891-9EF2-C76B8D2FFC72}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FreeType", "MissionLedger\src\third_party\pdfwriter\build\FreeType\FreeType.vcxproj", "{2A0E2253-96D3-3F27-91D3-DD39433FB074}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FreeType", "third_party\pdfwriter\build\FreeType\FreeType.vcxproj", "{2A0E2253-96D3-3F27-91D3-DD39433FB074}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibAesgm", "MissionLedger\src\third_party\pdfwriter\build\LibAesgm\LibAesgm.vcxproj", "{089AAAEB-2569-35D3-8675-F0E70F098F97}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibAesgm", "third_party\pdfwriter\build\LibAesgm\LibAesgm.vcxproj", "{089AAAEB-2569-35D3-8675-F0E70F098F97}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibJpeg", "MissionLedger\src\third_party\pdfwriter\build\LibJpeg\LibJpeg.vcxproj", "{3EBCDDDC-D5A3-3DD8-A8B3-293FEB2F1BC0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibJpeg", "third_party\pdfwriter\build\LibJpeg\LibJpeg.vcxproj", "{3EBCDDDC-D5A3-3DD8-A8B3-293FEB2F1BC0}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibPng", "MissionLedger\src\third_party\pdfwriter\build\LibPng\LibPng.vcxproj", "{627CD1FA-4C7D-398C-A53E-BC63ACC0D226}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibPng", "third_party\pdfwriter\build\LibPng\LibPng.vcxproj", "{627CD1FA-4C7D-398C-A53E-BC63ACC0D226}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibTiff", "MissionLedger\src\third_party\pdfwriter\build\LibTiff\LibTiff.vcxproj", "{5689CA08-93F1-3C49-9D0C-B19CBA141E39}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibTiff", "third_party\pdfwriter\build\LibTiff\LibTiff.vcxproj", "{5689CA08-93F1-3C49-9D0C-B19CBA141E39}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
