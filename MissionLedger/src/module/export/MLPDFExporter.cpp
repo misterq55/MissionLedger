@@ -6,6 +6,15 @@
 #include <iomanip>
 #include <vector>
 #include <algorithm>
+#include <fstream>
+
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <unistd.h>
+    #include <limits.h>
+    #include <sys/stat.h>
+#endif
 
 // 금액 포맷 헬퍼 (천 단위 콤마)
 static std::string formatAmountHelper(int64_t amount)
@@ -32,23 +41,196 @@ static std::string extractFilename(const std::string& filePath)
     return filename;
 }
 
-// 폰트 로드 헬퍼 (폴백 지원)
+// 파일 존재 확인 (크로스 플랫폼)
+static bool fileExists(const std::string& path)
+{
+#ifdef _WIN32
+    DWORD attrib = GetFileAttributesA(path.c_str());
+    return (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY));
+#else
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode));
+#endif
+}
+
+// 실행 파일 경로 가져오기 (크로스 플랫폼)
+static std::string getExecutablePath()
+{
+#ifdef _WIN32
+    char buffer[MAX_PATH];
+    DWORD length = GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    if (length > 0 && length < MAX_PATH) {
+        // 파일명 제거, 디렉토리만 반환
+        std::string fullPath(buffer, length);
+        size_t lastSlash = fullPath.find_last_of("\\/");
+        if (lastSlash != std::string::npos) {
+            return fullPath.substr(0, lastSlash);
+        }
+    }
+    return "";
+#else
+    char buffer[PATH_MAX];
+    ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (length > 0) {
+        buffer[length] = '\0';
+        std::string fullPath(buffer);
+        size_t lastSlash = fullPath.find_last_of('/');
+        if (lastSlash != std::string::npos) {
+            return fullPath.substr(0, lastSlash);
+        }
+    }
+    return "";
+#endif
+}
+
+// 폰트 파일 검색 (크로스 플랫폼)
+// 검색 우선순위:
+// 1. 실행 파일 근처 fonts/ 디렉토리 (배포 폰트)
+// 2. 시스템 폰트 디렉토리 (플랫폼별)
+// 3. Fallback 폰트 (있는 경우)
+static std::string findFontFile(const std::string& fontName, bool searchKorean)
+{
+    std::vector<std::string> searchPaths;
+
+    // 1. 배포 폰트 검색 (실행 파일 근처 fonts/ 디렉토리)
+    std::string exeDir = getExecutablePath();
+    if (!exeDir.empty()) {
+#ifdef _WIN32
+        std::string bundledFontPath = exeDir + "\\fonts\\" + fontName;
+#else
+        std::string bundledFontPath = exeDir + "/fonts/" + fontName;
+#endif
+        if (fileExists(bundledFontPath)) {
+            return bundledFontPath;
+        }
+    }
+
+    // 2. 시스템 폰트 디렉토리 검색 (플랫폼별)
+    if (searchKorean) {
+        // 한글 폰트 검색
+#ifdef _WIN32
+        // Windows: Malgun Gothic (시스템 폰트, 재배포 불가)
+        char winDir[MAX_PATH];
+        DWORD result = GetEnvironmentVariableA("WINDIR", winDir, MAX_PATH);
+        if (result > 0 && result < MAX_PATH) {
+            std::string fontPath = std::string(winDir) + "\\Fonts\\" + fontName;
+            searchPaths.push_back(fontPath);
+        }
+#elif defined(__APPLE__)
+        // macOS: Apple SD Gothic Neo
+        searchPaths.push_back("/Library/Fonts/AppleSDGothicNeo.ttc");
+        searchPaths.push_back("/System/Library/Fonts/AppleSDGothicNeo.ttc");
+        // Noto Sans CJK KR (사용자가 설치한 경우)
+        searchPaths.push_back("/Library/Fonts/NotoSansCJK-Regular.ttc");
+        searchPaths.push_back("/System/Library/Fonts/NotoSansCJK-Regular.ttc");
+#else
+        // Linux: Noto Sans CJK KR, Nanum Gothic
+        searchPaths.push_back("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc");
+        searchPaths.push_back("/usr/share/fonts/truetype/noto/NotoSansKR-Regular.ttf");
+        searchPaths.push_back("/usr/share/fonts/truetype/nanum/NanumGothic.ttf");
+#endif
+    } else {
+        // 영문 폰트 검색 (Arial 등)
+#ifdef _WIN32
+        char winDir[MAX_PATH];
+        DWORD result = GetEnvironmentVariableA("WINDIR", winDir, MAX_PATH);
+        if (result > 0 && result < MAX_PATH) {
+            std::string fontPath = std::string(winDir) + "\\Fonts\\" + fontName;
+            searchPaths.push_back(fontPath);
+        }
+#elif defined(__APPLE__)
+        searchPaths.push_back("/Library/Fonts/Arial.ttf");
+        searchPaths.push_back("/System/Library/Fonts/Supplemental/Arial.ttf");
+#else
+        // Linux: DejaVu Sans (Arial 대안)
+        searchPaths.push_back("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+        searchPaths.push_back("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf");
+#endif
+    }
+
+    // 검색 경로에서 존재하는 첫 번째 파일 반환
+    for (const auto& path : searchPaths) {
+        if (fileExists(path)) {
+            return path;
+        }
+    }
+
+    // 폰트를 찾지 못함
+    return "";
+}
+
+// 폰트 로드 헬퍼 (폴백 지원, 크로스 플랫폼)
 static PDFUsedFont* loadFontWithFallback(PDFWriter& pdfWriter, bool bold)
 {
-    const char* primaryFont = bold ? "C:\\Windows\\Fonts\\malgunbd.ttf" : "C:\\Windows\\Fonts\\malgun.ttf";
-    const char* fallbackFont = bold ? "C:\\Windows\\Fonts\\arialbd.ttf" : "C:\\Windows\\Fonts\\arial.ttf";
-
     PDFUsedFont* font = nullptr;
 
-    try {
-        font = pdfWriter.GetFontForFile(primaryFont);
-    } catch (...) {
-        // 주 폰트 로드 실패 시 폴백 폰트 시도
-        try {
-            font = pdfWriter.GetFontForFile(fallbackFont);
-        } catch (...) {
-            // 폴백도 실패하면 nullptr 반환 (호출자가 처리)
+    // Fallback 체인:
+    // 1. 한글 폰트 (Noto Sans KR / Malgun Gothic / Apple SD Gothic Neo / Noto Sans CJK KR)
+    // 2. 영문 폰트 (Arial / Helvetica / DejaVu Sans)
+    // 3. 플랫폼별 최후 폴백
+
+    // 1단계: 한글 폰트 시도
+    std::string koreanFont;
+    if (bold) {
+        // Bold 폰트: Noto Sans KR Bold 또는 Malgun Gothic Bold
+        koreanFont = findFontFile("NotoSansKR-Bold.ttf", true);
+        if (koreanFont.empty()) {
+            koreanFont = findFontFile("malgunbd.ttf", true);
         }
+    } else {
+        // Regular 폰트: Noto Sans KR Regular 또는 Malgun Gothic
+        koreanFont = findFontFile("NotoSansKR-Regular.ttf", true);
+        if (koreanFont.empty()) {
+            koreanFont = findFontFile("malgun.ttf", true);
+        }
+    }
+
+    if (!koreanFont.empty()) {
+        try {
+            font = pdfWriter.GetFontForFile(koreanFont);
+            if (font != nullptr) {
+                return font;
+            }
+        } catch (...) {
+            // 로드 실패, 다음 폴백 시도
+        }
+    }
+
+    // 2단계: 영문 폰트 시도 (Arial)
+    std::string englishFont;
+    if (bold) {
+        englishFont = findFontFile("arialbd.ttf", false);
+    } else {
+        englishFont = findFontFile("arial.ttf", false);
+    }
+
+    if (!englishFont.empty()) {
+        try {
+            font = pdfWriter.GetFontForFile(englishFont);
+            if (font != nullptr) {
+                return font;
+            }
+        } catch (...) {
+            // 로드 실패, 다음 폴백 시도
+        }
+    }
+
+    // 3단계: 플랫폼별 최후 폴백
+#ifdef _WIN32
+    // Windows: 기본 시스템 폰트 경로 직접 시도
+    const char* lastResortFont = bold ? "C:\\Windows\\Fonts\\arialbd.ttf" : "C:\\Windows\\Fonts\\arial.ttf";
+#elif defined(__APPLE__)
+    // macOS: Helvetica (항상 존재)
+    const char* lastResortFont = "/System/Library/Fonts/Helvetica.ttc";
+#else
+    // Linux: DejaVu Sans (대부분 배포판에 기본 설치)
+    const char* lastResortFont = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+#endif
+
+    try {
+        font = pdfWriter.GetFontForFile(lastResortFont);
+    } catch (...) {
+        // 모든 폴백 실패, nullptr 반환
     }
 
     return font;
