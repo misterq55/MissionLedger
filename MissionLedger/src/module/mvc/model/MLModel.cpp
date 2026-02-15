@@ -277,7 +277,9 @@ void FMLModel::SetStorageProvider(std::shared_ptr<IMLStorageProvider> storagePro
 
 bool FMLModel::OpenFile(const std::string& filePath)
 {
-    if (!StorageProvider) return false;
+    if (!StorageProvider) {
+        return false;
+    }
 
     if (!StorageProvider->Initialize(filePath))
     {

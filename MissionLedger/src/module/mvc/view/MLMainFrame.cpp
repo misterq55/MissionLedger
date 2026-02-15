@@ -414,6 +414,7 @@ void wxMLMainFrame::OnTransactionsCleared()
 void wxMLMainFrame::OnDataLoaded()
 {
     // 데이터 로드 시 전체 재로드 (FilterActive 상태 유지)
+    updateTitle();  // 파일명으로 타이틀 갱신
     updateCategoryFilter();
     applyCurrentFilter();
     updateSummaryPanel();

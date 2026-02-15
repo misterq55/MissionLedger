@@ -210,6 +210,7 @@ bool FMLSQLiteStorage::LoadAllTransactions(std::vector<FMLTransactionData>& outT
         return false;
     }
 
+    int rowCount = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         FMLTransactionData data;
