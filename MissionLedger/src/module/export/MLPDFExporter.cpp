@@ -9,6 +9,7 @@
 #include <fstream>
 
 #ifdef _WIN32
+    #define NOMINMAX
     #include <windows.h>
 #else
     #include <unistd.h>
@@ -1203,7 +1204,7 @@ bool FMLPDFExporter::ExportTransactionList(
         const double sectionSpacing = 20.0;  // 섹션 간격 증가: 12 → 20
 
         // 열 너비 정의 (구분, 항목, 내용, 금액, 년월일, 영수증번호) - 세로 방향 최적화
-        const double colWidths[6] = {50, 60, 170, 135, 60, 50};  // 구분, 항목, 내용, 금액, 년월일, 영수증번호
+        const double colWidths[6] = {50, 60, 170, 135, 52, 58};  // 구분, 항목, 내용, 금액, 년월일, 영수증번호
         double tableWidth = 0;
         for (int i = 0; i < 6; i++) {
             tableWidth += colWidths[i];
@@ -1275,7 +1276,7 @@ bool FMLPDFExporter::ExportTransactionList(
             expenseCategoryTotals[transaction.Category] += transaction.Amount;
         }
 
-        // 수입 카테고리 합계 표 (표 형식)
+        // 수입 카테고리 합계 표 (표 형식, 자동 줄 바꿈 지원)
         if (!incomeCategoryTotals.empty()) {
             contentContext->BT();
             contentContext->Tf(fontBold, 11);
@@ -1284,93 +1285,109 @@ bool FMLPDFExporter::ExportTransactionList(
             contentContext->ET();
             yPos -= 18.0;
 
-            const double categoryColWidth = 90.0;
+            const double catAvailWidth = 595.0 - leftMargin - 30.0; // 오른쪽 여백 30pt
+            const double minCatColWidth = 60.0;
             const double categoryRowHeight = 16.0;
-            size_t numCols = incomeCategoryTotals.size() + 1; // +1 for 총합
-            double tableWidth = categoryColWidth * numCols;
 
-            // 헤더 행 (카테고리명들)
-            double currentX = leftMargin;
-            for (const auto& categoryPair : incomeCategoryTotals) {
-                // 셀 테두리
+            std::vector<std::pair<std::string, int64_t>> incomeCatList(incomeCategoryTotals.begin(), incomeCategoryTotals.end());
+            const size_t incomeTotalCats = incomeCatList.size();
+
+            // 한 행의 최대 열 수 (합계 열 포함), 열 너비는 모든 행에서 동일
+            const int incomeMaxTotalCols = std::max(2, (int)(catAvailWidth / minCatColWidth));
+            const int incomeMaxCatsPerRow = incomeMaxTotalCols - 1;
+            const double incomeColWidth = ((int)incomeTotalCats < incomeMaxCatsPerRow)
+                ? catAvailWidth / (incomeTotalCats + 1)
+                : catAvailWidth / incomeMaxTotalCols;
+
+            for (size_t rowStart = 0; rowStart < incomeTotalCats; ) {
+                const size_t rowEnd = std::min(rowStart + (size_t)incomeMaxCatsPerRow, incomeTotalCats);
+                const bool isLastRow = (rowEnd == incomeTotalCats);
+
+                // 헤더 행 (카테고리명들)
+                double currentX = leftMargin;
+                for (size_t i = rowStart; i < rowEnd; i++) {
+                    contentContext->q();
+                    contentContext->w(0.5);
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->k(0, 0, 0, 0.1);
+                    contentContext->re(currentX, yPos, incomeColWidth, categoryRowHeight);
+                    contentContext->B();
+                    contentContext->Q();
+
+                    contentContext->BT();
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->Tf(fontRegular, 8);
+                    contentContext->Tm(1, 0, 0, 1, currentX + 3, yPos + 4);
+                    contentContext->Tj(incomeCatList[i].first);
+                    contentContext->ET();
+
+                    currentX += incomeColWidth;
+                }
+                // 합계/소계 열 헤더
                 contentContext->q();
                 contentContext->w(0.5);
                 contentContext->k(0, 0, 0, 1);
                 contentContext->k(0, 0, 0, 0.1);
-                contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
+                contentContext->re(currentX, yPos, incomeColWidth, categoryRowHeight);
                 contentContext->B();
                 contentContext->Q();
 
-                // 텍스트
                 contentContext->BT();
                 contentContext->k(0, 0, 0, 1);
-                contentContext->Tf(fontRegular, 8);
+                contentContext->Tf(fontBold, 8);
                 contentContext->Tm(1, 0, 0, 1, currentX + 3, yPos + 4);
-                contentContext->Tj(categoryPair.first);
+                contentContext->Tj(isLastRow ? "총 수입" : "소계");
                 contentContext->ET();
+                yPos -= categoryRowHeight;
 
-                currentX += categoryColWidth;
-            }
-            // 총합 열
-            contentContext->q();
-            contentContext->w(0.5);
-            contentContext->k(0, 0, 0, 1);
-            contentContext->k(0, 0, 0, 0.1);
-            contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
-            contentContext->B();
-            contentContext->Q();
+                // 금액 행
+                currentX = leftMargin;
+                int64_t incomeRowTotal = 0;
+                for (size_t i = rowStart; i < rowEnd; i++) {
+                    incomeRowTotal += incomeCatList[i].second;
 
-            contentContext->BT();
-            contentContext->k(0, 0, 0, 1);
-            contentContext->Tf(fontBold, 8);
-            contentContext->Tm(1, 0, 0, 1, currentX + 3, yPos + 4);
-            contentContext->Tj("총 수입");
-            contentContext->ET();
-            yPos -= categoryRowHeight;
+                    contentContext->q();
+                    contentContext->w(0.5);
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->re(currentX, yPos, incomeColWidth, categoryRowHeight);
+                    contentContext->S();
+                    contentContext->Q();
 
-            // 금액 행
-            currentX = leftMargin;
-            for (const auto& categoryPair : incomeCategoryTotals) {
-                // 셀 테두리
+                    std::string amountStr = formatAmount(incomeCatList[i].second);
+                    double estimatedWidth = amountStr.length() * 8 * 0.45;
+                    contentContext->BT();
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->Tf(fontRegular, 8);
+                    contentContext->Tm(1, 0, 0, 1, currentX + incomeColWidth - estimatedWidth - 8, yPos + 4);
+                    contentContext->Tj(amountStr);
+                    contentContext->ET();
+
+                    currentX += incomeColWidth;
+                }
+                // 합계 금액 (마지막 행은 전체 합계, 중간 행은 소계)
+                int64_t incomeDisplayTotal = isLastRow ? totalIncome : incomeRowTotal;
                 contentContext->q();
                 contentContext->w(0.5);
                 contentContext->k(0, 0, 0, 1);
-                contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
+                contentContext->re(currentX, yPos, incomeColWidth, categoryRowHeight);
                 contentContext->S();
                 contentContext->Q();
 
-                // 금액 (오른쪽 정렬)
-                std::string amountStr = formatAmount(categoryPair.second);
-                double estimatedWidth = amountStr.length() * 8 * 0.45;
+                std::string totalStr = formatAmount(incomeDisplayTotal);
+                double estimatedWidth = totalStr.length() * 8 * 0.45;
                 contentContext->BT();
                 contentContext->k(0, 0, 0, 1);
-                contentContext->Tf(fontRegular, 8);
-                contentContext->Tm(1, 0, 0, 1, currentX + categoryColWidth - estimatedWidth - 3, yPos + 4);
-                contentContext->Tj(amountStr);
+                contentContext->Tf(fontBold, 8);
+                contentContext->Tm(1, 0, 0, 1, currentX + incomeColWidth - estimatedWidth - 8, yPos + 4);
+                contentContext->Tj(totalStr);
                 contentContext->ET();
+                yPos -= categoryRowHeight + (isLastRow ? 10 : 3);
 
-                currentX += categoryColWidth;
+                rowStart = rowEnd;
             }
-            // 총합
-            contentContext->q();
-            contentContext->w(0.5);
-            contentContext->k(0, 0, 0, 1);
-            contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
-            contentContext->S();
-            contentContext->Q();
-
-            std::string totalStr = formatAmount(totalIncome);
-            double estimatedWidth = totalStr.length() * 8 * 0.45;
-            contentContext->BT();
-            contentContext->k(0, 0, 0, 1);
-            contentContext->Tf(fontBold, 8);
-            contentContext->Tm(1, 0, 0, 1, currentX + categoryColWidth - estimatedWidth - 3, yPos + 4);
-            contentContext->Tj(totalStr);
-            contentContext->ET();
-            yPos -= categoryRowHeight + 10;
         }
 
-        // 지출 카테고리 합계 표 (표 형식)
+        // 지출 카테고리 합계 표 (표 형식, 자동 줄 바꿈 지원)
         if (!expenseCategoryTotals.empty()) {
             contentContext->BT();
             contentContext->Tf(fontBold, 11);
@@ -1379,85 +1396,106 @@ bool FMLPDFExporter::ExportTransactionList(
             contentContext->ET();
             yPos -= 18.0;
 
-            const double categoryColWidth = 90.0;
+            const double catAvailWidth = 595.0 - leftMargin - 30.0; // 오른쪽 여백 30pt
+            const double minCatColWidth = 60.0;
             const double categoryRowHeight = 16.0;
-            size_t numCols = expenseCategoryTotals.size() + 1;
 
-            // 헤더 행
-            double currentX = leftMargin;
-            for (const auto& categoryPair : expenseCategoryTotals) {
+            std::vector<std::pair<std::string, int64_t>> expenseCatList(expenseCategoryTotals.begin(), expenseCategoryTotals.end());
+            const size_t expenseTotalCats = expenseCatList.size();
+
+            // 한 행의 최대 열 수 (합계 열 포함), 열 너비는 모든 행에서 동일
+            const int expenseMaxTotalCols = std::max(2, (int)(catAvailWidth / minCatColWidth));
+            const int expenseMaxCatsPerRow = expenseMaxTotalCols - 1;
+            const double expenseColWidth = ((int)expenseTotalCats < expenseMaxCatsPerRow)
+                ? catAvailWidth / (expenseTotalCats + 1)
+                : catAvailWidth / expenseMaxTotalCols;
+
+            for (size_t rowStart = 0; rowStart < expenseTotalCats; ) {
+                const size_t rowEnd = std::min(rowStart + (size_t)expenseMaxCatsPerRow, expenseTotalCats);
+                const bool isLastRow = (rowEnd == expenseTotalCats);
+
+                // 헤더 행 (카테고리명들)
+                double currentX = leftMargin;
+                for (size_t i = rowStart; i < rowEnd; i++) {
+                    contentContext->q();
+                    contentContext->w(0.5);
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->k(0, 0, 0, 0.1);
+                    contentContext->re(currentX, yPos, expenseColWidth, categoryRowHeight);
+                    contentContext->B();
+                    contentContext->Q();
+
+                    contentContext->BT();
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->Tf(fontRegular, 8);
+                    contentContext->Tm(1, 0, 0, 1, currentX + 3, yPos + 4);
+                    contentContext->Tj(expenseCatList[i].first);
+                    contentContext->ET();
+
+                    currentX += expenseColWidth;
+                }
+                // 합계/소계 열 헤더
                 contentContext->q();
                 contentContext->w(0.5);
                 contentContext->k(0, 0, 0, 1);
                 contentContext->k(0, 0, 0, 0.1);
-                contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
+                contentContext->re(currentX, yPos, expenseColWidth, categoryRowHeight);
                 contentContext->B();
                 contentContext->Q();
 
                 contentContext->BT();
                 contentContext->k(0, 0, 0, 1);
-                contentContext->Tf(fontRegular, 8);
+                contentContext->Tf(fontBold, 8);
                 contentContext->Tm(1, 0, 0, 1, currentX + 3, yPos + 4);
-                contentContext->Tj(categoryPair.first);
+                contentContext->Tj(isLastRow ? "총 지출" : "소계");
                 contentContext->ET();
+                yPos -= categoryRowHeight;
 
-                currentX += categoryColWidth;
-            }
-            // 총합 열
-            contentContext->q();
-            contentContext->w(0.5);
-            contentContext->k(0, 0, 0, 1);
-            contentContext->k(0, 0, 0, 0.1);
-            contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
-            contentContext->B();
-            contentContext->Q();
+                // 금액 행
+                currentX = leftMargin;
+                int64_t expenseRowTotal = 0;
+                for (size_t i = rowStart; i < rowEnd; i++) {
+                    expenseRowTotal += expenseCatList[i].second;
 
-            contentContext->BT();
-            contentContext->k(0, 0, 0, 1);
-            contentContext->Tf(fontBold, 8);
-            contentContext->Tm(1, 0, 0, 1, currentX + 3, yPos + 4);
-            contentContext->Tj("총 지출");
-            contentContext->ET();
-            yPos -= categoryRowHeight;
+                    contentContext->q();
+                    contentContext->w(0.5);
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->re(currentX, yPos, expenseColWidth, categoryRowHeight);
+                    contentContext->S();
+                    contentContext->Q();
 
-            // 금액 행
-            currentX = leftMargin;
-            for (const auto& categoryPair : expenseCategoryTotals) {
+                    std::string amountStr = formatAmount(expenseCatList[i].second);
+                    double estimatedWidth = amountStr.length() * 8 * 0.45;
+                    contentContext->BT();
+                    contentContext->k(0, 0, 0, 1);
+                    contentContext->Tf(fontRegular, 8);
+                    contentContext->Tm(1, 0, 0, 1, currentX + expenseColWidth - estimatedWidth - 8, yPos + 4);
+                    contentContext->Tj(amountStr);
+                    contentContext->ET();
+
+                    currentX += expenseColWidth;
+                }
+                // 합계 금액 (마지막 행은 전체 합계, 중간 행은 소계)
+                int64_t expenseDisplayTotal = isLastRow ? totalExpense : expenseRowTotal;
                 contentContext->q();
                 contentContext->w(0.5);
                 contentContext->k(0, 0, 0, 1);
-                contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
+                contentContext->re(currentX, yPos, expenseColWidth, categoryRowHeight);
                 contentContext->S();
                 contentContext->Q();
 
-                std::string amountStr = formatAmount(categoryPair.second);
-                double estimatedWidth = amountStr.length() * 8 * 0.45;
+                std::string totalStr = formatAmount(expenseDisplayTotal);
+                double estimatedWidth = totalStr.length() * 8 * 0.45;
                 contentContext->BT();
                 contentContext->k(0, 0, 0, 1);
-                contentContext->Tf(fontRegular, 8);
-                contentContext->Tm(1, 0, 0, 1, currentX + categoryColWidth - estimatedWidth - 3, yPos + 4);
-                contentContext->Tj(amountStr);
+                contentContext->Tf(fontBold, 8);
+                contentContext->Tm(1, 0, 0, 1, currentX + expenseColWidth - estimatedWidth - 8, yPos + 4);
+                contentContext->Tj(totalStr);
                 contentContext->ET();
+                yPos -= categoryRowHeight + (isLastRow ? sectionSpacing : 3);
 
-                currentX += categoryColWidth;
+                rowStart = rowEnd;
             }
-            // 총합
-            contentContext->q();
-            contentContext->w(0.5);
-            contentContext->k(0, 0, 0, 1);
-            contentContext->re(currentX, yPos, categoryColWidth, categoryRowHeight);
-            contentContext->S();
-            contentContext->Q();
-
-            std::string totalStr = formatAmount(totalExpense);
-            double estimatedWidth = totalStr.length() * 8 * 0.45;
-            contentContext->BT();
-            contentContext->k(0, 0, 0, 1);
-            contentContext->Tf(fontBold, 8);
-            contentContext->Tm(1, 0, 0, 1, currentX + categoryColWidth - estimatedWidth - 3, yPos + 4);
-            contentContext->Tj(totalStr);
-            contentContext->ET();
-            yPos -= categoryRowHeight + sectionSpacing;
         }
 
         // === 수입 섹션 ===
