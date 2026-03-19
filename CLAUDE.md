@@ -99,7 +99,7 @@ After this, you can build the entire solution normally with MSBuild.
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-02-14):
+**Completed Features** (as of 2026-03-19):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -143,6 +143,12 @@ After this, you can build the entire solution normally with MSBuild.
   - Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
   - GUI menu: File → Export Transaction List PDF (Ctrl+T)
   - CLI command: export-transactions <input.ml> [output.pdf]
+- ✅ PDF Export OOP Refactoring
+  - `FMLPDFDocument`, `FMLPDFRow` 추상화 계층 도입 (Document → Row → Cell 위임 구조)
+  - `FMLPDFDocument::DrawRow()` API 통해 행 그리기 + Y위치 자동 이동
+  - 페이지 분기 시 카테고리/항목 병합 셀 세그먼트 단위 분할 처리 (거래 단위 페이지 분기)
+  - 금액 셀 우측 여백 수정 (텍스트 끝닿음 방지)
+  - 컬럼 헤더와 첫 번째 데이터 셀 간 불필요한 간격 제거
 
 **Design Decision**: Real-time Budget Tracking
 - ⏸️ Phase 3 (Budget-Transaction Integration) postponed

@@ -5,7 +5,7 @@
 
 #define ML_VERSION_MAJOR    1
 #define ML_VERSION_MINOR    0
-#define ML_VERSION_PATCH    0
+#define ML_VERSION_PATCH    1
 #define ML_VERSION_BUILD    0
 
 // 문자열 매크로 헬퍼

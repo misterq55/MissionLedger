@@ -3,7 +3,7 @@
 
 #define MyAppName "미션레저"
 #define MyAppEnglishName "MissionLedger"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "MissionLedger Project"
 #define MyAppURL "https://github.com/misterq55/MissionLedger"
 #define MyAppExeName "MissionLedger.exe"
