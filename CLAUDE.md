@@ -29,6 +29,7 @@ build_installer.bat                       # local double-click wrapper for the w
 - CMake, not MSBuild, is called directly, so the Visual Studio edition path does not matter. In Git Bash pass `--parallel` instead of `/m` (MSYS path conversion mangles `/` switches; use `MSYS_NO_PATHCONV=1` if a `/` switch is needed)
 - CI build number: `cmake --preset windows -DML_BUILD_NUMBER=N` (4th field of the exe version)
 - CI (Jenkins) calls the presets one per stage (configure / build / test / installer) so each result shows separately; the workflow preset and `build_installer.bat` are for people
+- Jenkins: one Pipeline job, Script Path `jenkins/Build.Jenkinsfile`, parameters `PLATFORM` (both/windows/macos), `CONFIGURATION`, `CLEAN_BUILD`, `DEPLOY` (stub). Node check on any PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake`
 - Smoke tests check exit codes, the totals in `tests/fixtures/README.md`, that both PDFs are created (not PDF contents) and that opening a missing file fails without creating it. Output goes to `build/windows/tests/out/<Config>/`
 - The `installer` target finds `ISCC.exe` in the default Inno Setup 6 folder; elsewhere configure with `-DML_ISCC=<path>`
 
@@ -64,6 +65,7 @@ MissionLedger/                   # Repository root
 │   └── wxWidgets/               # wxWidgets 3.2.8 source subset (add_subdirectory)
 ├── tests/                       # CTest smoke tests (CMakeLists.txt, cli_smoke.cmake) + fixtures/sample.ml
 ├── installer/                   # Inno Setup script (.iss), package.cmake (installer target)
+├── jenkins/                     # Build.Jenkinsfile (Jenkins Pipeline job, Script Path), scripts/preflight.cmake (node check)
 ├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets); CMakeLists.txt
 │   └── src/
 │       ├── MLDefine.h          # Core enums and data structures
@@ -130,6 +132,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
   - `CHANGELOG.md` (Keep a Changelog), annotated tags `vX.Y.Z`
 - ✅ Core folder separation: Core sources in `MissionLedgerCore/src/` (one project = one folder)
 - ✅ CMake build (2026-11-18): generated IDE projects, vendored wxWidgets, `.sln`/`.vcxproj`/`Version.props` removed. Verified against the former MSBuild build (identical CLI output and PDFs except the document ID, same version info, GUI checked, installer builds)
+- ✅ Jenkinsfile written (2026-11-18): `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, macOS = node check only) + `jenkins/scripts/preflight.cmake`; Windows stages checked in a fresh clone, **first run on the real Jenkins pending**
 - ✅ CTest smoke tests, `installer` target and `windows-release` workflow preset (2026-11-18): 5 CLI tests (`sample.ml` totals and PDFs, missing file); the workflow stops before packaging when a test fails; verified from a clean `build/` (about 2.5 minutes)
 
 **Design Decision**: Real-time Budget Tracking
@@ -142,8 +145,9 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 1. ✅ Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (2026-11-18)
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
-4. 📋 Jenkinsfile (Windows first, then the macOS stage). Draft in [docs/CI_PLAN.md](docs/CI_PLAN.md) §5
-5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
+4. 🔄 Jenkinsfile written (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); next: set up the Jenkins job and do the first run
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Then add `macos` to `IMPLEMENTED` in the Jenkinsfile
+6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
 **Next Steps** (features):
 - 📋 CLI full review (`MLCLIView`): check every command and option, error handling and exit codes, the two help texts (argument mode vs interactive mode list different commands), and interactive input parsing. See TODO.md

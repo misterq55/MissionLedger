@@ -145,7 +145,7 @@ exe가 동적 런타임(`/MD`)으로 빌드되어 `MSVCP140.dll`, `VCRUNTIME140.
 | CLI 미포함 | `MissionLedgerCLI.exe`는 설치되지 않습니다. 필요하면 `[Files]`에 추가합니다 | 낮음 |
 | 폰트 번들 미사용 | `[Files]`의 `fonts\*.ttf` 항목이 주석 처리돼 있습니다. PDF는 시스템의 맑은 고딕을 씁니다. 코드는 `{app}\fonts\`를 먼저 찾도록 준비돼 있습니다 | 낮음 |
 | 코드 서명 없음 | 서명하지 않은 설치 파일은 SmartScreen 경고가 뜹니다. 인증서 비용이 연 $100–300입니다 | 선택 |
-| CI 연동 | ✅ 준비 완료: CI는 bat 대신 프리셋을 단계별로 부릅니다 (`cmake --build --preset windows-installer` 등). Jenkinsfile 작성은 [CI_PLAN.md](CI_PLAN.md) 로드맵 6번 | CI 도입 시 |
+| CI 연동 | ✅ 준비 완료: CI는 bat 대신 프리셋을 단계별로 부릅니다 (`cmake --build --preset windows-installer` 등). Jenkins에서는 `jenkins/Build.Jenkinsfile`의 Package 스테이지가 이 명령을 부릅니다 ([CI_PLAN.md](CI_PLAN.md) §5) | CI 도입 시 |
 | 자동 업데이트, 다국어 | 미구현 | 선택 |
 | 회사명/제품명 | `MissionLedger Project`, `선교 및 프로젝트 예산 관리 프로그램`은 임시값입니다. `MLVersion.h`와 `.iss`의 `MyAppPublisher`에서 바꿉니다 | 선택 |
 | 아이콘 | `app.ico`가 임시 아이콘이라면 장부나 선교와 관련된 단순한 심볼로 교체를 검토합니다 | 선택 |
@@ -153,7 +153,7 @@ exe가 동적 런타임(`/MD`)으로 빌드되어 `MSVCP140.dll`, `VCRUNTIME140.
 
 ### 배포 이후 고려할 것
 
-1. 설치 파일 배포 위치 (GitHub Releases 등)
+1. 설치 파일 배포 위치: Google Drive 검토 중 ([CI_PLAN.md](CI_PLAN.md) §0, 로드맵 10번)
 2. 사용자 가이드 작성
 3. 다운로드 페이지나 웹사이트
 4. 자동 업데이트 (선택)

@@ -5,7 +5,7 @@
 
 ## Goals
 
-- Keep a `Jenkinsfile` in the repository and automate builds through a Jenkins pipeline
+- Keep the Jenkinsfile in the repository (`jenkins/Build.Jenkinsfile`) and automate builds through a Jenkins pipeline
 - Stages: Build → Test → Installer → Deploy
 - Target platforms: **Windows x64** and **macOS** (Universal: arm64 + x86_64)
 - Build machines: existing Windows/macOS machines that are already Jenkins nodes for other projects
@@ -24,6 +24,8 @@
 | C++ runtime (Windows) | Keep the dynamic runtime (`/MD`) and **bundle `vc_redist.x64.exe`** in the installer (already implemented, see [INSTALLER.md](INSTALLER.md)) | Optional later: switch to `/MT` with `CMAKE_MSVC_RUNTIME_LIBRARY` (applies to vendored wxWidgets and PDF-Writer too) and drop the bundled redist |
 | macOS signing | Not now. Build and test unsigned first | Distributing to others without Gatekeeper warnings needs the Apple Developer Program ($99/year). Check Apple's nonprofit fee waiver first. A few known users can use System Settings → Privacy & Security → "Open Anyway" |
 | Versioning | ✅ Done. Root `VERSION` file is the single source of truth | See §1 and [VERSIONING.md](VERSIONING.md) |
+| Jenkins job | ✅ One **Pipeline** job ("Pipeline script from SCM", `main`), started by hand with parameters. No Multibranch, no webhook | Jenkinsfiles live in `jenkins/` (`jenkins/Build.Jenkinsfile`). Nodes: `WindowsMini`, `MacMini`. See §4–§5 |
+| Deploy target | **Google Drive** under consideration instead of GitHub Releases (roadmap 10) | Likely rclone on the node with credentials in Jenkins. A personal Google account needs an OAuth user token (service accounts have no My Drive storage); a Workspace shared drive can use a service account |
 
 ---
 
@@ -47,7 +49,7 @@ The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). W
 - **Source of truth**: the root `VERSION` file (`MAJOR.MINOR.PATCH`, one line). CI reads it with `readFile('VERSION')`
 - **Build number**: `cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%` (4th field of the exe version)
 - **Installer**: `MissionLedger.iss` reads `VERSION` itself; `ISCC /DMyAppVersion=x.y.z` still overrides it. ISCC fails if the packaged exe's `ProductVersion` differs from it
-- On tag builds, check that the Git tag (`v1.2.3`) matches `VERSION`, and fail the build if they differ (in the Jenkinsfile)
+- Deploy builds (roadmap 10): check that the release tag (`v1.2.3`) matches `VERSION` and fail if not. The job is not Multibranch, so it does not see tags by itself; check with git in the Deploy stage
 - CMake (done): `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)` → `.rc` defines (`Version.props` removed). Planned for macOS: `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` via `configure_file`
 
 ---
@@ -157,100 +159,61 @@ cmake --workflow --preset windows-release # configure → Release build → smok
 ## 4. Pipeline Structure
 
 ```
-Checkout → Version → Build → Smoke Test → Package → (Sign) → Archive → Release
-                     └── Windows / macOS in parallel ──┘
+Platforms (matrix, both run to the end) ──────────────────────────────────────────┐
+  WindowsMini: Preflight → Clean? → Configure → Build → Test → Package* → Archive │→ Deploy (stub)
+  MacMini:     Preflight → "not implemented" (until roadmap 7–8)                  │
+* Release only
 ```
 
-| Trigger | Scope |
-|---|---|
-| PR / feature branch | Build + Smoke Test |
-| `main` branch | + Package + Archive (installers for internal testing) |
-| `v*` tag | + approval (`input`), then deploy to GitHub Releases |
+| Parameter | Values (default first) | Effect |
+|---|---|---|
+| `PLATFORM` | `both`, `windows`, `macos` | A platform that is not selected is skipped without waiting for its node |
+| `CONFIGURATION` | `Release`, `Debug` | Preset `<platform>-release` / `-debug`. Debug skips Package and archives only the smoke test PDFs (a Debug exe needs the debug runtime, so it is not shipped) |
+| `CLEAN_BUILD` | off | Deletes `build/<platform>/` first. Normal builds keep the workspace so wxWidgets is not rebuilt |
+| `DEPLOY` | on | **Stub**: prints a message only. Roadmap 10 implements it (then: default off, force Release + clean build) |
 
-- Use a Multibranch Pipeline with tag discovery enabled (needed for `buildingTag()`)
-- Trigger: a GitHub webhook is recommended; use `pollSCM('H/15 * * * *')` if Jenkins can't be reached from outside
-- Deploy target: GitHub Releases (`gh release create`, with the token stored in Jenkins Credentials)
+- If one platform fails the whole build is FAILURE, but the other platform still finishes (matrix `failFast` off), so both problems show up in one run
+- Started by hand ("Build with Parameters"). Polling or a webhook can be added later (`triggers { pollSCM(...) }`)
+- Failure notification is a stub (`notifyResult()` in the Jenkinsfile prints a line); replace its body with mail or a messenger webhook when needed
 
 ---
 
-## 5. Draft Jenkinsfile (CMake-Based)
+## 5. Jenkinsfile (`jenkins/Build.Jenkinsfile`)
 
-> The Windows presets, test presets and the `installer` target exist (roadmap step 5). The `macos` presets are still to be added (roadmap steps 7–8). No wxWidgets path or `WXWIN` is needed: it is built from `third_party/`. The `installer` target finds `ISCC.exe` in the default Inno Setup 6 folder; on a node with another path pass `-DML_ISCC=<path>` at configure time.
+Written 2026-11-18. The commands were run on Windows in a fresh clone with a 108-character workspace path (all steps passed, see §10 step 6); the first run on the real Jenkins is still to be done.
 
-```groovy
-pipeline {
-    agent none
+### Files
 
-    options {
-        timestamps()
-        timeout(time: 90, unit: 'MINUTES')      // first build on a node also compiles wxWidgets
-        disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '5'))
-    }
+| File | Purpose |
+|---|---|
+| `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names and the list of implemented platforms are at the top (`PLATFORMS`, `IMPLEMENTED`) |
+| `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
 
-    stages {
-        stage('Version') {
-            agent any
-            steps {
-                script {
-                    env.APP_VERSION = readFile('VERSION').trim()
-                    currentBuild.displayName = "#${BUILD_NUMBER} v${APP_VERSION}"
-                    if (buildingTag() && env.TAG_NAME != "v${env.APP_VERSION}") {
-                        error "Tag (${env.TAG_NAME}) does not match VERSION (v${env.APP_VERSION})"
-                    }
-                }
-            }
-        }
+### Stages per platform (CMake presets, §3)
 
-        stage('Build & Package') {
-            parallel {
-                stage('Windows') {
-                    agent { label 'windows && vs2022' }
-                    steps {
-                        bat 'cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%'
-                        bat 'cmake --build --preset windows-release'
-                        bat 'ctest --preset windows-release'          // CLI smoke tests: totals + 2 PDFs from sample.ml
-                        script {
-                            if (env.BRANCH_NAME == 'main' || buildingTag()) {
-                                bat 'cmake --build --preset windows-installer'   // installer target: runs ISCC (Release only)
-                            }
-                        }
-                        stash name: 'win', includes: 'installer/output/*.exe', allowEmpty: true
-                    }
-                    post { success { archiveArtifacts artifacts: 'installer/output/*.exe, build/**/Release/*.pdb, build/windows/tests/out/Release/*.pdf', allowEmptyArchive: true, fingerprint: true } }
-                }
-                stage('macOS') {
-                    agent { label 'macos && xcode' }
-                    steps {
-                        sh 'cmake --preset macos -DML_BUILD_NUMBER=$BUILD_NUMBER'
-                        sh 'cmake --build --preset macos-release'
-                        sh 'ctest --preset macos-release'
-                        sh 'lipo -archs build/macos/MissionLedger/Release/MissionLedger.app/Contents/MacOS/MissionLedger'
-                        // later: codesign → notarize → dmg (§6)
-                        stash name: 'mac', includes: 'build/macos/**/*.dmg', allowEmpty: true
-                    }
-                }
-            }
-        }
+| Stage | Command | When |
+|---|---|---|
+| Preflight | `cmake -DPLATFORM=<p> -DWORKSPACE=<ws> -P jenkins/scripts/preflight.cmake`; also sets the build name `#N v1.0.0 Release` | Always |
+| Clean | delete `build/<p>/` | `CLEAN_BUILD` |
+| Configure | `cmake --preset <p> -DML_BUILD_NUMBER=<BUILD_NUMBER>` | Implemented platforms |
+| Build | `cmake --build --preset <p>-<config> --parallel` | 〃 |
+| Test | `ctest --preset <p>-<config> --output-junit ctest-junit.xml` → JUnit report `build/<p>/ctest-junit.xml` | 〃 |
+| Package | delete `installer/output/`, then `cmake --build --preset <p>-installer` | Release |
+| Archive | `installer/output/*`, `build/<p>/bin/Release/*.pdb` (Release); `build/<p>/tests/out/<config>/*.pdf` | 〃 |
 
-        stage('Release') {
-            when { buildingTag() }
-            agent { label 'windows' }
-            steps {
-                input message: "Deploy v${APP_VERSION} to GitHub Releases?", ok: 'Deploy'
-                unstash 'win'
-                unstash 'mac'
-                withCredentials([string(credentialsId: 'github-token', variable: 'GH_TOKEN')]) {
-                    // release notes = this version's section of CHANGELOG.md, extracted to out\release-notes.md
-                    bat 'gh release create %TAG_NAME% installer\\output\\MissionLedger-%APP_VERSION%-Setup.exe --title "MissionLedger %APP_VERSION%" --notes-file out\\release-notes.md'
-                }
-            }
-        }
-    }
-}
-```
+### Jenkins setup (once)
 
-- There is no Jenkinsfile yet (roadmap step 6). The previous MSBuild-only draft (which needed `WXWIN` and a separate PDF-Writer stage) is in the history of this file
+1. Plugins: Pipeline, Git, Timestamper, JUnit
+2. Nodes `WindowsMini` and `MacMini` online (the node name is used as the label). Tools per §8; run the preflight script on a node by hand to check it
+3. New Item → **Pipeline** → Definition "Pipeline script from SCM" → SCM Git, `https://github.com/misterq55/MissionLedger.git` (public, no credentials) → Branch `*/main` → Script Path `jenkins/Build.Jenkinsfile`
+4. The first run uses the default parameters (`PLATFORM=both`, so `MacMini` must be online); afterwards "Build with Parameters" shows the choices
+
+### Notes
+
+- Timeouts: 60 minutes per platform, **including the wait for its node** (Declarative cannot time the wait alone). If a node is offline, run with `PLATFORM` set to the other platform
+- Archive retention: last 20 builds, artifacts of the last 5 (an installer is about 28 MB)
+- Korean CLI output can look garbled in the Jenkins console (code page); the smoke test reads the output as UTF-8, so results are not affected
+- The former draft (Multibranch, tag trigger, GitHub Releases upload with `gh release create` and release notes from the CHANGELOG section) is in the history of this file. Its remaining ideas moved to roadmap 8 and 10
 
 ---
 
@@ -349,8 +312,8 @@ agent { label 'macos && xcode' }
 
 - **Code signing (Windows)**: unsigned installers trigger SmartScreen warnings ("More info → Run anyway"). Sign the exe and the Setup with `signtool sign /fd sha256 /tr <timestamp-url>` and store the certificate in Credentials. Optional for non-commercial distribution
 - **Keep PDBs**: archive the `.pdb` files for each release to analyze crash dumps
-- **Parallel Debug build**: compile the Debug configuration in PR builds too, to catch errors that occur only in Debug
-- **Update checks**: a future in-app update check can use the GitHub Releases API directly
+- **Debug build**: ✅ `CONFIGURATION=Debug` parameter, to catch errors that occur only in Debug
+- **Update checks**: a future in-app update check can use the download location's API (GitHub Releases or Google Drive)
 
 ---
 
@@ -361,8 +324,8 @@ agent { label 'macos && xcode' }
 3. [x] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed; stand-alone CMake build verified) (2026-11-18)
 4. [x] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, `GenerateProjectFiles.bat`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`. Compared on Windows, then deleted the `.sln`/`.vcxproj`/`Version.props` and added `build/` to `.gitignore` (2026-11-18, see §3)
 5. [x] CTest smoke tests (`list`/`budget list` totals, 2 PDFs from `tests/fixtures/sample.ml`), test presets, `installer` target (ISCC, Release only) and the `windows-release` workflow preset; `build_installer.bat` became a wrapper for the workflow. Checked that a wrong expected value fails the test and stops the workflow before packaging, and that `installer` refuses Debug (2026-11-18)
-6. [ ] Write the Jenkinsfile (Windows first)
-7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal)
-8. [ ] Add the parallel macOS stage (including automated checks)
+6. [ ] `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, parameters, macOS cell = preflight only) and `jenkins/scripts/preflight.cmake` written (2026-11-18). Checked on Windows: preflight passes on the dev PC and lists 3 problems on a simulated bare node; all Windows stages run in a fresh clone (Release + installer, Debug, JUnit file with 5 tests, exe version `1.0.0.<BUILD_NUMBER>`). **Remaining: first run on the real Jenkins**
+7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal), `macos` presets
+8. [ ] Turn on the macOS cell: add `macos` to `IMPLEMENTED` in the Jenkinsfile, plus the checks of §7 (`lipo -archs`, `otool -L`)
 9. [ ] `.dmg` creation; signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
-10. [ ] Tag-based deployment to GitHub Releases
+10. [ ] Deployment: implement the `DEPLOY` stage (Google Drive under consideration, §0): force Release + clean build, check `VERSION` against the release tag, upload the installers; release notes from this version's CHANGELOG section. Then set the `DEPLOY` default to off
