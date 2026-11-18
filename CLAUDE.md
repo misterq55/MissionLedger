@@ -60,22 +60,30 @@ MissionLedger/                   # Solution root
 ├── third_party/                 # Third-party libraries (shared)
 │   ├── sqlite/                  # SQLite amalgamation
 │   └── pdfwriter/               # PDF-Writer library (CMake-based)
-├── MissionLedger/               # Main GUI application
-│   ├── main.cpp                 # Application entry point
+├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets)
 │   └── src/
 │       ├── MLDefine.h          # Core enums and data structures
-│       ├── interface/          # Abstract interfaces
+│       ├── interface/          # Abstract interfaces (IMLModel, IMLView, ...)
 │       └── module/
 │           ├── common/holder/  # FMLMVCHolder singleton
 │           ├── storage/        # FMLSQLiteStorage implementation
 │           ├── export/         # PDF export functionality
 │           └── mvc/
-│               ├── model/      # FMLModel, FMLTransaction
-│               ├── controller/ # FMLController
-│               └── view/       # wxMLMainFrame
-├── MissionLedgerCore/          # Core business logic library
-└── MissionLedgerCLI/           # Command-line interface
+│               ├── model/      # FMLModel, FMLTransaction, FMLBudget
+│               └── controller/ # FMLController
+├── MissionLedger/               # GUI application (wxWidgets)
+│   ├── main.cpp                 # Application entry point
+│   ├── MissionLedger.rc         # Icon and version resources
+│   └── src/
+│       ├── MLVersion.h         # Version macros (values come from /VERSION)
+│       └── module/mvc/view/    # wxMLMainFrame, MLBudgetDialog
+└── MissionLedgerCLI/            # Command-line interface
+    ├── main_cli.cpp
+    └── src/module/mvc/view/    # MLCLIView
 ```
+
+- **One project = one folder**: each project compiles only the sources under its own folder. Put Core code (model, controller, storage, export, interfaces) in `MissionLedgerCore/src/`, never in the GUI or CLI folders
+- Include paths are rooted at each project's `src/` (e.g. `#include "module/mvc/model/MLModel.h"`); GUI and CLI also add `MissionLedgerCore/src`
 
 ### First-Time Setup (Other Computers)
 

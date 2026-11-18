@@ -24,8 +24,8 @@ FMLModel 클래스의 안정성과 정확성을 보장하기 위한 유닛 테�
 
 ### 테스트 대상 파일
 
-- **헤더**: `MissionLedger/src/module/mvc/model/MLModel.h`
-- **구현**: `MissionLedger/src/module/mvc/model/MLModel.cpp` (463줄)
+- **헤더**: `MissionLedgerCore/src/module/mvc/model/MLModel.h`
+- **구현**: `MissionLedgerCore/src/module/mvc/model/MLModel.cpp` (463줄)
 - **책임**: 7가지 (CRUD, 조회, 비즈니스 로직, 파일 작업, Observer, Storage 연동, DTO 변환)
 
 ### 테스트 카테고리
