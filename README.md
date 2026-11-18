@@ -33,8 +33,11 @@ GenerateProjectFiles.bat          # 또는 cmake --preset windows
 cmake --build --preset windows-debug
 cmake --build --preset windows-release
 
+# 3. 스모크 테스트 (CLI로 tests/fixtures/sample.ml 확인)
+ctest --preset windows-release
+
 # 설치 파일: installer/output/MissionLedger-<버전>-Setup.exe
-build_installer.bat
+build_installer.bat               # = cmake --workflow --preset windows-release (구성 → 빌드 → 테스트 → 설치 파일)
 ```
 
 - 실행 파일: `build/windows/bin/<Debug|Release>/`

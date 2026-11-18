@@ -20,7 +20,7 @@
 | Build system | **CMake** generates the IDE projects (Visual Studio `.sln`, Xcode) from `CMakeLists.txt`, like Unreal's GenerateProjectFiles | Generated projects live in `build/` and are never committed. Never add files or change settings through the IDE; edit the source folders and `CMakeLists.txt` |
 | Source collection | Each project collects the sources under its own folder automatically (`file(GLOB_RECURSE ... CONFIGURE_DEPENDS)`) | Rule: one project = one folder. ✅ Folder separation done (`e94b226`): Core sources are in `MissionLedgerCore/src/` |
 | wxWidgets | **Vendor wxWidgets 3.2.8** in `third_party/wxWidgets/` and build it with `add_subdirectory`, the same way as PDF-Writer | Static libraries, only `base` and `core` (the app uses nothing else). Nothing is installed on nodes and no `WXWIN` is needed. See §2 |
-| Scripts | Build, test and packaging logic lives in CMake (`CMakePresets.json` + workflow presets), so the same command works on both platforms | `build_installer.bat` is replaced by `cmake --workflow --preset release`. Only steps that exist on a single platform (signing, notarization) get short platform scripts (PowerShell / sh) |
+| Scripts | Build, test and packaging logic lives in CMake (`CMakePresets.json` + workflow presets), so the same command works on both platforms | ✅ `cmake --workflow --preset windows-release` (macOS: `macos-release` later). `build_installer.bat` is now a thin local wrapper for it. Only steps that exist on a single platform (signing, notarization) get short platform scripts (PowerShell / sh) |
 | C++ runtime (Windows) | Keep the dynamic runtime (`/MD`) and **bundle `vc_redist.x64.exe`** in the installer (already implemented, see [INSTALLER.md](INSTALLER.md)) | Optional later: switch to `/MT` with `CMAKE_MSVC_RUNTIME_LIBRARY` (applies to vendored wxWidgets and PDF-Writer too) and drop the bundled redist |
 | macOS signing | Not now. Build and test unsigned first | Distributing to others without Gatekeeper warnings needs the Apple Developer Program ($99/year). Check Apple's nonprofit fee waiver first. A few known users can use System Settings → Privacy & Security → "Open Anyway" |
 | Versioning | ✅ Done. Root `VERSION` file is the single source of truth | See §1 and [VERSIONING.md](VERSIONING.md) |
@@ -31,7 +31,7 @@
 
 | Issue | Location | Fix |
 |---|---|---|
-| The trailing `pause` hangs CI builds | `build_installer.bat` | Don't call this script from CI (it now uses the CMake presets, but is meant for people). CI uses the presets directly; an `installer` target / workflow preset comes with roadmap step 5 |
+| ~~The trailing `pause` hangs CI builds~~ ✅ Done (2026-11-18) | `build_installer.bat` | CI never calls it: it uses the presets (`installer` target, test/workflow presets). The bat is a local wrapper for `cmake --workflow --preset windows-release` |
 | ~~MSBuild path is hard-coded to the Community edition~~ ✅ Done (2026-11-18) | `build_installer.bat`, CLAUDE.md | Gone with the CMake migration (`cmake --build`) |
 | ~~The version is hard-coded in 3 separate places~~ ✅ Done (2026-11-18) | `MLVersion.h`, `MissionLedger.iss` (`MyAppVersion`), `build_installer.bat` (output filename) | The root `VERSION` file is now the single source of truth (see [VERSIONING.md](VERSIONING.md)) |
 | ~~Core sources live in the GUI folder~~ ✅ Done (2026-11-18, `e94b226`) | `MissionLedger/src/` | Moved to `MissionLedgerCore/src/` (one project = one folder) |
@@ -102,7 +102,7 @@ Maintaining both `.vcxproj` files and an Xcode project would mean editing two pl
 
 ```
 CMakeLists.txt                  # Root: reads VERSION, common settings, add_subdirectory for each part
-CMakePresets.json               # Now: windows configure + windows-debug/-release build presets. Later: test/workflow, macos
+CMakePresets.json               # windows configure; windows-debug/-release build + test; windows-installer; windows-release workflow. Later: macos
 GenerateProjectFiles.bat        # = cmake --preset windows (generates build/windows/MissionLedger.sln)
 ├── MissionLedgerCore/          # Static library: src/** (model, controller, storage, export) + SQLite
 ├── MissionLedger/              # GUI app: src/** + main.cpp + .rc (Win: WIN32 exe / Mac: MACOSX_BUNDLE .app)
@@ -131,7 +131,9 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src FILES ${CORE_SOURCES})   # IDE
 ```bash
 cmake --preset windows                   # generate build/windows/MissionLedger.sln (once, or when presets change)
 cmake --build --preset windows-release   # or open the .sln and press F5 as before
-cmake --workflow --preset release        # planned (step 5): configure → build → smoke test → installer, same on Win/Mac
+ctest --preset windows-release           # CLI smoke tests (tests/CMakeLists.txt)
+cmake --build --preset windows-installer # installer (Release only)
+cmake --workflow --preset windows-release # configure → Release build → smoke test → installer (= build_installer.bat)
 ```
 
 | Task | Before (MSBuild) | Now (CMake) |
@@ -173,7 +175,7 @@ Checkout → Version → Build → Smoke Test → Package → (Sign) → Archive
 
 ## 5. Draft Jenkinsfile (CMake-Based)
 
-> `windows`, `windows-release` exist in `CMakePresets.json`. The test presets, the `installer` target and all `macos` presets are still to be added (roadmap steps 5–7). No wxWidgets path or `WXWIN` is needed: it is built from `third_party/`.
+> The Windows presets, test presets and the `installer` target exist (roadmap step 5). The `macos` presets are still to be added (roadmap steps 7–8). No wxWidgets path or `WXWIN` is needed: it is built from `third_party/`. The `installer` target finds `ISCC.exe` in the default Inno Setup 6 folder; on a node with another path pass `-DML_ISCC=<path>` at configure time.
 
 ```groovy
 pipeline {
@@ -204,19 +206,18 @@ pipeline {
             parallel {
                 stage('Windows') {
                     agent { label 'windows && vs2022' }
-                    environment { ISCC = 'C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe' }
                     steps {
                         bat 'cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%'
                         bat 'cmake --build --preset windows-release'
-                        bat 'ctest --preset windows-release'          // CLI smoke test: sample.ml → 2 PDFs
+                        bat 'ctest --preset windows-release'          // CLI smoke tests: totals + 2 PDFs from sample.ml
                         script {
                             if (env.BRANCH_NAME == 'main' || buildingTag()) {
-                                bat 'cmake --build --preset windows-release --target installer'   // runs ISCC
+                                bat 'cmake --build --preset windows-installer'   // installer target: runs ISCC (Release only)
                             }
                         }
                         stash name: 'win', includes: 'installer/output/*.exe', allowEmpty: true
                     }
-                    post { success { archiveArtifacts artifacts: 'installer/output/*.exe, build/**/Release/*.pdb, build/**/smoke/*.pdf', allowEmptyArchive: true, fingerprint: true } }
+                    post { success { archiveArtifacts artifacts: 'installer/output/*.exe, build/**/Release/*.pdb, build/windows/tests/out/Release/*.pdf', allowEmptyArchive: true, fingerprint: true } }
                 }
                 stage('macOS') {
                     agent { label 'macos && xcode' }
@@ -359,7 +360,7 @@ agent { label 'macos && xcode' }
 2. [x] Core folder separation: Core sources in `MissionLedgerCore/src/` (2026-11-18, `e94b226`)
 3. [x] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed; stand-alone CMake build verified) (2026-11-18)
 4. [x] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, `GenerateProjectFiles.bat`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`. Compared on Windows, then deleted the `.sln`/`.vcxproj`/`Version.props` and added `build/` to `.gitignore` (2026-11-18, see §3)
-5. [ ] CTest smoke test (CLI → 2 PDFs), test presets, `installer` target (ISCC) and workflow preset (moved here from step 4). Fixture done: `tests/fixtures/sample.ml` (2026-11-18)
+5. [x] CTest smoke tests (`list`/`budget list` totals, 2 PDFs from `tests/fixtures/sample.ml`), test presets, `installer` target (ISCC, Release only) and the `windows-release` workflow preset; `build_installer.bat` became a wrapper for the workflow. Checked that a wrong expected value fails the test and stops the workflow before packaging, and that `installer` refuses Debug (2026-11-18)
 6. [ ] Write the Jenkinsfile (Windows first)
 7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal)
 8. [ ] Add the parallel macOS stage (including automated checks)

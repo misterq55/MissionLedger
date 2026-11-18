@@ -14,7 +14,8 @@
 | 파일 | 역할 |
 |---|---|
 | `installer/MissionLedger.iss` | 설치 프로그램 정의. 복사할 파일, 바로가기, `.ml` 파일 연결, 제거 동작 |
-| `build_installer.bat` | Release 빌드 → exe 확인 → 설치 파일 컴파일을 한 번에 실행하는 편의 스크립트 |
+| `installer/package.cmake` | CMake `installer` 타깃이 실행하는 스크립트. Release 구성인지, ISCC가 있는지 확인한 뒤 ISCC를 실행 |
+| `build_installer.bat` | `cmake --workflow --preset windows-release`(구성 → Release 빌드 → 스모크 테스트 → 설치 파일)를 실행하는 로컬용 래퍼. 더블클릭용 |
 | `VERSION` | 버전의 유일한 원천. 설치 파일 버전과 파일 이름이 여기서 정해집니다 ([VERSIONING.md](VERSIONING.md)) |
 | `MissionLedger/MissionLedger.rc` | exe에 아이콘과 버전 정보를 넣는 리소스 스크립트 |
 | `MissionLedger/resources/app.ico` | 앱 아이콘. `.ml` 파일 아이콘과 설치 프로그램 아이콘으로도 쓰입니다 |
@@ -24,23 +25,29 @@
 
 ## 2. 설치 파일 만들기
 
-### 방법 A: 스크립트 (권장)
+### 방법 A: 한 번에 (권장)
 
-저장소 루트에서 실행합니다.
+저장소 루트에서 실행합니다. 둘은 같은 일을 합니다.
 
 ```bat
 build_installer.bat
+cmake --workflow --preset windows-release
 ```
 
-### 방법 B: 수동
+스모크 테스트가 실패하면 설치 파일을 만들지 않고 멈춥니다.
+
+### 방법 B: 단계별 (CI와 같은 방식)
 
 ```bat
 cmake --preset windows
 cmake --build --preset windows-release
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MissionLedger.iss
+ctest --preset windows-release
+cmake --build --preset windows-installer
 ```
 
-`.iss`는 기본으로 `build\windows\bin\Release\`의 exe를 포장합니다. 다른 폴더의 exe를 쓰려면 `ISCC /DExeDir="..."`로 지정합니다.
+`installer` 타깃은 Release에서만 동작합니다 (Debug로 실행하면 오류). `ISCC.exe`는 Inno Setup 6 기본 설치 폴더에서 찾고, 다른 위치라면 `cmake --preset windows -DML_ISCC="...\ISCC.exe"`로 지정합니다.
+
+ISCC를 직접 실행해도 됩니다: `"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MissionLedger.iss`. `.iss`는 기본으로 `build\windows\bin\Release\`의 exe를 포장합니다. 다른 폴더의 exe를 쓰려면 `ISCC /DExeDir="..."`로 지정합니다.
 
 Inno Setup GUI에서 `.iss`를 열고 Compile을 눌러도 됩니다.
 
@@ -138,7 +145,7 @@ exe가 동적 런타임(`/MD`)으로 빌드되어 `MSVCP140.dll`, `VCRUNTIME140.
 | CLI 미포함 | `MissionLedgerCLI.exe`는 설치되지 않습니다. 필요하면 `[Files]`에 추가합니다 | 낮음 |
 | 폰트 번들 미사용 | `[Files]`의 `fonts\*.ttf` 항목이 주석 처리돼 있습니다. PDF는 시스템의 맑은 고딕을 씁니다. 코드는 `{app}\fonts\`를 먼저 찾도록 준비돼 있습니다 | 낮음 |
 | 코드 서명 없음 | 서명하지 않은 설치 파일은 SmartScreen 경고가 뜹니다. 인증서 비용이 연 $100–300입니다 | 선택 |
-| CI 연동 | `build_installer.bat`은 CMake 프리셋을 쓰므로 VS 에디션 경로 문제는 없어졌지만, 끝에 `pause`가 있어 사람이 실행하는 용도입니다. CI는 bat을 쓰지 않고 Jenkinsfile에서 단계별로 실행합니다 ([CI_PLAN.md](CI_PLAN.md)) | CI 도입 시 |
+| CI 연동 | ✅ 준비 완료: CI는 bat 대신 프리셋을 단계별로 부릅니다 (`cmake --build --preset windows-installer` 등). Jenkinsfile 작성은 [CI_PLAN.md](CI_PLAN.md) 로드맵 6번 | CI 도입 시 |
 | 자동 업데이트, 다국어 | 미구현 | 선택 |
 | 회사명/제품명 | `MissionLedger Project`, `선교 및 프로젝트 예산 관리 프로그램`은 임시값입니다. `MLVersion.h`와 `.iss`의 `MyAppPublisher`에서 바꿉니다 | 선택 |
 | 아이콘 | `app.ico`가 임시 아이콘이라면 장부나 선교와 관련된 단순한 심볼로 교체를 검토합니다 | 선택 |

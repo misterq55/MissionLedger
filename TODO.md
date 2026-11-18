@@ -226,6 +226,26 @@ std::string GetDateTimeString() const
 
 ---
 
+### CLI 일괄 점검 (`MLCLIView`)
+
+**배경**: CI 스모크 테스트(2026-11-18)를 만들면서 CLI 버그가 연달아 발견되어 그때그때 고침. 개별 수정이 아니라 CLI 전체를 한 번 점검할 필요가 있음
+
+**이번에 고친 것** (다시 확인할 때 참고):
+- 인수 없이 실행한 대화형 모드에서 입력이 끝나면(EOF) 무한 루프
+- `add`, `budget add/update/delete`: 필수 옵션이 빠져도 사용법을 출력하지 않음
+- `budget delete`: 없는 ID도 "삭제되었습니다" + 종료 코드 0
+- 없는 파일 경로를 열면(`list`, `budget list`, `open`, `add --file`, `export-*`) 빈 `.ml`을 새로 만들고 성공 처리 → `FMLModel::OpenFile`에서 파일이 있는지 먼저 확인하도록 수정 (Core 수정이라 GUI 열기에도 적용)
+
+**점검 항목**:
+- 모든 명령/옵션의 오류 처리와 종료 코드 (성공 0, 실패 1이 일관적인지)
+- 도움말이 두 벌: 인수 모드(`printUsage`)와 대화형 모드(`printHelp`)의 명령 목록이 다름 (대화형만 `open`/`save`/`budget-add`, 인수 모드만 `export-*`/`budget update/delete`). 통합하거나 명령 체계를 맞출지 결정
+- 대화형 모드 입력 파싱: `std::cin >>`와 `getline` 혼용, 잘못된 숫자 입력 처리
+- 옵션 파서(`parseOptions`): 값 없는 옵션, 알 수 없는 옵션, 중복 옵션 처리
+- 예산 ID가 0부터 시작하는 점이 사용자에게 자연스러운지 (`budget list`의 ID를 그대로 쓰므로 동작에는 문제 없음)
+- 점검 결과에 맞춰 스모크 테스트(`tests/cli_smoke.cmake`) 보강
+
+---
+
 ## 📝 최근 완료된 작업
 
 ### ✅ 증분 업데이트 → 전체 재로드 방식 변경

@@ -19,11 +19,20 @@ Expected totals: income 4,800,000원, expense 4,309,750원, balance 490,250원.
 ### Smoke test
 
 ```bash
-MissionLedgerCLI export-settlement   tests/fixtures/sample.ml out/settlement.pdf
-MissionLedgerCLI export-transactions tests/fixtures/sample.ml out/transactions.pdf
+ctest --preset windows-release   # after cmake --build --preset windows-release (or windows-debug for both)
 ```
 
-Both commands must exit with 0 and create the PDF.
+Defined in [`tests/CMakeLists.txt`](../CMakeLists.txt), run by [`tests/cli_smoke.cmake`](../cli_smoke.cmake):
+
+| Test | Command | Passes when |
+|---|---|---|
+| `cli_list_totals` | `list sample.ml` | exit 0; output has 10 transactions and the totals above |
+| `cli_budget_totals` | `budget list sample.ml` | exit 0; output has income budget 5,000,000원, expense budget 4,800,000원 |
+| `cli_export_settlement` | `export-settlement sample.ml <out>` | exit 0; the PDF exists, is not empty and starts with `%PDF` |
+| `cli_export_transactions` | `export-transactions sample.ml <out>` | same |
+| `cli_missing_file` | `list <path that does not exist>` | exit code is not 0 and no file is created there |
+
+PDFs go to `build/windows/tests/out/<Config>/`. PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
 
 ### Regenerating
 

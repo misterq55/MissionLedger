@@ -18,13 +18,19 @@ The build is defined by `CMakeLists.txt` files; the Visual Studio solution is **
 cmake --preset windows                    # generate build/windows/MissionLedger.sln (= GenerateProjectFiles.bat)
 cmake --build --preset windows-debug      # Debug build
 cmake --build --preset windows-release    # Release build
-build_installer.bat                       # configure + Release build + Inno Setup installer
+ctest --preset windows-release            # CLI smoke tests on tests/fixtures/sample.ml (or windows-debug)
+cmake --build --preset windows-installer  # Inno Setup installer from the Release build (Release only)
+cmake --workflow --preset windows-release # all of it: configure → Release build → smoke test → installer
+build_installer.bat                       # local double-click wrapper for the workflow above (ends with pause; not for CI)
 ```
 
 - Output: `build/windows/bin/<Debug|Release>/MissionLedger.exe`, `MissionLedgerCLI.exe` (+ `.pdb`)
 - Clean build: delete `build/` and generate again. The first build also compiles wxWidgets and PDF-Writer (about 1–2 minutes)
 - CMake, not MSBuild, is called directly, so the Visual Studio edition path does not matter. In Git Bash pass `--parallel` instead of `/m` (MSYS path conversion mangles `/` switches; use `MSYS_NO_PATHCONV=1` if a `/` switch is needed)
 - CI build number: `cmake --preset windows -DML_BUILD_NUMBER=N` (4th field of the exe version)
+- CI (Jenkins) calls the presets one per stage (configure / build / test / installer) so each result shows separately; the workflow preset and `build_installer.bat` are for people
+- Smoke tests check exit codes, the totals in `tests/fixtures/README.md`, that both PDFs are created (not PDF contents) and that opening a missing file fails without creating it. Output goes to `build/windows/tests/out/<Config>/`
+- The `installer` target finds `ISCC.exe` in the default Inno Setup 6 folder; elsewhere configure with `-DML_ISCC=<path>`
 
 ### Working in the IDE
 
@@ -50,12 +56,14 @@ All libraries come from the repository; nothing is installed or configured on th
 ```
 MissionLedger/                   # Repository root
 ├── CMakeLists.txt               # Root build: VERSION, third_party, common settings
-├── CMakePresets.json            # windows configure preset, windows-debug/-release build presets
+├── CMakePresets.json            # windows configure; build/test presets; windows-installer; windows-release workflow
 ├── GenerateProjectFiles.bat     # Generates build/windows/MissionLedger.sln
 ├── third_party/                 # Third-party libraries (shared)
 │   ├── sqlite/                  # SQLite amalgamation
 │   ├── pdfwriter/               # PDF-Writer library (add_subdirectory)
 │   └── wxWidgets/               # wxWidgets 3.2.8 source subset (add_subdirectory)
+├── tests/                       # CTest smoke tests (CMakeLists.txt, cli_smoke.cmake) + fixtures/sample.ml
+├── installer/                   # Inno Setup script (.iss), package.cmake (installer target)
 ├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets); CMakeLists.txt
 │   └── src/
 │       ├── MLDefine.h          # Core enums and data structures
@@ -116,12 +124,13 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 - ✅ Windows Installer (Inno Setup) — [docs/INSTALLER.md](docs/INSTALLER.md)
   - `.ml` file association, Start menu/desktop shortcuts, uninstall cleanup
   - Bundles `vc_redist.x64.exe` (installed only when missing/outdated); admin install only
-  - `build_installer.bat` → `installer\output\MissionLedger-<version>-Setup.exe`
+  - `cmake --build --preset windows-installer` (or `build_installer.bat`) → `installer\output\MissionLedger-<version>-Setup.exe`
 - ✅ Versioning (v1.0.0) — [docs/VERSIONING.md](docs/VERSIONING.md)
   - Root `VERSION` file is the single source of truth (CMake → `.rc`; `.iss`, bat read it directly)
   - `CHANGELOG.md` (Keep a Changelog), annotated tags `vX.Y.Z`
 - ✅ Core folder separation: Core sources in `MissionLedgerCore/src/` (one project = one folder)
 - ✅ CMake build (2026-11-18): generated IDE projects, vendored wxWidgets, `.sln`/`.vcxproj`/`Version.props` removed. Verified against the former MSBuild build (identical CLI output and PDFs except the document ID, same version info, GUI checked, installer builds)
+- ✅ CTest smoke tests, `installer` target and `windows-release` workflow preset (2026-11-18): 5 CLI tests (`sample.ml` totals and PDFs, missing file); the workflow stops before packaging when a test fails; verified from a clean `build/` (about 2.5 minutes)
 
 **Design Decision**: Real-time Budget Tracking
 - ⏸️ Phase 3 (Budget-Transaction Integration) postponed
@@ -132,10 +141,12 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 **Next Steps** (build infrastructure, in order — details in [docs/CI_PLAN.md](docs/CI_PLAN.md) §0 and §10):
 1. ✅ Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (2026-11-18)
 2. ✅ CMake migration (2026-11-18)
-3. 📋 CTest smoke test + Jenkinsfile (Windows, then macOS). Fixture ready: `tests/fixtures/sample.ml` (made-up data; use it on any PC instead of real `.ml` files)
-4. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
+3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
+4. 📋 Jenkinsfile (Windows first, then the macOS stage). Draft in [docs/CI_PLAN.md](docs/CI_PLAN.md) §5
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
 
 **Next Steps** (features):
+- 📋 CLI full review (`MLCLIView`): check every command and option, error handling and exit codes, the two help texts (argument mode vs interactive mode list different commands), and interactive input parsing. See TODO.md
 - 📋 Excel/CSV export (transaction list + settlement report)
 - 📋 Additional features (multi-currency support, custom report templates, etc.)
 

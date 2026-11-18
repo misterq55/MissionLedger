@@ -35,7 +35,7 @@ VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
   │                        └─▶ MLVersion.h 매크로 ──▶ MissionLedger.rc ──▶ exe 파일 속성
   ├─▶ installer/MissionLedger.iss ──▶ 설치 파일 버전, 파일명 (MissionLedger-1.0.0-Setup.exe)
   │       └─ 포장할 exe의 버전과 대조 (다르면 오류로 중단)
-  └─▶ build_installer.bat ──▶ 진행 메시지, 출력 파일명
+  └─▶ CMakeLists.txt (installer 타깃) ──▶ 빌드 메시지의 출력 파일명
 ```
 
 | 파일 | 역할 |
@@ -82,7 +82,7 @@ VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
    ```bat
    build_installer.bat
    ```
-   결과물은 `installer\output\MissionLedger-1.1.0-Setup.exe`입니다.
+   (`cmake --workflow --preset windows-release`와 같습니다. 스모크 테스트가 실패하면 설치 파일을 만들지 않습니다.) 결과물은 `installer\output\MissionLedger-1.1.0-Setup.exe`입니다.
 
 ## 4. 태그 규칙
 
