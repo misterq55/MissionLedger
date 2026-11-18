@@ -132,7 +132,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
   - `CHANGELOG.md` (Keep a Changelog), annotated tags `vX.Y.Z`
 - ✅ Core folder separation: Core sources in `MissionLedgerCore/src/` (one project = one folder)
 - ✅ CMake build (2026-11-18): generated IDE projects, vendored wxWidgets, `.sln`/`.vcxproj`/`Version.props` removed. Verified against the former MSBuild build (identical CLI output and PDFs except the document ID, same version info, GUI checked, installer builds)
-- ✅ Jenkinsfile written (2026-11-18): `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, macOS = node check only) + `jenkins/scripts/preflight.cmake`; Windows stages checked in a fresh clone, **first run on the real Jenkins pending**
+- ✅ Jenkins pipeline (2026-11-19): `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, macOS = node check only), `jenkins/scripts/` (preflight, node_check, node_setup). First successful build on Jenkins: WindowsMini built, tested and packaged, MacMini passed the node check (about 10 minutes, first build)
 - ✅ CTest smoke tests, `installer` target and `windows-release` workflow preset (2026-11-18): 5 CLI tests (`sample.ml` totals and PDFs, missing file); the workflow stops before packaging when a test fails; verified from a clean `build/` (about 2.5 minutes)
 
 **Design Decision**: Real-time Budget Tracking
@@ -145,7 +145,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 1. ✅ Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (2026-11-18)
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
-4. 🔄 Jenkinsfile written (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); next: set up the Jenkins job and do the first run
+4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
 5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Then add `macos` to `IMPLEMENTED` in the Jenkinsfile
 6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
