@@ -12,7 +12,24 @@
     }
   ],
   "buildPresets": [
-    { "name": "windows-debug",   "configurePreset": "windows", "configuration": "Debug" },
-    { "name": "windows-release", "configurePreset": "windows", "configuration": "Release" }
+    { "name": "windows-debug",     "configurePreset": "windows", "configuration": "Debug" },
+    { "name": "windows-release",   "configurePreset": "windows", "configuration": "Release" },
+    { "name": "windows-installer", "configurePreset": "windows", "configuration": "Release", "targets": [ "installer" ] }
+  ],
+  "testPresets": [
+    { "name": "windows-debug",   "configurePreset": "windows", "configuration": "Debug",   "output": { "outputOnFailure": true } },
+    { "name": "windows-release", "configurePreset": "windows", "configuration": "Release", "output": { "outputOnFailure": true } }
+  ],
+  "workflowPresets": [
+    {
+      "name": "windows-release",
+      "displayName": "Configure, Release build, smoke test, installer",
+      "steps": [
+        { "type": "configure", "name": "windows" },
+        { "type": "build",     "name": "windows-release" },
+        { "type": "test",      "name": "windows-release" },
+        { "type": "build",     "name": "windows-installer" }
+      ]
+    }
   ]
 }

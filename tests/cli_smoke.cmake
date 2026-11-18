@@ -1,0 +1,98 @@
+# CLI smoke test runner (called by CTest, see tests/CMakeLists.txt)
+#
+#   cmake -DCASE=<case> -DCLI=<MissionLedgerCLI.exe> -DFIXTURE=<sample.ml> -DOUT_DIR=<dir> -P cli_smoke.cmake
+#
+# Each case runs the CLI once and fails unless
+#   - the exit code is 0 (missing_file: non-zero, and no file is created),
+#   - every expected line appears in the output (totals from tests/fixtures/README.md),
+#   - the PDF (export cases) exists, is not empty and starts with "%PDF".
+# PDF contents/layout are not checked: this only tells whether the build still works.
+# Expected strings live here (UTF-8 file) instead of on the command line to avoid code page issues.
+
+foreach(var CASE CLI FIXTURE OUT_DIR)
+    if(NOT DEFINED ${var})
+        message(FATAL_ERROR "cli_smoke.cmake: -D${var}=... is required")
+    endif()
+endforeach()
+
+set(pdf "")
+set(expect_fail FALSE)
+if(CASE STREQUAL "list_totals")
+    set(args list "${FIXTURE}")
+    set(expected "총 10개의 트랜잭션" "총 수입: 4,800,000원" "총 지출: 4,309,750원" "잔액: 490,250원")
+elseif(CASE STREQUAL "budget_totals")
+    set(args budget list "${FIXTURE}")
+    set(expected "수입 예산: 5,000,000원" "지출 예산: 4,800,000원")
+elseif(CASE STREQUAL "export_settlement")
+    set(pdf "${OUT_DIR}/settlement.pdf")
+    set(args export-settlement "${FIXTURE}" "${pdf}")
+    set(expected "")
+elseif(CASE STREQUAL "export_transactions")
+    set(pdf "${OUT_DIR}/transactions.pdf")
+    set(args export-transactions "${FIXTURE}" "${pdf}")
+    set(expected "")
+elseif(CASE STREQUAL "missing_file")
+    # Opening a path that does not exist must fail and must not create an empty .ml there
+    set(missing "${OUT_DIR}/does_not_exist.ml")
+    file(REMOVE "${missing}")
+    set(args list "${missing}")
+    set(expected "")
+    set(expect_fail TRUE)
+else()
+    message(FATAL_ERROR "cli_smoke.cmake: unknown CASE '${CASE}'")
+endif()
+
+file(MAKE_DIRECTORY "${OUT_DIR}")
+if(pdf)
+    file(REMOVE "${pdf}")   # a PDF left over from an earlier run must not make the test pass
+endif()
+
+# Empty stdin: the CLI never waits for input, even if it falls into interactive mode
+set(empty_input "${OUT_DIR}/empty_stdin.txt")
+file(WRITE "${empty_input}" "")
+
+execute_process(
+    COMMAND "${CLI}" ${args}
+    INPUT_FILE "${empty_input}"
+    OUTPUT_VARIABLE out
+    ERROR_VARIABLE err
+    RESULT_VARIABLE rc
+    ENCODING UTF8   # the CLI writes UTF-8; the default (console code page, CP949 on Korean Windows) garbles it
+    TIMEOUT 30)
+
+message("${out}${err}")
+
+set(errors "")
+if(expect_fail)
+    if(rc EQUAL 0)
+        list(APPEND errors "exit code 0 (expected an error)")
+    endif()
+    if(EXISTS "${missing}")
+        list(APPEND errors "file was created: ${missing}")
+    endif()
+elseif(NOT rc EQUAL 0)
+    list(APPEND errors "exit code ${rc} (expected 0)")
+endif()
+foreach(line IN LISTS expected)
+    string(FIND "${out}" "${line}" pos)
+    if(pos EQUAL -1)
+        list(APPEND errors "missing in output: ${line}")
+    endif()
+endforeach()
+if(pdf)
+    if(NOT EXISTS "${pdf}")
+        list(APPEND errors "PDF not created: ${pdf}")
+    else()
+        file(SIZE "${pdf}" size)
+        file(READ "${pdf}" header LIMIT 4 HEX)   # HEX: text-mode reads are not byte-exact on Windows
+        if(size EQUAL 0 OR NOT header STREQUAL "25504446")   # "%PDF"
+            list(APPEND errors "not a PDF or empty (${size} bytes): ${pdf}")
+        endif()
+    endif()
+endif()
+
+if(errors)
+    list(JOIN errors "\n  " msg)
+    message(FATAL_ERROR "FAILED (${CASE}):\n  ${msg}")
+endif()
+message(STATUS "OK (${CASE})")

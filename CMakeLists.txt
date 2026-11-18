@@ -70,4 +70,27 @@ add_subdirectory(MissionLedgerCore)
 add_subdirectory(MissionLedger)
 add_subdirectory(MissionLedgerCLI)
 
+# ----- Smoke tests (CTest): ctest --preset windows-release -----
+enable_testing()
+add_subdirectory(tests)
+
+# ----- Installer (Inno Setup): cmake --build --preset windows-installer -----
+# Not part of ALL: build it explicitly. Release only (checked in installer/package.cmake).
+if(WIN32)
+    find_program(ML_ISCC ISCC
+        HINTS "$ENV{ProgramFiles\(x86\)}/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6"
+        DOC "Inno Setup compiler (ISCC.exe) used by the installer target")
+    add_custom_target(installer
+        COMMAND ${CMAKE_COMMAND}
+            -DCONFIG=$<CONFIG>
+            -DISCC=${ML_ISCC}
+            -DEXE_DIR=$<TARGET_FILE_DIR:MissionLedger>
+            -DISS=${CMAKE_CURRENT_SOURCE_DIR}/installer/MissionLedger.iss
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/installer/package.cmake
+        COMMENT "Building installer (installer/output/MissionLedger-${ML_VERSION}-Setup.exe)"
+        VERBATIM)
+    add_dependencies(installer MissionLedger)
+    set_target_properties(installer PROPERTIES FOLDER "Packaging")
+endif()
+
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MissionLedger)
