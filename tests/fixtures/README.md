@@ -30,7 +30,7 @@ Both commands must exit with 0 and create the PDF.
 The file is committed as is. To rebuild it from scratch (for example after a schema change), run from the repository root with a built CLI:
 
 ```bash
-CLI=./x64/Release/MissionLedgerCLI.exe   # adjust to the build output path
+CLI=./build/windows/bin/Release/MissionLedgerCLI.exe   # CMake windows preset output
 F=tests/fixtures/sample.ml
 rm -f $F && $CLI new $F
 

@@ -31,24 +31,24 @@
 
 | Issue | Location | Fix |
 |---|---|---|
-| The trailing `pause` hangs CI builds | `build_installer.bat` | Don't call this script from CI. After the CMake migration the script is replaced by a workflow preset |
-| MSBuild path is hard-coded to the Community edition | `build_installer.bat`, CLAUDE.md | Goes away with the CMake migration (`cmake --build`) |
+| The trailing `pause` hangs CI builds | `build_installer.bat` | Don't call this script from CI (it now uses the CMake presets, but is meant for people). CI uses the presets directly; an `installer` target / workflow preset comes with roadmap step 5 |
+| ~~MSBuild path is hard-coded to the Community edition~~ ✅ Done (2026-11-18) | `build_installer.bat`, CLAUDE.md | Gone with the CMake migration (`cmake --build`) |
 | ~~The version is hard-coded in 3 separate places~~ ✅ Done (2026-11-18) | `MLVersion.h`, `MissionLedger.iss` (`MyAppVersion`), `build_installer.bat` (output filename) | The root `VERSION` file is now the single source of truth (see [VERSIONING.md](VERSIONING.md)) |
 | ~~Core sources live in the GUI folder~~ ✅ Done (2026-11-18, `e94b226`) | `MissionLedger/src/` | Moved to `MissionLedgerCore/src/` (one project = one folder) |
-| wxWidgets is outside the repository and its build is undocumented | `WXWIN` differs per PC (`C:\wxWidgets-3.2.6` on one, `C:\wxWidgets-3.2.8` on another) | ✅ Source vendored (2026-11-18): wxWidgets 3.2.8 in `third_party/wxWidgets/` (see §2). The build still uses `WXWIN` until the CMake migration |
-| `third_party/pdfwriter/build` is gitignored, but `MissionLedger.sln` references the vcxproj files generated there | `.sln`, pdfwriter `.gitignore` | A fresh clone must run CMake for PDF-Writer before the `.sln` opens. Goes away with `add_subdirectory` |
+| ~~wxWidgets is outside the repository and its build is undocumented~~ ✅ Done (2026-11-18) | `WXWIN` differed per PC (`C:\wxWidgets-3.2.6` on one, `C:\wxWidgets-3.2.8` on another) | wxWidgets 3.2.8 vendored in `third_party/wxWidgets/` and built by CMake (see §2). `WXWIN` is no longer used |
+| ~~`third_party/pdfwriter/build` is gitignored, but `MissionLedger.sln` references the vcxproj files generated there~~ ✅ Done (2026-11-18) | `.sln`, pdfwriter `.gitignore` | `add_subdirectory(third_party/pdfwriter)`; no separate PDF-Writer step |
 | ~~No sample `.ml` file is committed for smoke tests~~ ✅ Done (2026-11-18) | All `.ml` files in the root are untracked | `tests/fixtures/sample.ml` with made-up data (see [tests/fixtures/README.md](../tests/fixtures/README.md)) |
-| The build system works only with Visual Studio | `.sln` / `.vcxproj` | **Migrate to CMake** (required before a macOS build is possible) |
+| ~~The build system works only with Visual Studio~~ ✅ Done (2026-11-18) | `.sln` / `.vcxproj` (removed) | Migrated to CMake (§3) |
 
 ### Single-Source Versioning (✅ Implemented 2026-11-18)
 
 The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). What CI relies on:
 
 - **Source of truth**: the root `VERSION` file (`MAJOR.MINOR.PATCH`, one line). CI reads it with `readFile('VERSION')`
-- **Build number**: currently `msbuild ... /p:MLBuildNumber=%BUILD_NUMBER%` (read by `Version.props`). After the CMake migration: `-DML_BUILD_NUMBER=%BUILD_NUMBER%`
+- **Build number**: `cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%` (4th field of the exe version)
 - **Installer**: `MissionLedger.iss` reads `VERSION` itself; `ISCC /DMyAppVersion=x.y.z` still overrides it. ISCC fails if the packaged exe's `ProductVersion` differs from it
 - On tag builds, check that the Git tag (`v1.2.3`) matches `VERSION`, and fail the build if they differ (in the Jenkinsfile)
-- After the CMake migration: `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)` → `.rc` defines, and `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` via `configure_file`. `Version.props` is then removed
+- CMake (done): `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)` → `.rc` defines (`Version.props` removed). Planned for macOS: `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` via `configure_file`
 
 ---
 
@@ -56,11 +56,11 @@ The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). W
 
 "Deps" is short for **dependencies**: the external libraries that must be ready before the application can be built.
 
-| Library | Now | After the CMake migration | CI work |
+| Library | Before (MSBuild) | Now (CMake, 2026-11-18) | CI work |
 |---|---|---|---|
-| SQLite | Amalgamation source in `third_party/sqlite/`, compiled inside the Core project | `sqlite3.c` added to the Core target | None |
-| PDF-Writer | Source in `third_party/pdfwriter/`; CMake-generated vcxproj files added to `MissionLedger.sln` | `add_subdirectory(third_party/pdfwriter)` | None |
-| wxWidgets | Prebuilt outside the repository, found via `WXWIN` (version differs per PC). The 3.2.8 source is already in `third_party/wxWidgets/` but nothing uses it yet | **Source in `third_party/wxWidgets/` (3.2.8)**, `add_subdirectory` | None |
+| SQLite | Amalgamation source in `third_party/sqlite/`, compiled inside the Core project | `sqlite3.c` in the Core target | None |
+| PDF-Writer | Source in `third_party/pdfwriter/`; CMake-generated vcxproj files added to `MissionLedger.sln` | `add_subdirectory(third_party/pdfwriter)`, `PDFHUMMUS_NO_OPENSSL=ON` | None |
+| wxWidgets | Prebuilt outside the repository, found via `WXWIN` (version differed per PC) | **Source in `third_party/wxWidgets/` (3.2.8)**, `add_subdirectory` | None |
 
 All three come from the repository, so a fresh clone builds with no extra setup.
 
@@ -96,13 +96,14 @@ All three come from the repository, so a fresh clone builds with no extra setup.
 
 ---
 
-## 3. CMake Migration (Required for the macOS Build)
+## 3. CMake Migration (✅ Done 2026-11-18, Windows)
 
 Maintaining both `.vcxproj` files and an Xcode project would mean editing two places every time a file is added. Use a single CMake build for both platforms instead.
 
 ```
 CMakeLists.txt                  # Root: reads VERSION, common settings, add_subdirectory for each part
-CMakePresets.json               # Configure/build/test/package presets and workflow presets (Win/Mac)
+CMakePresets.json               # Now: windows configure + windows-debug/-release build presets. Later: test/workflow, macos
+GenerateProjectFiles.bat        # = cmake --preset windows (generates build/windows/MissionLedger.sln)
 ├── MissionLedgerCore/          # Static library: src/** (model, controller, storage, export) + SQLite
 ├── MissionLedger/              # GUI app: src/** + main.cpp + .rc (Win: WIN32 exe / Mac: MACOSX_BUNDLE .app)
 ├── MissionLedgerCLI/           # CLI: src/** + main_cli.cpp
@@ -130,24 +131,24 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src FILES ${CORE_SOURCES})   # IDE
 ```bash
 cmake --preset windows                   # generate build/windows/MissionLedger.sln (once, or when presets change)
 cmake --build --preset windows-release   # or open the .sln and press F5 as before
-cmake --workflow --preset release        # configure → build → smoke test → installer, same on Win/Mac
+cmake --workflow --preset release        # planned (step 5): configure → build → smoke test → installer, same on Win/Mac
 ```
 
-| Task | Now | After |
+| Task | Before (MSBuild) | Now (CMake) |
 |---|---|---|
 | Edit, build, debug | Visual Studio | Unchanged (generated `.sln`, or VS "Open Folder") |
 | Add a source file | Solution Explorer | Create it in the folder; never through the IDE (it would go into the generated project only, possibly under `build/`) |
 | Include paths, defines, link options | Property pages | `CMakeLists.txt` |
 | Debugger arguments / working dir | Property pages | `VS_DEBUGGER_*` target properties or `launch.vs.json` |
-| Build output | `x64\Release\` | `build/<preset>/...` (update `.iss` and other paths accordingly) |
-| New PC | Build wxWidgets, set `WXWIN`, run CMake for PDF-Writer | Clone and build |
+| Build output | `x64\Release\` | `build/windows/bin/<Config>/` (`.iss` default `ExeDir`, `build_installer.bat`, `tests/fixtures/README.md` updated) |
+| New PC | Build wxWidgets, set `WXWIN`, run CMake for PDF-Writer | Clone, run `GenerateProjectFiles.bat`, build |
 
-### Migration steps
+### Migration steps (all done 2026-11-18)
 
-1. Write the CMake build next to the existing `.sln` (wxWidgets 3.2.8 is already vendored; use the verified options in §2)
-2. Check on Windows that the results match the current MSBuild output: run the GUI, generate both PDFs with the CLI, compare exe version info, build the installer
-3. **Then delete the old build files right away** (`.sln`, `.vcxproj`, `.filters`, `Version.props`) so files don't have to be registered in two places. Keep the transition short
-4. Add `build/` to `.gitignore`
+1. ✅ CMake build written next to the `.sln`, using the verified wxWidgets options in §2. Settings ported from the vcxproj files: include paths, `/utf-8`, Unicode, SubSystem, Release PDB (`/Zi /DEBUG /OPT:REF /OPT:ICF /Gy /Oi`). Added: C++17 (the vcxproj files had no standard set, so MSVC used C++14). Not ported: `/GL` (whole program optimization)
+2. ✅ Compared with the MSBuild output on Windows: CLI `list` / `budget list` identical, both PDFs byte-identical except the document ID, same exe version info, GUI checked by hand, installer builds. Found and fixed on the way: Korean ProductName/FileDescription in the exe properties were garbled in both builds (`#pragma code_page` came after the include in `.rc`)
+3. ✅ Deleted `.sln`, `.vcxproj`, `.filters`, `Version.props`; `build_installer.bat` uses the presets; `.iss` defaults to the CMake output. Verified again from a clean state (no `build/`, no `x64/`, no PDF-Writer pre-build): `build_installer.bat` alone configures, builds and packages in about 2 minutes
+4. ✅ `/build/` added to `.gitignore`
 
 ---
 
@@ -172,7 +173,7 @@ Checkout → Version → Build → Smoke Test → Package → (Sign) → Archive
 
 ## 5. Draft Jenkinsfile (CMake-Based)
 
-> Written for after the CMake migration. Preset names are placeholders until `CMakePresets.json` exists. No wxWidgets path or `WXWIN` is needed: it is built from `third_party/`.
+> `windows`, `windows-release` exist in `CMakePresets.json`. The test presets, the `installer` target and all `macos` presets are still to be added (roadmap steps 5–7). No wxWidgets path or `WXWIN` is needed: it is built from `third_party/`.
 
 ```groovy
 pipeline {
@@ -248,7 +249,7 @@ pipeline {
 }
 ```
 
-- Until the CMake migration is done, there is no Jenkinsfile. The previous MSBuild-only draft (which needed `WXWIN` and a separate PDF-Writer stage) is in the history of this file
+- There is no Jenkinsfile yet (roadmap step 6). The previous MSBuild-only draft (which needed `WXWIN` and a separate PDF-Writer stage) is in the history of this file
 
 ---
 
@@ -354,11 +355,11 @@ agent { label 'macos && xcode' }
 
 ## 10. Roadmap
 
-1. [x] Single-source versioning: `VERSION` → MSBuild (`Version.props`), `.iss`, `build_installer.bat` (2026-11-18)
+1. [x] Single-source versioning: `VERSION` → MSBuild (`Version.props`, replaced by CMake in step 4), `.iss`, `build_installer.bat` (2026-11-18)
 2. [x] Core folder separation: Core sources in `MissionLedgerCore/src/` (2026-11-18, `e94b226`)
 3. [x] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed; stand-alone CMake build verified) (2026-11-18)
-4. [ ] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`, installer target. Compare results on Windows, then delete the `.sln`/`.vcxproj`/`Version.props` and add `build/` to `.gitignore`
-5. [ ] CTest smoke test (CLI → 2 PDFs). Fixture done: `tests/fixtures/sample.ml` (2026-11-18)
+4. [x] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, `GenerateProjectFiles.bat`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`. Compared on Windows, then deleted the `.sln`/`.vcxproj`/`Version.props` and added `build/` to `.gitignore` (2026-11-18, see §3)
+5. [ ] CTest smoke test (CLI → 2 PDFs), test presets, `installer` target (ISCC) and workflow preset (moved here from step 4). Fixture done: `tests/fixtures/sample.ml` (2026-11-18)
 6. [ ] Write the Jenkinsfile (Windows first)
 7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal)
 8. [ ] Add the parallel macOS stage (including automated checks)

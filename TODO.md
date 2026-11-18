@@ -191,15 +191,10 @@ int SelectedBudgetId = -1;  // Category, Item 대신 ID만 추적
 - 필터링 로직 - 날짜 없는 항목 처리 정책
 
 **선행 작업**:
-```bash
-# Visual Studio 프로젝트 설정 변경
-# C/C++ → 언어 → C++ 언어 표준 → ISO C++17 표준 (/std:c++17)
-# 또는 .vcxproj 파일에 추가:
-# <LanguageStandard>stdcpp17</LanguageStandard>
-```
+없음: CMake 빌드가 C++17로 컴파일합니다 (루트 `CMakeLists.txt`의 `ml_set_target_defaults`, 2026-11-18).
 
 #### 방안 2: 특수 값 사용
-**요구사항**: C++11 (현재 버전)
+**요구사항**: C++11 (현재 빌드는 C++17)
 **작업량**: 적음 (3~4곳 수정)
 **장점**: 빠른 구현
 **단점**:

@@ -10,57 +10,53 @@ MissionLedger is a C++ desktop application built with wxWidgets for financial tr
 
 ## Quick Reference
 
-### Build Commands
+### Build Commands (CMake)
 
-#### Visual Studio Developer Command Prompt
-
-```bash
-# Debug build
-msbuild MissionLedger.sln /p:Configuration=Debug /p:Platform=x64
-
-# Release build
-msbuild MissionLedger.sln /p:Configuration=Release /p:Platform=x64
-
-# Clean
-msbuild MissionLedger.sln /t:Clean
-```
-
-#### Git Bash (MSYS2 Environment)
-
-Git Bash requires special handling due to automatic path conversion. Use `MSYS_NO_PATHCONV=1` to prevent `/p:`, `/v:` switches from being converted to Windows paths.
+The build is defined by `CMakeLists.txt` files; the Visual Studio solution is **generated** into `build/windows/` and never committed (like Unreal's GenerateProjectFiles). Run from the repository root:
 
 ```bash
-# Debug build (recommended)
-MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" MissionLedger.sln /p:Configuration=Debug /p:Platform=x64 /v:minimal /nologo
-
-# Release build
-MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" MissionLedger.sln /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo
-
-# Clean
-MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" MissionLedger.sln /t:Clean /v:minimal /nologo
+cmake --preset windows                    # generate build/windows/MissionLedger.sln (= GenerateProjectFiles.bat)
+cmake --build --preset windows-debug      # Debug build
+cmake --build --preset windows-release    # Release build
+build_installer.bat                       # configure + Release build + Inno Setup installer
 ```
 
-**Note**: Adjust the MSBuild path if using Professional or Enterprise edition:
-- Community: `C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe`
-- Professional: `C:/Program Files/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin/MSBuild.exe`
-- Enterprise: `C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/MSBuild.exe`
+- Output: `build/windows/bin/<Debug|Release>/MissionLedger.exe`, `MissionLedgerCLI.exe` (+ `.pdb`)
+- Clean build: delete `build/` and generate again. The first build also compiles wxWidgets and PDF-Writer (about 1–2 minutes)
+- CMake, not MSBuild, is called directly, so the Visual Studio edition path does not matter. In Git Bash pass `--parallel` instead of `/m` (MSYS path conversion mangles `/` switches; use `MSYS_NO_PATHCONV=1` if a `/` switch is needed)
+- CI build number: `cmake --preset windows -DML_BUILD_NUMBER=N` (4th field of the exe version)
+
+### Working in the IDE
+
+- **Generated solution**: run `GenerateProjectFiles.bat` once, open `build/windows/MissionLedger.sln`, edit/build/F5 as usual (startup project is MissionLedger)
+- **Or Visual Studio "Open Folder"** on the repository root: VS reads `CMakePresets.json` directly, and Solution Explorer shows the real folders
+- **Add a source file**: create it in the project's folder (in "Open Folder" mode Solution Explorer can do this). It is picked up on the next build. **Never** use "Add New Item" or property pages in the generated solution: those changes live only in `build/` and are lost on regeneration
+- **Change include paths, defines, link options**: edit the project's `CMakeLists.txt`
+- Every `.cpp`/`.h` under a project's `src/` is part of the build: don't keep backup or scratch files there
+- Regenerate only after deleting `build/`, a fresh clone, or a preset change; otherwise the build re-runs CMake by itself
 
 ### Dependencies
 
-- **wxWidgets**: GUI framework. The current MSBuild build uses prebuilt static libraries outside the repository via the `WXWIN` environment variable (GUI project only; the version differs per PC: 3.2.6 or 3.2.8). The 3.2.8 source is vendored in `third_party/wxWidgets/` (see its `VERSION.txt`) and will replace `WXWIN` with the CMake migration ([docs/CI_PLAN.md](docs/CI_PLAN.md) §2)
-- **Visual Studio 2022**: Windows 10 SDK, v143 toolset
-- **SQLite**: Embedded via amalgamation (third_party/sqlite/)
-- **PDF-Writer**: PDF generation library (third_party/pdfwriter/)
-- **Platform**: Windows x64
+All libraries come from the repository; nothing is installed or configured on the machine (no `WXWIN`).
+
+- **Tools**: CMake 3.25+, Visual Studio 2022 (C++ workload, Windows 10 SDK, v143), Inno Setup 6.7+ (installer only)
+- **wxWidgets 3.2.8**: GUI framework, vendored source in `third_party/wxWidgets/` (see its `VERSION.txt`), built as static `base` + `core` via `add_subdirectory` (GUI project only)
+- **SQLite**: Embedded via amalgamation (third_party/sqlite/), compiled into Core
+- **PDF-Writer**: PDF generation library (third_party/pdfwriter/), `add_subdirectory` (OpenSSL off)
+- **Platform**: Windows x64 (macOS planned, [docs/CI_PLAN.md](docs/CI_PLAN.md))
 
 ### Code Structure
 
 ```
-MissionLedger/                   # Solution root
+MissionLedger/                   # Repository root
+├── CMakeLists.txt               # Root build: VERSION, third_party, common settings
+├── CMakePresets.json            # windows configure preset, windows-debug/-release build presets
+├── GenerateProjectFiles.bat     # Generates build/windows/MissionLedger.sln
 ├── third_party/                 # Third-party libraries (shared)
 │   ├── sqlite/                  # SQLite amalgamation
-│   └── pdfwriter/               # PDF-Writer library (CMake-based)
-├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets)
+│   ├── pdfwriter/               # PDF-Writer library (add_subdirectory)
+│   └── wxWidgets/               # wxWidgets 3.2.8 source subset (add_subdirectory)
+├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets); CMakeLists.txt
 │   └── src/
 │       ├── MLDefine.h          # Core enums and data structures
 │       ├── interface/          # Abstract interfaces (IMLModel, IMLView, ...)
@@ -71,39 +67,23 @@ MissionLedger/                   # Solution root
 │           └── mvc/
 │               ├── model/      # FMLModel, FMLTransaction, FMLBudget
 │               └── controller/ # FMLController
-├── MissionLedger/               # GUI application (wxWidgets)
+├── MissionLedger/               # GUI application (wxWidgets); CMakeLists.txt
 │   ├── main.cpp                 # Application entry point
 │   ├── MissionLedger.rc         # Icon and version resources
 │   └── src/
 │       ├── MLVersion.h         # Version macros (values come from /VERSION)
 │       └── module/mvc/view/    # wxMLMainFrame, MLBudgetDialog
-└── MissionLedgerCLI/            # Command-line interface
+└── MissionLedgerCLI/            # Command-line interface; CMakeLists.txt
     ├── main_cli.cpp
     └── src/module/mvc/view/    # MLCLIView
 ```
 
-- **One project = one folder**: each project compiles only the sources under its own folder. Put Core code (model, controller, storage, export, interfaces) in `MissionLedgerCore/src/`, never in the GUI or CLI folders
-- Include paths are rooted at each project's `src/` (e.g. `#include "module/mvc/model/MLModel.h"`); GUI and CLI also add `MissionLedgerCore/src`
+- **One project = one folder**: each project compiles the sources under its own folder (`file(GLOB_RECURSE ... CONFIGURE_DEPENDS)` in its `CMakeLists.txt`). Put Core code (model, controller, storage, export, interfaces) in `MissionLedgerCore/src/`, never in the GUI or CLI folders
+- Include paths are rooted at each project's `src/` (e.g. `#include "module/mvc/model/MLModel.h"`); GUI and CLI get `MissionLedgerCore/src` through the Core target
 
 ### First-Time Setup (Other Computers)
 
-When cloning this repository on a new computer, you must generate PDF-Writer build files using CMake:
-
-```bash
-# Navigate to PDF-Writer directory
-cd third_party/pdfwriter
-mkdir -p build
-cd build
-
-# Generate Visual Studio project files
-cmake .. -G "Visual Studio 17 2022" -A x64
-
-# Build Debug and Release libraries
-cmake --build . --config Debug
-cmake --build . --config Release
-```
-
-After this, you can build the entire solution normally with MSBuild.
+Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No other setup: wxWidgets and PDF-Writer are built from `third_party/` on the first build.
 
 ## Current Implementation Status
 
@@ -138,9 +118,10 @@ After this, you can build the entire solution normally with MSBuild.
   - Bundles `vc_redist.x64.exe` (installed only when missing/outdated); admin install only
   - `build_installer.bat` → `installer\output\MissionLedger-<version>-Setup.exe`
 - ✅ Versioning (v1.0.0) — [docs/VERSIONING.md](docs/VERSIONING.md)
-  - Root `VERSION` file is the single source of truth (`Version.props` → `.rc`, `.iss`, bat)
+  - Root `VERSION` file is the single source of truth (CMake → `.rc`; `.iss`, bat read it directly)
   - `CHANGELOG.md` (Keep a Changelog), annotated tags `vX.Y.Z`
 - ✅ Core folder separation: Core sources in `MissionLedgerCore/src/` (one project = one folder)
+- ✅ CMake build (2026-11-18): generated IDE projects, vendored wxWidgets, `.sln`/`.vcxproj`/`Version.props` removed. Verified against the former MSBuild build (identical CLI output and PDFs except the document ID, same version info, GUI checked, installer builds)
 
 **Design Decision**: Real-time Budget Tracking
 - ⏸️ Phase 3 (Budget-Transaction Integration) postponed
@@ -149,8 +130,8 @@ After this, you can build the entire solution normally with MSBuild.
 - Settlement comparison performed during PDF export (not real-time)
 
 **Next Steps** (build infrastructure, in order — details in [docs/CI_PLAN.md](docs/CI_PLAN.md) §0 and §10):
-1. ✅ Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (2026-11-18; stand-alone CMake build verified, not used by the build yet)
-2. 📋 CMake migration: generated IDE projects (Unreal GenerateProjectFiles style), per-folder automatic source collection, `add_subdirectory` for PDF-Writer/wxWidgets; then delete `.sln`/`.vcxproj`/`Version.props`
+1. ✅ Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (2026-11-18)
+2. ✅ CMake migration (2026-11-18)
 3. 📋 CTest smoke test + Jenkinsfile (Windows, then macOS). Fixture ready: `tests/fixtures/sample.ml` (made-up data; use it on any PC instead of real `.ml` files)
 4. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
 
@@ -158,7 +139,7 @@ After this, you can build the entire solution normally with MSBuild.
 - 📋 Excel/CSV export (transaction list + settlement report)
 - 📋 Additional features (multi-currency support, custom report templates, etc.)
 
-**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it. PDF layout nits seen with `sample.ml`: in the settlement report the last data row overlaps the total row's border; wrapped lines in the transaction list can start with a space; the settlement title comes from the input `.ml` name but the transaction-list title from the output PDF name. PDF CJK coverage: export uses one font for the whole document with no per-glyph fallback (bundled `fonts/NotoSansKR-*.ttf` if present, else Malgun Gothic). Malgun Gothic covers Hangul, Korean Hanja and kana but not Japanese shinjitai kanji (e.g. 気駅広) or Simplified Chinese (e.g. 们这说话); checked against the font's glyph map on 2026-11-18, PDF output not tested. GUI likely fine via Windows font fallback (not tested). Options if needed: bundle Noto Sans CJK, or a per-glyph fallback chain in `MLPDFDocument`
+**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not compiled, but listed in the generated IDE project because headers are globbed); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's, and its exe path predates the CMake output folder — consider deleting it. The former MSBuild Release used `/GL` (whole program optimization); the CMake build does not (exe about 0.1 MB larger, speed difference not measured). PDF layout nits seen with `sample.ml`: in the settlement report the last data row overlaps the total row's border; wrapped lines in the transaction list can start with a space; the settlement title comes from the input `.ml` name but the transaction-list title from the output PDF name. PDF CJK coverage: export uses one font for the whole document with no per-glyph fallback (bundled `fonts/NotoSansKR-*.ttf` if present, else Malgun Gothic). Malgun Gothic covers Hangul, Korean Hanja and kana but not Japanese shinjitai kanji (e.g. 気駅広) or Simplified Chinese (e.g. 们这说话); checked against the font's glyph map on 2026-11-18, PDF output not tested. GUI likely fine via Windows font fallback (not tested). Options if needed: bundle Noto Sans CJK, or a per-glyph fallback chain in `MLPDFDocument`
 
 **Session wrap-up**: before starting a new task or switching to another PC, update this status section, `CHANGELOG.md` `[미배포]`, and the roadmap in `docs/CI_PLAN.md`, then **ask the user whether to commit and push** (see "Working Rules"). Claude's local memory does not travel between PCs; anything another session needs must be in the repository
 
@@ -275,7 +256,7 @@ For detailed information, refer to:
 ## Compact Instructions
 
 When compacting, always preserve:
-- Build commands (msbuild configurations)
+- Build commands (CMake presets, generated IDE projects, never add files through the IDE)
 - MVC architecture patterns and boundaries (View → Controller → Model)
 - Storage provider implementation (SQLite with DI pattern)
 - UTF-8 encoding requirements (`FromUTF8()` for display, `ToUTF8().data()` for storage)

@@ -31,7 +31,7 @@
 ```
 VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
   │
-  ├─▶ Version.props ──▶ 리소스 컴파일러(rc)에 ML_VERSION_MAJOR=1 ... 전달
+  ├─▶ CMakeLists.txt ──▶ 리소스 컴파일러(rc)에 ML_VERSION_MAJOR=1 ... 전달
   │                        └─▶ MLVersion.h 매크로 ──▶ MissionLedger.rc ──▶ exe 파일 속성
   ├─▶ installer/MissionLedger.iss ──▶ 설치 파일 버전, 파일명 (MissionLedger-1.0.0-Setup.exe)
   │       └─ 포장할 exe의 버전과 대조 (다르면 오류로 중단)
@@ -41,24 +41,24 @@ VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
 | 파일 | 역할 |
 |---|---|
 | `VERSION` | 버전의 유일한 원천. 숫자 한 줄만 둡니다 (BOM 없는 텍스트) |
-| `Version.props` | MSBuild가 `VERSION`을 읽고 형식을 검증합니다. `MissionLedger.vcxproj`에서 불러옵니다 |
+| `CMakeLists.txt` (루트) | `VERSION`을 읽고 형식을 검증해 `project(VERSION ...)`에 씁니다. `MissionLedger/CMakeLists.txt`가 그 값을 `MissionLedger.rc`에만 전처리기 정의로 넘깁니다 |
 | `MissionLedger/src/MLVersion.h` | 숫자 없이 문자열 조립 매크로와 앱 정보만 둡니다 |
 | `installer/MissionLedger.iss` | `VERSION`을 직접 읽습니다. `/DMyAppVersion=x.y.z`로 넘기면 그 값을 우선합니다 |
 
 ### 빌드 번호 (네 번째 자리)
 
 - exe 파일 버전의 네 번째 자리(`1.0.0.N`)는 빌드 번호입니다. 기본값은 0입니다.
-- CI에서 `msbuild ... /p:MLBuildNumber=%BUILD_NUMBER%`로 넘깁니다. 사람이 관리하지 않습니다.
+- CI에서 `cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%`로 넘깁니다. 사람이 관리하지 않습니다.
 
 ### 안전장치
 
-- `VERSION`이 없거나 `1.0.0` 형식이 아니면 빌드가 오류로 실패합니다.
+- `VERSION`이 없거나 `1.0.0` 형식이 아니면 CMake 구성 단계가 오류로 실패합니다.
 - `VERSION`을 고치고 Release 빌드를 하지 않은 채 설치 파일을 만들면, exe 버전과 맞지 않아 ISCC가 중단됩니다.
 
 ### 참고
 
 - 버전 값은 리소스 컴파일러에만 전달됩니다. 버전을 올릴 때마다 모든 `.cpp`가 다시 컴파일되는 것을 피하기 위해서입니다.
-- 앱 코드(정보 대화상자, CLI `--version` 등)에서 버전이 필요해지면 그때 `Version.props`에서 `ClCompile`에도 전달하거나, 버전 헤더를 생성하는 방식을 검토합니다.
+- 앱 코드(정보 대화상자, CLI `--version` 등)에서 버전이 필요해지면 그때 CMake `configure_file`로 버전 헤더를 생성하는 방식을 검토합니다 (해당 헤더를 쓰는 파일만 다시 컴파일됨).
 
 ## 3. 릴리스 절차
 

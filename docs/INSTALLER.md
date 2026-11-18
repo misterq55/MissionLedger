@@ -35,16 +35,19 @@ build_installer.bat
 ### 방법 B: 수동
 
 ```bat
-msbuild MissionLedger.sln /p:Configuration=Release /p:Platform=x64
+cmake --preset windows
+cmake --build --preset windows-release
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MissionLedger.iss
 ```
+
+`.iss`는 기본으로 `build\windows\bin\Release\`의 exe를 포장합니다. 다른 폴더의 exe를 쓰려면 `ISCC /DExeDir="..."`로 지정합니다.
 
 Inno Setup GUI에서 `.iss`를 열고 Compile을 눌러도 됩니다.
 
 ### 주의
 
 - 설치 파일 버전은 `VERSION` 파일에서 읽습니다. `.iss`에 버전을 직접 적지 않습니다.
-- **Release 빌드를 먼저 해야 합니다.** `x64\Release\MissionLedger.exe`의 버전이 `VERSION`과 다르면 ISCC가 오류를 내고 중단합니다. 예전 exe가 새 버전 이름으로 포장되는 사고를 막기 위해서입니다.
+- **Release 빌드를 먼저 해야 합니다.** `build\windows\bin\Release\MissionLedger.exe`의 버전이 `VERSION`과 다르면 ISCC가 오류를 내고 중단합니다. 예전 exe가 새 버전 이름으로 포장되는 사고를 막기 위해서입니다.
 - Visual C++ 런타임 설치 파일(`vc_redist.x64.exe`)은 Visual Studio 2022 설치 폴더에서 자동으로 찾습니다 (Community → Professional → Enterprise → Build Tools 순서, `VC\Redist\MSVC\v143\`). 따로 내려받을 필요가 없습니다. 다른 위치의 파일을 쓰려면 `ISCC /DVCRedistPath="...\vc_redist.x64.exe"`로 지정합니다.
 
 ## 3. 설치 프로그램 동작
@@ -135,7 +138,7 @@ exe가 동적 런타임(`/MD`)으로 빌드되어 `MSVCP140.dll`, `VCRUNTIME140.
 | CLI 미포함 | `MissionLedgerCLI.exe`는 설치되지 않습니다. 필요하면 `[Files]`에 추가합니다 | 낮음 |
 | 폰트 번들 미사용 | `[Files]`의 `fonts\*.ttf` 항목이 주석 처리돼 있습니다. PDF는 시스템의 맑은 고딕을 씁니다. 코드는 `{app}\fonts\`를 먼저 찾도록 준비돼 있습니다 | 낮음 |
 | 코드 서명 없음 | 서명하지 않은 설치 파일은 SmartScreen 경고가 뜹니다. 인증서 비용이 연 $100–300입니다 | 선택 |
-| CI 연동 | `build_installer.bat`의 MSBuild 경로가 Community 에디션으로 고정돼 있고 끝에 `pause`가 있습니다. CI는 bat을 쓰지 않고 Jenkinsfile에서 단계별로 실행합니다 ([CI_PLAN.md](CI_PLAN.md)) | CI 도입 시 |
+| CI 연동 | `build_installer.bat`은 CMake 프리셋을 쓰므로 VS 에디션 경로 문제는 없어졌지만, 끝에 `pause`가 있어 사람이 실행하는 용도입니다. CI는 bat을 쓰지 않고 Jenkinsfile에서 단계별로 실행합니다 ([CI_PLAN.md](CI_PLAN.md)) | CI 도입 시 |
 | 자동 업데이트, 다국어 | 미구현 | 선택 |
 | 회사명/제품명 | `MissionLedger Project`, `선교 및 프로젝트 예산 관리 프로그램`은 임시값입니다. `MLVersion.h`와 `.iss`의 `MyAppPublisher`에서 바꿉니다 | 선택 |
 | 아이콘 | `app.ico`가 임시 아이콘이라면 장부나 선교와 관련된 단순한 심볼로 교체를 검토합니다 | 선택 |

@@ -15,44 +15,38 @@
 
 ## 빌드 요구사항
 
-- Visual Studio 2022 (v143 toolset)
-- Windows 10 SDK
-- wxWidgets 3.2.8 (`C:\wxWidgets-3.2.8` 위치 및 `WXWIN` 환경 변수 필요)
-- CMake 3.15 이상
+- Visual Studio 2022 (C++ 워크로드, Windows 10 SDK, v143 toolset)
+- CMake 3.25 이상
+- (설치 파일을 만들 때만) Inno Setup 6.7 이상
 
-## 첫 빌드 (Debug)
+wxWidgets, PDF-Writer, SQLite는 저장소의 `third_party/`에 포함돼 있어 따로 설치하거나 환경 변수를 설정할 필요가 없습니다.
 
-처음 저장소를 클론한 경우, 먼저 PDF-Writer 라이브러리를 빌드해야 합니다:
+## 빌드
 
-```bash
-cd third_party/pdfwriter
-mkdir build
-cd build
-
-# Visual Studio 프로젝트 생성
-cmake .. -G "Visual Studio 17 2022" -A x64
-
-# Debug/Release 빌드
-cmake --build . --config Debug
-cmake --build . --config Release
-```
-
-## 전체 프로젝트 빌드
+Visual Studio 솔루션은 `CMakeLists.txt`에서 생성합니다 (저장소에는 넣지 않습니다).
 
 ```bash
-# Debug 빌드
-msbuild MissionLedger.sln /p:Configuration=Debug /p:Platform=x64
+# 1. 솔루션 생성 (클론 후 한 번): build/windows/MissionLedger.sln
+GenerateProjectFiles.bat          # 또는 cmake --preset windows
 
-# Release 빌드
-msbuild MissionLedger.sln /p:Configuration=Release /p:Platform=x64
+# 2. 빌드 (또는 생성된 .sln을 Visual Studio로 열어 빌드/F5)
+cmake --build --preset windows-debug
+cmake --build --preset windows-release
+
+# 설치 파일: installer/output/MissionLedger-<버전>-Setup.exe
+build_installer.bat
 ```
+
+- 실행 파일: `build/windows/bin/<Debug|Release>/`
+- 첫 빌드는 wxWidgets와 PDF-Writer도 함께 컴파일하므로 1~2분 정도 걸립니다.
+- 소스 파일은 각 프로젝트 폴더에 만들기만 하면 다음 빌드에 포함됩니다. Visual Studio의 "새 항목 추가"나 속성 페이지는 생성된 프로젝트에만 반영되므로 쓰지 않습니다. 자세한 내용은 [CLAUDE.md](CLAUDE.md)의 "Working in the IDE"를 참고하세요.
 
 ## 프로젝트 구조
 
 - `MissionLedger/` - GUI 애플리케이션
 - `MissionLedgerCore/` - 코어 비즈니스 로직 라이브러리 (정적 라이브러리)
 - `MissionLedgerCLI/` - 명령줄 인터페이스
-- `third_party/` - 외부 라이브러리 (SQLite, PDF-Writer)
+- `third_party/` - 외부 라이브러리 (SQLite, PDF-Writer, wxWidgets)
 
 ## 추가 정보
 
