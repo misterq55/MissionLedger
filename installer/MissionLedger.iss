@@ -23,10 +23,10 @@
   #error VERSION 파일이 비어 있습니다.
 #endif
 
-; 포장할 exe가 있는 폴더. CMake 빌드는 ISCC /DExeDir="...\build\windows\bin\Release" 로 넘깁니다.
-; (CMake 이전 기간에는 기본값이 MSBuild 출력 폴더 x64\Release)
+; 포장할 exe가 있는 폴더 (기본값: CMake windows 프리셋의 Release 출력).
+; 다른 폴더를 쓰려면 ISCC /DExeDir="..." 로 넘깁니다.
 #ifndef ExeDir
-  #define ExeDir AddBackslash(SourcePath) + "..\x64\Release"
+  #define ExeDir AddBackslash(SourcePath) + "..\build\windows\bin\Release"
 #endif
 
 ; 안전장치: 포장할 exe의 버전이 VERSION과 다르면 중단합니다.

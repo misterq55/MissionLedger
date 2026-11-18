@@ -4,7 +4,8 @@
 // 리소스 스크립트(MissionLedger.rc)에서 사용
 //
 // 버전 숫자는 이 파일에 직접 적지 않습니다.
-// 저장소 루트의 VERSION 파일을 Version.props가 읽어 전처리기 정의로 전달합니다.
+// 저장소 루트의 VERSION 파일을 CMake(루트 CMakeLists.txt)가 읽어
+// MissionLedger.rc에만 전처리기 정의로 전달합니다 (MissionLedger/CMakeLists.txt).
 // 버전을 바꾸려면 VERSION 파일만 수정하세요. (docs/VERSIONING.md 참고)
 
 #if !defined(ML_VERSION_MAJOR) || !defined(ML_VERSION_MINOR) || !defined(ML_VERSION_PATCH)
@@ -14,11 +15,11 @@
         #define ML_VERSION_MINOR    0
         #define ML_VERSION_PATCH    0
     #else
-        #error "ML_VERSION_* is not defined. Import Version.props in the project (reads the VERSION file)."
+        #error "ML_VERSION_* is not defined. Build with CMake (the root CMakeLists.txt reads the VERSION file)."
     #endif
 #endif
 
-// 빌드 번호: 기본 0, CI에서 /p:MLBuildNumber=N 으로 주입
+// 빌드 번호: 기본 0, CI에서 cmake -DML_BUILD_NUMBER=N 으로 주입
 #ifndef ML_VERSION_BUILD
     #define ML_VERSION_BUILD    0
 #endif
