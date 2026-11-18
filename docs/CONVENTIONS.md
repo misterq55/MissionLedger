@@ -322,7 +322,9 @@ void wxMLMainFrame::OnSave(wxCommandEvent& event) {
 ### Commit Messages
 - Use Korean for commit messages (project preference)
 - Format: `<Type>: <Description>`
-- Types: `Feat`, `Fix`, `Refactor`, `Docs`, `Style`, `Test`
+- Types: `Feat`, `Fix`, `Refactor`, `Docs`, `Style`, `Test`, `Build`, `Chore`
+  - `Build`: build system, CI, dependencies, packaging (CMake, presets, third_party, installer script)
+  - `Chore`: repository housekeeping that is none of the above (.gitignore, tool settings, removing stray files)
 
 Examples:
 ```

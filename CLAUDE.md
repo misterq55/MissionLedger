@@ -158,7 +158,7 @@ After this, you can build the entire solution normally with MSBuild.
 - 📋 Excel/CSV export (transaction list + settlement report)
 - 📋 Additional features (multi-currency support, custom report templates, etc.)
 
-**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it. PDF layout nits seen with `sample.ml`: in the settlement report the last data row overlaps the total row's border; wrapped lines in the transaction list can start with a space; the settlement title comes from the input `.ml` name but the transaction-list title from the output PDF name
+**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it. PDF layout nits seen with `sample.ml`: in the settlement report the last data row overlaps the total row's border; wrapped lines in the transaction list can start with a space; the settlement title comes from the input `.ml` name but the transaction-list title from the output PDF name. PDF CJK coverage: export uses one font for the whole document with no per-glyph fallback (bundled `fonts/NotoSansKR-*.ttf` if present, else Malgun Gothic). Malgun Gothic covers Hangul, Korean Hanja and kana but not Japanese shinjitai kanji (e.g. 気駅広) or Simplified Chinese (e.g. 们这说话); checked against the font's glyph map on 2026-11-18, PDF output not tested. GUI likely fine via Windows font fallback (not tested). Options if needed: bundle Noto Sans CJK, or a per-glyph fallback chain in `MLPDFDocument`
 
 **Session wrap-up**: before starting a new task or switching to another PC, update this status section, `CHANGELOG.md` `[미배포]`, and the roadmap in `docs/CI_PLAN.md`, then **ask the user whether to commit and push** (see "Working Rules"). Claude's local memory does not travel between PCs; anything another session needs must be in the repository
 
@@ -246,7 +246,7 @@ Any action that changes the repository, the working tree, or anything outside it
 - **Build / tools**: builds, CMake generation, installs, or scripts that write files
 - **Not approval**: a question ("~인가요?", "설마 ~안 했나?"), a written rule (e.g. session wrap-up), an earlier approval, or approval of a different action
 - Reading files and read-only investigation need no approval. If the user asks "설명만 먼저", only explain
-- When asked to commit: split by concern (code vs docs) and write Korean messages with `Feat:` / `Fix:` / `Refactor:` / `Docs:` / `Chore:` prefixes
+- When asked to commit: split by concern (code vs docs) and write Korean messages with `Feat:` / `Fix:` / `Refactor:` / `Docs:` / `Build:` / `Chore:` prefixes (`Build:` = build system, CI, dependencies, packaging; see docs/CONVENTIONS.md)
 
 ### Documents
 - When rewriting a document, don't silently drop content that is still valid (open decisions, future tasks). Report what was removed or moved
