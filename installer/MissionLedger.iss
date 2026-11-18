@@ -3,10 +3,36 @@
 
 #define MyAppName "미션레저"
 #define MyAppEnglishName "MissionLedger"
-#define MyAppVersion "1.0.1"
 #define MyAppPublisher "MissionLedger Project"
 #define MyAppURL "https://github.com/misterq55/MissionLedger"
 #define MyAppExeName "MissionLedger.exe"
+
+; ===== 버전 =====
+; 저장소 루트의 VERSION 파일에서 읽습니다. (docs/VERSIONING.md 참고)
+; CI 등에서 ISCC /DMyAppVersion=x.y.z 로 넘기면 그 값을 우선 사용합니다.
+#ifndef MyAppVersion
+  #define VersionFile AddBackslash(SourcePath) + "..\VERSION"
+  #if !FileExists(VersionFile)
+    #error VERSION 파일을 찾을 수 없습니다.
+  #endif
+  #define VersionHandle FileOpen(VersionFile)
+  #define MyAppVersion Trim(FileRead(VersionHandle))
+  #expr FileClose(VersionHandle)
+#endif
+#if MyAppVersion == ""
+  #error VERSION 파일이 비어 있습니다.
+#endif
+
+; 안전장치: 포장할 exe의 버전이 VERSION과 다르면 중단합니다.
+; (VERSION을 고치고 Release 빌드를 하지 않은 채 설치 파일을 만드는 실수 방지)
+#define MyAppExePath AddBackslash(SourcePath) + "..\x64\Release\" + MyAppExeName
+#if !FileExists(MyAppExePath)
+  #error x64\Release\MissionLedger.exe 가 없습니다. Release 빌드를 먼저 실행하세요.
+#endif
+#define ExeVersion GetStringFileInfo(MyAppExePath, "ProductVersion")
+#if ExeVersion != MyAppVersion
+  #error MissionLedger.exe 버전이 VERSION 파일과 다릅니다. Release 빌드를 다시 실행하세요.
+#endif
 #define MyAppAssocName "MissionLedger Document"
 #define MyAppAssocExt ".ml"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt

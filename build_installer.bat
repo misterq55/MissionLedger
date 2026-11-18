@@ -9,8 +9,17 @@ REM - Inno Setup 6.7.0 이상
 
 setlocal enabledelayedexpansion
 
+REM ===== 0. 버전 읽기 (VERSION 파일, docs/VERSIONING.md 참고) =====
+if not exist "VERSION" (
+    echo ERROR: VERSION file not found. Run this script from the repository root.
+    exit /b 1
+)
+set /p ML_VERSION=<VERSION
+set "SETUP_EXE=installer\output\MissionLedger-%ML_VERSION%-Setup.exe"
+
 echo ====================================
 echo MissionLedger Installer Build Script
+echo Version: %ML_VERSION%
 echo ====================================
 echo.
 
@@ -49,7 +58,7 @@ echo [3/4] Checking Inno Setup...
 set ISCC="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 
 if not exist %ISCC% (
-    echo ERROR: Inno Setup Compiler (ISCC.exe) not found!
+    echo ERROR: Inno Setup Compiler ^(ISCC.exe^) not found!
     echo Please install Inno Setup from: https://jrsoftware.org/isinfo.php
     echo.
     echo Expected path: %ISCC%
@@ -74,11 +83,11 @@ echo ====================================
 echo Build completed successfully!
 echo ====================================
 echo.
-echo Output: installer\output\MissionLedger-1.0.0-Setup.exe
+echo Output: %SETUP_EXE%
 echo.
 
 REM 설치 파일 크기 표시
-for %%I in (installer\output\MissionLedger-1.0.0-Setup.exe) do (
+for %%I in ("%SETUP_EXE%") do (
     set size=%%~zI
     set /a sizeMB=!size! / 1048576
     echo File size: !sizeMB! MB
