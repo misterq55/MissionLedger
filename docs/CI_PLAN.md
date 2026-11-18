@@ -18,22 +18,20 @@
 |---|---|---|
 | The trailing `pause` hangs CI builds | `build_installer.bat` | Don't call this script from CI; run each step directly in the Jenkinsfile |
 | MSBuild path is hard-coded to the Community edition | `build_installer.bat`, CLAUDE.md | Find it with `vswhere.exe` (no longer needed after the CMake migration) |
-| The version is hard-coded in 3 separate places | `MLVersion.h`, `MissionLedger.iss` (`MyAppVersion`), `build_installer.bat` (output filename) | Make `MLVersion.h` the single source of truth and inject the version into the others at build time |
+| ~~The version is hard-coded in 3 separate places~~ ✅ Done (2026-11-18) | `MLVersion.h`, `MissionLedger.iss` (`MyAppVersion`), `build_installer.bat` (output filename) | The root `VERSION` file is now the single source of truth (see [VERSIONING.md](VERSIONING.md)) |
 | `third_party/pdfwriter/build` is gitignored | pdfwriter `.gitignore` | Build it with CMake in CI (folded in via `add_subdirectory` after the CMake migration) |
 | No sample `.ml` file is committed for smoke tests | All `.ml` files in the root are untracked | Add `tests/fixtures/sample.ml` with non-personal data |
 | The build system works only with Visual Studio | `.sln` / `.vcxproj` | **Migrate to CMake** (required before a macOS build is possible) |
 
-### Single-Source Versioning
+### Single-Source Versioning (✅ Implemented 2026-11-18)
 
-- `MissionLedger.iss`: wrap the define in `#ifndef` so a value passed with `ISCC /DMyAppVersion=x.y.z` is not overwritten
-  ```
-  #ifndef MyAppVersion
-    #define MyAppVersion "1.0.0"
-  #endif
-  ```
-- `MLVersion.h`: wrap `ML_VERSION_BUILD` in `#ifndef` and have the build system inject the Jenkins `BUILD_NUMBER`
-- On tag builds, check that the Git tag (`v1.2.3`) matches the `MLVersion.h` version, and fail the build if they differ
-- macOS: generate `CFBundleShortVersionString` and `CFBundleVersion` in `Info.plist` with CMake `configure_file`
+The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). What CI relies on:
+
+- **Source of truth**: the root `VERSION` file (`MAJOR.MINOR.PATCH`, one line). CI reads it with `Get-Content VERSION`
+- **Build number**: pass `msbuild ... /p:MLBuildNumber=%BUILD_NUMBER%` (read by `Version.props`, becomes the 4th part of the exe file version)
+- **Installer**: `MissionLedger.iss` reads `VERSION` itself; `ISCC /DMyAppVersion=x.y.z` still overrides it. ISCC fails if the packaged exe's `ProductVersion` differs from it
+- On tag builds, check that the Git tag (`v1.2.3`) matches `VERSION`, and fail the build if they differ (still to do, in the Jenkinsfile)
+- After the CMake migration: `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)`, and generate `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` with `configure_file`
 
 ---
 
@@ -121,18 +119,12 @@ pipeline {
                           -find "MSBuild\\**\\Bin\\MSBuild.exe" | Select-Object -First 1
                     ''').trim()
 
-                    env.APP_VERSION = powershell(returnStdout: true, script: '''
-                        $h = Get-Content MissionLedger/src/MLVersion.h -Raw
-                        $v = 'MAJOR','MINOR','PATCH' | ForEach-Object {
-                            [regex]::Match($h, "ML_VERSION_$_\\s+(\\d+)").Groups[1].Value
-                        }
-                        $v -join '.'
-                    ''').trim()
+                    env.APP_VERSION = readFile('VERSION').trim()
 
                     currentBuild.displayName = "#${BUILD_NUMBER} v${APP_VERSION}"
 
                     if (buildingTag() && env.TAG_NAME != "v${env.APP_VERSION}") {
-                        error "Tag (${env.TAG_NAME}) does not match MLVersion.h (v${env.APP_VERSION})"
+                        error "Tag (${env.TAG_NAME}) does not match VERSION (v${env.APP_VERSION})"
                     }
                 }
             }
@@ -303,7 +295,7 @@ agent { label 'macos && xcode && wx-3.2' }
 ## 10. Roadmap
 
 1. [ ] CMake migration: port sources, include paths, preprocessor definitions, and link settings from the 3 vcxproj files (Core, GUI, CLI), then compare results on Windows
-2. [ ] Single-source versioning: `MLVersion.h` → CMake → `.iss`, `Info.plist`
+2. [x] Single-source versioning: `VERSION` → MSBuild (`Version.props`), `.iss`, `build_installer.bat` (2026-11-18). CMake / `Info.plist` remain for steps 1 and 5
 3. [ ] Add `tests/fixtures/sample.ml` for smoke tests
 4. [ ] Write the Windows Jenkinsfile (CMake-based)
 5. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle)

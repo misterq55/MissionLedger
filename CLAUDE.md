@@ -217,6 +217,11 @@ if (isValid) {
 }
 ```
 
+### Versioning
+- The root `VERSION` file (`MAJOR.MINOR.PATCH`) is the **only** place the version is written. Never hard-code version numbers in `MLVersion.h`, `.iss`, or scripts
+- Bump the version only at release time; record user-visible changes under `[미배포]` in `CHANGELOG.md` as you work
+- Policy and release procedure: [docs/VERSIONING.md](docs/VERSIONING.md)
+
 ## Architecture Guidelines
 
 ### MVC Boundaries (STRICT)
@@ -241,6 +246,8 @@ For detailed information, refer to:
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**: MVC pattern, design decisions, Storage Provider, DTO strategy, Observer pattern
 - **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**: Development roadmap, implementation patterns, filtering system, GUI guidelines
 - **[docs/CONVENTIONS.md](docs/CONVENTIONS.md)**: Detailed naming rules, code style, wxWidgets conventions, MVC compliance
+- **[docs/VERSIONING.md](docs/VERSIONING.md)**: Version policy (SemVer, `.ml` compatibility), `VERSION` file flow, release procedure
+- **[CHANGELOG.md](CHANGELOG.md)**: User-visible changes per release
 
 ## Compact Instructions
 
@@ -252,4 +259,5 @@ When compacting, always preserve:
 - Observer pattern integration
 - Current implementation status and roadmap
 - Communication language (Korean)
+- Versioning rule (`VERSION` file is the single source of truth)
 - Links to detailed documentation
