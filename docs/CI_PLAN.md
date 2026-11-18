@@ -188,8 +188,7 @@ Written 2026-11-18. The commands were run on Windows in a fresh clone with a 108
 |---|---|
 | `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names and the list of implemented platforms are at the top (`PLATFORMS`, `IMPLEMENTED`) |
 | `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
-| `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts
-ode_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
+| `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
 
 ### Stages per platform (CMake presets, §3)
 
