@@ -1,0 +1,37 @@
+wxWidgets 3.2.8 (vendored subset)
+
+Source:   https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.8/wxWidgets-3.2.8.tar.bz2
+SHA-1:    a74d573d03068cd0e86396e13263f67ef3a4fc51  (matches the release notes)
+SHA-256:  c74784904109d7229e6894c85cfa068f1106a4a07c144afd78af41f373ee0fe6
+Licence:  wxWindows Library Licence (docs/licence.txt)
+Added:    2026-11-18
+
+Included (copied unchanged from the archive):
+  CMakeLists.txt, README.md
+  include/  src/  3rdparty/
+  art/                          (stock icons #included by src/common/artstd.cpp, arttango.cpp)
+  build/cmake/
+  build/bakefiles/version.bkl   (read by CMakeLists.txt for the library version)
+  docs/licence.txt, licendoc.txt, lgpl.txt, gpl.txt, preamble.txt
+
+Removed after copying:
+  3rdparty/catch/.gitignore, 3rdparty/nanosvg/.gitignore, 3rdparty/pcre/.gitignore,
+  src/tiff/.gitignore
+  (upstream repository rules; src/tiff/.gitignore hid the pre-generated
+  libtiff/tif_config.h and tiffconf.h, which the build needs)
+
+Left out:
+  docs/ (except the licence files), samples/, tests/, demos/, utils/, interface/,
+  locale/, misc/, distrib/, lib/, the rest of build/ (bakefiles, msw, osx, ...),
+  autoconf/configure files, wxwidgets.props
+
+Consequences for the CMake configuration:
+  - wxUSE_XRC must be OFF (wxrc lives in utils/)
+  - turning wxUSE_HTML OFF also needs wxUSE_WXHTML_HELP OFF (include/wx/chkconf.h)
+  - wxBUILD_LOCALES OFF (locale/ is not included)
+  - wxBUILD_SAMPLES / wxBUILD_TESTS / wxBUILD_DEMOS OFF (default)
+  - do not run the wxWidgets install step (needs wxwidgets.props, build/msw/wx_setup.props)
+
+Upgrading within 3.2.x: download the new archive, replace this folder with the same subset,
+delete the nested .gitignore files again, update this file, and check that
+`git ls-files -o -i --exclude-standard third_party/wxWidgets` prints nothing.
