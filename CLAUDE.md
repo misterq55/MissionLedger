@@ -239,13 +239,14 @@ if (isValid) {
 
 ## Working Rules (for Claude Code)
 
-### Git
-- **Never commit or push without an explicit request in that turn** ("커밋해 주세요", "push 해 주세요"). A written rule such as the session wrap-up, an earlier approval, or "save the docs" is not permission. Finish the edits, report them, and ask
+### Approval required for every change (STRICT)
+Any action that changes the repository, the working tree, or anything outside it needs the user's explicit approval **in that turn**. Explain what will be done (commands / files / how), then wait. Also enforced by `ask` rules in `.claude/settings.json`
+- **Git**: `commit`, `push`, `fetch`, `pull`, `merge`, `rebase`, `reset`, `checkout`/`switch`, `stash`, `tag`, branch create/delete — all need approval. Read-only commands (`status`, `log`, `diff`, `show`, `branch -l`, `ls-remote`) are fine
+- **Files**: creating, editing, moving, or deleting any file (source, docs, config, scripts), including one-line fixes
+- **Build / tools**: builds, CMake generation, installs, or scripts that write files
+- **Not approval**: a question ("~인가요?", "설마 ~안 했나?"), a written rule (e.g. session wrap-up), an earlier approval, or approval of a different action
+- Reading files and read-only investigation need no approval. If the user asks "설명만 먼저", only explain
 - When asked to commit: split by concern (code vs docs) and write Korean messages with `Feat:` / `Fix:` / `Refactor:` / `Docs:` / `Chore:` prefixes
-
-### Before changing files
-- For any multi-file change, first explain which files change and how, then wait for the go-ahead. If the user asks "설명만 먼저", do not edit anything
-- A question ("~인가요?", "어떤가요?") is a question, not approval. Answer it and ask before acting
 
 ### Documents
 - When rewriting a document, don't silently drop content that is still valid (open decisions, future tasks). Report what was removed or moved
