@@ -27,9 +27,6 @@ mono_crash.*
 [Rr]eleases/
 x64/
 x86/
-[Ww][Ii][Nn]32/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
 bld/
 [Bb]in/
 [Oo]bj/
@@ -292,9 +289,6 @@ node_modules/
 # Visual Studio 6 build log
 *.plg
 
-# Visual Studio 6 workspace options file
-*.opt
-
 # Visual Studio 6 auto-generated workspace file (contains which files were open etc.)
 *.vbw
 
@@ -415,3 +409,6 @@ installer/output/
 /*.pdf
 /*.csv
 /*.xlsx
+
+# Vendored third-party sources: keep files the generic VS rules would catch
+!third_party/**/*.log
