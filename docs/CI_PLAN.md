@@ -189,6 +189,7 @@ Written 2026-11-18. The commands were run on Windows in a fresh clone with a 108
 | `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names and the list of implemented platforms are at the top (`PLATFORMS`, `IMPLEMENTED`) |
 | `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
 | `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
+| `jenkins/scripts/node_setup_windows.ps1`, `node_setup_macos.sh` | **Run by hand, once per node** (the pipeline only checks, it never installs: nodes are shared, installs need admin rights, and the agent would not see a new PATH in the same run). Installs only what is missing, at pinned versions with SHA-256 checks: Windows CMake 3.31.12 (MSI, system PATH) and Inno Setup 6.7.4 (all users); macOS CMake 3.31.12 (official universal package in `/Applications/CMake.app`, not Homebrew, which installs the newest untested version). Visual Studio, Git and Xcode are only checked, with instructions. Windows: administrator PowerShell, `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_setup_windows.ps1`; macOS: `sh jenkins/scripts/node_setup_macos.sh`. Not run end to end yet (parse/syntax checked only); preflight and the CMake check in the Jenkinsfile print these commands when something is missing |
 
 ### Stages per platform (CMake presets, §3)
 
@@ -205,7 +206,7 @@ Written 2026-11-18. The commands were run on Windows in a fresh clone with a 108
 ### Jenkins setup (once)
 
 1. Plugins: Pipeline, Git, Timestamper, JUnit
-2. Nodes `WindowsMini` and `MacMini` online (the node name is used as the label). Tools per §8; check a node with `jenkins/scripts/node_check_*` (what is installed where), then the preflight script. The agent's PATH can differ from a terminal's: a Windows service sees only the System PATH and must be restarted after a PATH change; on macOS add `PATH+HOMEBREW=/opt/homebrew/bin` under the node's Environment variables
+2. Nodes `WindowsMini` and `MacMini` online (the node name is used as the label). Tools per §8. Per node: `node_check_*` (what is installed where) → `node_setup_*` (install what is missing) → let the agent see CMake → run the build (Preflight checks the rest). The agent's PATH can differ from a terminal's, so add it under Manage Jenkins → Nodes → node → Configure → Environment variables: WindowsMini `PATH+CMAKE` = `C:\Program Files\CMake\bin` (or reboot: the agent is a Windows service and keeps the PATH it started with), MacMini `PATH+CMAKE` = `/Applications/CMake.app/Contents/bin` (the agent is started over SSH and does not read the shell profile). Checked on 2026-11-19: WindowsMini has VS Community 2022 17.14 with C++ tools and Git, but no CMake and no Inno Setup; MacMini has Xcode 16.4 (arm64), Git and Homebrew, but no CMake
 3. New Item → **Pipeline** → Definition "Pipeline script from SCM" → SCM Git, `https://github.com/misterq55/MissionLedger.git` (public, no credentials) → Branch `*/main` → Script Path `jenkins/Build.Jenkinsfile`
 4. The first run uses the default parameters (`PLATFORM=both`, so `MacMini` must be online); afterwards "Build with Parameters" shows the choices
 
@@ -272,7 +273,7 @@ Only general-purpose tools. Nothing specific to MissionLedger is installed on a 
 | | Windows | macOS |
 |---|---|---|
 | Compiler | Visual Studio 2022 **Build Tools** (no IDE needed): "Desktop development with C++" workload (v143, Windows 10/11 SDK). Also provides `vc_redist.x64.exe` for the installer | Xcode + Command Line Tools |
-| CMake | A stable release (3.25+ for workflow presets). Avoid release candidates (the dev PC currently has 4.0.0-rc2) | Same |
+| CMake | A stable release (3.25+ for workflow presets); `node_setup_*` installs 3.31.12, the line the build was checked with (4.x likely works: the vendored libraries' `cmake_minimum_required` settings allow it, but no build was run). Avoid release candidates (the dev PC has 3.31.0-rc2) | Same |
 | Git | ✅ | ✅ |
 | Packaging | Inno Setup 6.7+ | `hdiutil` (built in) or `create-dmg` |
 | Jenkins agent | Java runtime | Java runtime, running in a logged-in session (§7) |

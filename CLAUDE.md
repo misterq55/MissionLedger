@@ -65,7 +65,7 @@ MissionLedger/                   # Repository root
 │   └── wxWidgets/               # wxWidgets 3.2.8 source subset (add_subdirectory)
 ├── tests/                       # CTest smoke tests (CMakeLists.txt, cli_smoke.cmake) + fixtures/sample.ml
 ├── installer/                   # Inno Setup script (.iss), package.cmake (installer target)
-├── jenkins/                     # Build.Jenkinsfile (Jenkins Pipeline job, Script Path), scripts/preflight.cmake (node check), scripts/node_check_* (node inventory)
+├── jenkins/                     # Build.Jenkinsfile (Jenkins Pipeline job, Script Path), scripts/preflight.cmake (node check), scripts/node_check_* (node inventory), scripts/node_setup_* (install missing tools, by hand)
 ├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets); CMakeLists.txt
 │   └── src/
 │       ├── MLDefine.h          # Core enums and data structures
