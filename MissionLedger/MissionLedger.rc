@@ -1,5 +1,8 @@
 // Microsoft Visual C++ generated resource script.
 //
+// UTF-8 must be set before the includes: MLVersion.h holds Korean strings (ProductName,
+// FileDescription), and rc reads each file with the code page in effect at that point.
+#pragma code_page(65001)
 #include "resource.h"
 #include "src/MLVersion.h"
 
