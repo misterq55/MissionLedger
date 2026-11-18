@@ -129,36 +129,10 @@ After this, you can build the entire solution normally with MSBuild.
   - Complete save/load/delete functionality
   - CLI support (budget list/add/update/delete)
   - Transaction.BudgetId and ActualAmount fields reserved for future use
-- ✅ Settlement PDF Export: Complete implementation with optimized layout
-  - FMLSettlmentData structure with hierarchical budget/actual data (Category → Item)
-  - PDF-Writer library integration (static library pattern)
-  - Korean font support (Malgun Gothic TTF embedding)
-  - **5-section layout**: Summary (budget totals + actual totals/balance), Exchange rates, Income comparison, Expense comparison
-  - Category-level aggregation (income/expense totals only, no item breakdown)
-  - Side-by-side budget vs actual comparison (3-column tables: Category, Budget, Actual)
-  - Auto-generated title and filename from .ml file (e.g., "2024 필리핀 단기 선교.ml" → PDF title and default filename)
-  - Optimized spacing (30pt subtitle gaps) and alignment (10pt right margin for amounts)
-  - GUI menu: File → Export Settlement PDF (Ctrl+E)
-  - CLI command: export-settlement <input.ml> <output.pdf>
-- ✅ Transaction List PDF Export: Complete implementation with enhancements
-  - Individual transaction listing with hierarchical grouping (Category → Item → Transactions)
-  - Cell merging for same Category and Item
-  - Multi-line text wrapping for Item and Description columns (UTF-8 safe)
-  - **Vertical center alignment** for multi-line text in Item and Description columns
-  - Dynamic row height calculation based on text content
-  - Mid-group page breaks for optimal space utilization
-  - **Exchange rate information** displayed inline with amount (e.g., "1,000,000원 (PHP 40,000 @ 25.0)")
-  - **Optimized column widths**: Category(50) Item(60) Description(170) Amount(135) Date(60) Receipt(50)
-  - Category-wise subtotals with formatted table layout
-  - Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
-  - GUI menu: File → Export Transaction List PDF (Ctrl+T)
-  - CLI command: export-transactions <input.ml> [output.pdf]
-- ✅ PDF Export OOP Refactoring
-  - `FMLPDFDocument`, `FMLPDFRow` 추상화 계층 도입 (Document → Row → Cell 위임 구조)
-  - `FMLPDFDocument::DrawRow()` API 통해 행 그리기 + Y위치 자동 이동
-  - 페이지 분기 시 카테고리/항목 병합 셀 세그먼트 단위 분할 처리 (거래 단위 페이지 분기)
-  - 금액 셀 우측 여백 수정 (텍스트 끝닿음 방지)
-  - 컬럼 헤더와 첫 번째 데이터 셀 간 불필요한 간격 제거
+- ✅ PDF export (PDF-Writer, Malgun Gothic embedded) — user-facing details in [CHANGELOG.md](CHANGELOG.md)
+  - Settlement report (`Ctrl+E`, CLI `export-settlement <in.ml> <out.pdf>`): budget vs actual per category, built from `FMLSettlmentData`
+  - Transaction list (`Ctrl+T`, CLI `export-transactions <in.ml> [out.pdf]`): Category → Item → Transaction with merged cells, wrapping, inline exchange rates, subtotals
+  - Structure: `FMLPDFDocument` → `FMLPDFRow` → cell; `DrawRow()` advances Y and splits merged cells across page breaks
 - ✅ Windows Installer (Inno Setup) — [docs/INSTALLER.md](docs/INSTALLER.md)
   - `.ml` file association, Start menu/desktop shortcuts, uninstall cleanup
   - Bundles `vc_redist.x64.exe` (installed only when missing/outdated); admin install only
@@ -186,7 +160,7 @@ After this, you can build the entire solution normally with MSBuild.
 
 **Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it
 
-**Session wrap-up**: before starting a new task or switching to another PC, update this status section, `CHANGELOG.md` `[미배포]`, and the roadmap in `docs/CI_PLAN.md`, then commit and push. Claude's local memory does not travel between PCs; anything another session needs must be in the repository
+**Session wrap-up**: before starting a new task or switching to another PC, update this status section, `CHANGELOG.md` `[미배포]`, and the roadmap in `docs/CI_PLAN.md`, then **ask the user whether to commit and push** (see "Working Rules"). Claude's local memory does not travel between PCs; anything another session needs must be in the repository
 
 ## Coding Conventions
 
@@ -263,6 +237,27 @@ if (isValid) {
 - **Single Source of Truth**: UI state read from controls, not cached (prevents sync bugs)
 - **Update Strategy**: Incremental updates when filter inactive, full reload when filter active (balances performance and correctness)
 
+## Working Rules (for Claude Code)
+
+### Git
+- **Never commit or push without an explicit request in that turn** ("커밋해 주세요", "push 해 주세요"). A written rule such as the session wrap-up, an earlier approval, or "save the docs" is not permission. Finish the edits, report them, and ask
+- When asked to commit: split by concern (code vs docs) and write Korean messages with `Feat:` / `Fix:` / `Refactor:` / `Docs:` / `Chore:` prefixes
+
+### Before changing files
+- For any multi-file change, first explain which files change and how, then wait for the go-ahead. If the user asks "설명만 먼저", do not edit anything
+- A question ("~인가요?", "어떤가요?") is a question, not approval. Answer it and ask before acting
+
+### Documents
+- When rewriting a document, don't silently drop content that is still valid (open decisions, future tasks). Report what was removed or moved
+- Keep verified facts and guesses apart: say when something is inferred rather than checked in the code or git history
+- When a past decision is unclear, check git history before assuming it was deliberate (much of the earlier work was generated with Claude and may not reflect a conscious choice)
+
+### Project context
+- Non-commercial project shared with a small group (mission team). Commercial-grade steps (clean-PC installer testing, paid code signing) are low priority
+- The maintainer works mainly with Unreal Engine: explain build and tooling concepts with Unreal analogies where useful (e.g. `CMakeLists.txt` ≈ `.Build.cs`, CMake project generation ≈ GenerateProjectFiles, generated IDE files are never committed, never add files through the IDE)
+- Prefer IDE-independent setups: the source tree is the truth and IDE projects are generated
+- Build nodes are shared with other projects: they should need only general tools; project-specific dependencies come from the repository ([docs/CI_PLAN.md](docs/CI_PLAN.md) §0)
+
 ## Communication Language
 
 **Important**: When working with this codebase, Claude Code should communicate in **Korean (한국어)** as this is the preferred language for this project. All responses, explanations, and documentation should be provided in Korean.
@@ -287,4 +282,5 @@ When compacting, always preserve:
 - Current implementation status and roadmap
 - Communication language (Korean)
 - Versioning rule (`VERSION` file is the single source of truth)
+- Working rules (never commit/push without an explicit request; explain before multi-file edits)
 - Links to detailed documentation
