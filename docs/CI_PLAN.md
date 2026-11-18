@@ -35,7 +35,7 @@
 | MSBuild path is hard-coded to the Community edition | `build_installer.bat`, CLAUDE.md | Goes away with the CMake migration (`cmake --build`) |
 | ~~The version is hard-coded in 3 separate places~~ ✅ Done (2026-11-18) | `MLVersion.h`, `MissionLedger.iss` (`MyAppVersion`), `build_installer.bat` (output filename) | The root `VERSION` file is now the single source of truth (see [VERSIONING.md](VERSIONING.md)) |
 | ~~Core sources live in the GUI folder~~ ✅ Done (2026-11-18, `e94b226`) | `MissionLedger/src/` | Moved to `MissionLedgerCore/src/` (one project = one folder) |
-| wxWidgets is outside the repository and its build is undocumented | `WXWIN` = `C:\wxWidgets-3.2.6` on the dev PC (docs said 3.2.8) | Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (see §2) |
+| wxWidgets is outside the repository and its build is undocumented | `WXWIN` differs per PC (`C:\wxWidgets-3.2.6` on one, `C:\wxWidgets-3.2.8` on another) | ✅ Source vendored (2026-11-18): wxWidgets 3.2.8 in `third_party/wxWidgets/` (see §2). The build still uses `WXWIN` until the CMake migration |
 | `third_party/pdfwriter/build` is gitignored, but `MissionLedger.sln` references the vcxproj files generated there | `.sln`, pdfwriter `.gitignore` | A fresh clone must run CMake for PDF-Writer before the `.sln` opens. Goes away with `add_subdirectory` |
 | ~~No sample `.ml` file is committed for smoke tests~~ ✅ Done (2026-11-18) | All `.ml` files in the root are untracked | `tests/fixtures/sample.ml` with made-up data (see [tests/fixtures/README.md](../tests/fixtures/README.md)) |
 | The build system works only with Visual Studio | `.sln` / `.vcxproj` | **Migrate to CMake** (required before a macOS build is possible) |
@@ -60,30 +60,39 @@ The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). W
 |---|---|---|---|
 | SQLite | Amalgamation source in `third_party/sqlite/`, compiled inside the Core project | `sqlite3.c` added to the Core target | None |
 | PDF-Writer | Source in `third_party/pdfwriter/`; CMake-generated vcxproj files added to `MissionLedger.sln` | `add_subdirectory(third_party/pdfwriter)` | None |
-| wxWidgets | Prebuilt outside the repository (`C:\wxWidgets-3.2.6`, found via `WXWIN`) | **Source in `third_party/wxWidgets/` (3.2.8)**, `add_subdirectory` | None |
+| wxWidgets | Prebuilt outside the repository, found via `WXWIN` (version differs per PC). The 3.2.8 source is already in `third_party/wxWidgets/` but nothing uses it yet | **Source in `third_party/wxWidgets/` (3.2.8)**, `add_subdirectory` | None |
 
 All three come from the repository, so a fresh clone builds with no extra setup.
 
-### Vendoring wxWidgets
+### Vendoring wxWidgets (✅ Source vendored 2026-11-18)
 
-- **Source**: the official release archive `wxWidgets-3.2.8.tar.bz2`, **not** a `git clone`. The Git repository keeps the bundled libraries (png, jpeg, zlib, expat, ...) as submodules, so a plain clone is missing them
-- **What to commit** (about 85 MB, about 4,900 files, measured on 3.2.6): `include/`, `src/`, `3rdparty/`, `build/cmake/`, `CMakeLists.txt`, licence files
-- **What to leave out**: `docs/`, `samples/`, `tests/`, `demos/`, `utils/`, `interface/`, and any build output (`lib/`)
-- Record the version and source URL in `third_party/wxWidgets/VERSION.txt`
-- Build options:
+- **Source**: the official release archive `wxWidgets-3.2.8.tar.bz2` (SHA-1 checked against the release notes), **not** a `git clone`. The Git repository keeps the bundled libraries (png, jpeg, zlib, expat, ...) as submodules, so a plain clone is missing them
+- **Committed** (5,027 files, about 86 MB, copied unchanged): `include/`, `src/`, `3rdparty/`, `art/`, `build/cmake/`, `build/bakefiles/version.bkl`, `CMakeLists.txt`, `README.md`, licence files in `docs/`
+  - `art/`: stock icons that `src/common/artstd.cpp` and `arttango.cpp` `#include`. wxcore does not compile without it
+  - `build/bakefiles/version.bkl`: the root `CMakeLists.txt` always reads it (shared-library version numbers; unused for static builds, but configure fails without the file)
+- **Left out**: the rest of `docs/`, `samples/`, `tests/`, `demos/`, `utils/`, `interface/`, `locale/`, `misc/`, `distrib/`, `lib/`, the rest of `build/`, autoconf/configure files
+- **Nested `.gitignore` files removed** (`3rdparty/catch`, `3rdparty/nanosvg`, `3rdparty/pcre`, `src/tiff`). They are the upstream projects' own rules; `src/tiff/.gitignore` hid `libtiff/tif_config.h` and `tiffconf.h`, which libtiff needs (wx ships them pre-generated). The root `.gitignore` was also cleaned up so its generic VS rules (`Win32/`, `ARM/`, `*.opt`) no longer match source folders
+- Details, checksums and the upgrade procedure: `third_party/wxWidgets/VERSION.txt`
+- **Verified** with a stand-alone CMake project outside the repository (Windows, VS 2022, Release): configure, build of `wxbase` + `wxcore` + builtin zlib/png/jpeg/tiff/regex, a test app using the same wx headers as MissionLedger linked and ran. Clean build took about 25 s on a 20-thread PC
+- Build options (as verified):
   ```cmake
-  set(wxBUILD_SHARED OFF)                 # static libraries
-  set(wxBUILD_MONOLITHIC OFF)
-  # turn off modules the app does not use (it uses only base and core);
-  # confirm the exact option names against build/cmake/options.cmake of the vendored version
-  foreach(opt WEBVIEW STC PROPGRID RIBBON AUI GLCANVAS MEDIACTRL RICHTEXT XRC HTML)
+  set(wxBUILD_SHARED OFF CACHE BOOL "" FORCE)        # static libraries
+  set(wxBUILD_MONOLITHIC OFF CACHE BOOL "" FORCE)
+  set(wxBUILD_INSTALL OFF CACHE BOOL "" FORCE)       # install needs files that are left out
+  set(wxBUILD_LOCALES OFF CACHE STRING "" FORCE)     # locale/ is left out
+  # modules the app does not use (it uses only base and core).
+  # XRC must stay OFF (wxrc lives in utils/, which is left out).
+  # HTML OFF also needs WXHTML_HELP OFF (include/wx/chkconf.h).
+  foreach(opt XRC HTML WXHTML_HELP AUI STC WEBVIEW PROPGRID RIBBON RICHTEXT MEDIACTRL OPENGL)
       set(wxUSE_${opt} OFF CACHE BOOL "" FORCE)
   endforeach()
   add_subdirectory(third_party/wxWidgets EXCLUDE_FROM_ALL)
   target_link_libraries(MissionLedger PRIVATE wx::core wx::base)
   ```
+  - Candidates to turn off later: `wxUSE_LIBTIFF` / `wxUSE_LIBJPEG` (the app loads no TIFF/JPEG images; check before turning off)
+- **Keep `/utf-8`** on our own targets (the current vcxproj files have it). Without it, MSVC on Korean Windows reads BOM-less UTF-8 sources as CP949 (warning C4819) and Korean string literals can break
 - The first build compiles wxWidgets too and takes longer. Later builds are incremental as long as the build folder is kept (§8)
-- Upgrading within 3.2.x is API/ABI compatible (bug fixes only): replace the folder and rebuild. Don't move to 3.3.x as part of this work (new series with larger changes)
+- Upgrading within 3.2.x is API/ABI compatible (bug fixes only): replace the folder with the same subset and rebuild (see `VERSION.txt`). Don't move to 3.3.x as part of this work (new series with larger changes)
 
 ---
 
@@ -135,7 +144,7 @@ cmake --workflow --preset release        # configure → build → smoke test �
 
 ### Migration steps
 
-1. Write the CMake build next to the existing `.sln` (vendor wxWidgets 3.2.8 at the same time)
+1. Write the CMake build next to the existing `.sln` (wxWidgets 3.2.8 is already vendored; use the verified options in §2)
 2. Check on Windows that the results match the current MSBuild output: run the GUI, generate both PDFs with the CLI, compare exe version info, build the installer
 3. **Then delete the old build files right away** (`.sln`, `.vcxproj`, `.filters`, `Version.props`) so files don't have to be registered in two places. Keep the transition short
 4. Add `build/` to `.gitignore`
@@ -347,7 +356,7 @@ agent { label 'macos && xcode' }
 
 1. [x] Single-source versioning: `VERSION` → MSBuild (`Version.props`), `.iss`, `build_installer.bat` (2026-11-18)
 2. [x] Core folder separation: Core sources in `MissionLedgerCore/src/` (2026-11-18, `e94b226`)
-3. [ ] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed)
+3. [x] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed; stand-alone CMake build verified) (2026-11-18)
 4. [ ] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`, installer target. Compare results on Windows, then delete the `.sln`/`.vcxproj`/`Version.props` and add `build/` to `.gitignore`
 5. [ ] CTest smoke test (CLI → 2 PDFs). Fixture done: `tests/fixtures/sample.ml` (2026-11-18)
 6. [ ] Write the Jenkinsfile (Windows first)

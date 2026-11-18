@@ -47,7 +47,7 @@ MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBu
 
 ### Dependencies
 
-- **wxWidgets 3.2.6**: GUI framework, prebuilt static libraries outside the repository at `C:\wxWidgets-3.2.6` (`WXWIN` environment variable required; GUI project only). Planned: vendor 3.2.8 in `third_party/wxWidgets/` with the CMake migration ([docs/CI_PLAN.md](docs/CI_PLAN.md))
+- **wxWidgets**: GUI framework. The current MSBuild build uses prebuilt static libraries outside the repository via the `WXWIN` environment variable (GUI project only; the version differs per PC: 3.2.6 or 3.2.8). The 3.2.8 source is vendored in `third_party/wxWidgets/` (see its `VERSION.txt`) and will replace `WXWIN` with the CMake migration ([docs/CI_PLAN.md](docs/CI_PLAN.md) §2)
 - **Visual Studio 2022**: Windows 10 SDK, v143 toolset
 - **SQLite**: Embedded via amalgamation (third_party/sqlite/)
 - **PDF-Writer**: PDF generation library (third_party/pdfwriter/)
@@ -149,7 +149,7 @@ After this, you can build the entire solution normally with MSBuild.
 - Settlement comparison performed during PDF export (not real-time)
 
 **Next Steps** (build infrastructure, in order — details in [docs/CI_PLAN.md](docs/CI_PLAN.md) §0 and §10):
-1. 📋 Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (official release archive, trimmed)
+1. ✅ Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (2026-11-18; stand-alone CMake build verified, not used by the build yet)
 2. 📋 CMake migration: generated IDE projects (Unreal GenerateProjectFiles style), per-folder automatic source collection, `add_subdirectory` for PDF-Writer/wxWidgets; then delete `.sln`/`.vcxproj`/`Version.props`
 3. 📋 CTest smoke test + Jenkinsfile (Windows, then macOS). Fixture ready: `tests/fixtures/sample.ml` (made-up data; use it on any PC instead of real `.ml` files)
 4. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
