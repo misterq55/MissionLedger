@@ -5,6 +5,8 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <filesystem>
+#include <system_error>
 
 #include "interface/IMLModelObserver.h"
 #include "interface/IMLStorageProvider.h"
@@ -278,6 +280,14 @@ void FMLModel::SetStorageProvider(std::shared_ptr<IMLStorageProvider> storagePro
 bool FMLModel::OpenFile(const std::string& filePath)
 {
     if (!StorageProvider) {
+        return false;
+    }
+
+    // 열기는 기존 파일만 대상: SQLite는 없는 경로를 열면 빈 DB를 새로 만들기 때문에 먼저 확인
+    // (새 파일 생성은 NewFile + SaveFileAs 경로). filePath는 UTF-8 (한글 경로 대응)
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(std::filesystem::u8path(filePath), ec))
+    {
         return false;
     }
 
