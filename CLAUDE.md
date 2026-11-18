@@ -151,14 +151,14 @@ After this, you can build the entire solution normally with MSBuild.
 **Next Steps** (build infrastructure, in order — details in [docs/CI_PLAN.md](docs/CI_PLAN.md) §0 and §10):
 1. 📋 Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (official release archive, trimmed)
 2. 📋 CMake migration: generated IDE projects (Unreal GenerateProjectFiles style), per-folder automatic source collection, `add_subdirectory` for PDF-Writer/wxWidgets; then delete `.sln`/`.vcxproj`/`Version.props`
-3. 📋 Smoke test fixture (`tests/fixtures/sample.ml`) + Jenkinsfile (Windows, then macOS)
+3. 📋 CTest smoke test + Jenkinsfile (Windows, then macOS). Fixture ready: `tests/fixtures/sample.ml` (made-up data; use it on any PC instead of real `.ml` files)
 4. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
 
 **Next Steps** (features):
 - 📋 Excel/CSV export (transaction list + settlement report)
 - 📋 Additional features (multi-currency support, custom report templates, etc.)
 
-**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it
+**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it. PDF layout nits seen with `sample.ml`: in the settlement report the last data row overlaps the total row's border; wrapped lines in the transaction list can start with a space; the settlement title comes from the input `.ml` name but the transaction-list title from the output PDF name
 
 **Session wrap-up**: before starting a new task or switching to another PC, update this status section, `CHANGELOG.md` `[미배포]`, and the roadmap in `docs/CI_PLAN.md`, then **ask the user whether to commit and push** (see "Working Rules"). Claude's local memory does not travel between PCs; anything another session needs must be in the repository
 

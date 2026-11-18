@@ -1,0 +1,61 @@
+# Test Fixtures
+
+## sample.ml
+
+A small `.ml` file with **made-up data** (no personal information) for smoke tests and for trying the app on a new PC.
+It was created with `MissionLedgerCLI`, so it uses exactly the format the app saves.
+
+| Content | Purpose |
+|---|---|
+| 9 budgets (income 3, expense 6) in 6 categories | Settlement report: budget vs actual comparison |
+| 10 transactions (income 3, expense 7), January 2026 | Both PDF reports |
+| 4 expense transactions in PHP at 24.5 KRW/PHP | Exchange rate section, inline `(PHP 5,000 @ 24.5)` |
+| Several items under the same category / item | Merged cells in the transaction list |
+| One long description | Text wrapping and row height |
+| Receipt numbers on most expenses, some empty | Optional column |
+
+Expected totals: income 4,800,000원, expense 4,309,750원, balance 490,250원.
+
+### Smoke test
+
+```bash
+MissionLedgerCLI export-settlement   tests/fixtures/sample.ml out/settlement.pdf
+MissionLedgerCLI export-transactions tests/fixtures/sample.ml out/transactions.pdf
+```
+
+Both commands must exit with 0 and create the PDF.
+
+### Regenerating
+
+The file is committed as is. To rebuild it from scratch (for example after a schema change), run from the repository root with a built CLI:
+
+```bash
+CLI=./x64/Release/MissionLedgerCLI.exe   # adjust to the build output path
+F=tests/fixtures/sample.ml
+rm -f $F && $CLI new $F
+
+b() { $CLI budget add --file $F "$@"; }
+b --type income  --category "참가비" --item "팀원 참가비" --amount 3000000
+b --type income  --category "후원금" --item "교회 후원"   --amount 1500000
+b --type income  --category "후원금" --item "개인 후원"   --amount 500000
+b --type expense --category "교통"   --item "항공권"      --amount 2400000
+b --type expense --category "교통"   --item "현지 교통"   --amount 200000
+b --type expense --category "숙식"   --item "숙박"        --amount 800000
+b --type expense --category "숙식"   --item "식비"        --amount 700000
+b --type expense --category "사역"   --item "사역 물품"   --amount 500000
+b --type expense --category "기타"   --item "여행자 보험" --amount 200000
+
+t() { $CLI add --file $F "$@"; }
+t --type income  --category "참가비" --item "팀원 참가비" --amount 3000000 --date 2026-01-05 --desc "팀원 6명 x 500,000원"
+t --type income  --category "후원금" --item "교회 후원"   --amount 1500000 --date 2026-01-07
+t --type income  --category "후원금" --item "개인 후원"   --amount 300000  --date 2026-01-08 --desc "개인 후원 3건 합계"
+t --type expense --category "교통"   --item "항공권"      --amount 2350000 --date 2026-01-09 --receipt "R-001" --desc "인천-마닐라 왕복 6인"
+t --type expense --category "교통"   --item "현지 교통"   --amount 122500  --date 2026-01-12 --receipt "R-002" --desc "공항-숙소 승합차 대절" --currency PHP --original 5000 --rate 24.5
+t --type expense --category "숙식"   --item "숙박"        --amount 735000  --date 2026-01-12 --receipt "R-003" --desc "게스트하우스 5박" --currency PHP --original 30000 --rate 24.5
+t --type expense --category "숙식"   --item "식비"        --amount 294000  --date 2026-01-13 --receipt "R-004" --desc "현지 식당 및 시장 장보기 (1~3일차)" --currency PHP --original 12000 --rate 24.5
+t --type expense --category "숙식"   --item "식비"        --amount 208250  --date 2026-01-15 --receipt "R-005" --desc "현지 식당 및 시장 장보기 (4~5일차)" --currency PHP --original 8500 --rate 24.5
+t --type expense --category "사역"   --item "사역 물품"   --amount 420000  --date 2026-01-10 --receipt "R-006" --desc "어린이 프로그램용 미술 재료, 학용품, 간식 준비 및 현지 전달용 포장 비용 포함 (긴 설명 줄바꿈 확인용)"
+t --type expense --category "기타"   --item "여행자 보험" --amount 180000  --date 2026-01-09 --receipt "R-007"
+```
+
+Keep the data fictional. Real `.ml` files belong in the repository root, which is gitignored.

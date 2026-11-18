@@ -37,7 +37,7 @@
 | ~~Core sources live in the GUI folder~~ ✅ Done (2026-11-18, `e94b226`) | `MissionLedger/src/` | Moved to `MissionLedgerCore/src/` (one project = one folder) |
 | wxWidgets is outside the repository and its build is undocumented | `WXWIN` = `C:\wxWidgets-3.2.6` on the dev PC (docs said 3.2.8) | Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (see §2) |
 | `third_party/pdfwriter/build` is gitignored, but `MissionLedger.sln` references the vcxproj files generated there | `.sln`, pdfwriter `.gitignore` | A fresh clone must run CMake for PDF-Writer before the `.sln` opens. Goes away with `add_subdirectory` |
-| No sample `.ml` file is committed for smoke tests | All `.ml` files in the root are untracked | Add `tests/fixtures/sample.ml` with non-personal data |
+| ~~No sample `.ml` file is committed for smoke tests~~ ✅ Done (2026-11-18) | All `.ml` files in the root are untracked | `tests/fixtures/sample.ml` with made-up data (see [tests/fixtures/README.md](../tests/fixtures/README.md)) |
 | The build system works only with Visual Studio | `.sln` / `.vcxproj` | **Migrate to CMake** (required before a macOS build is possible) |
 
 ### Single-Source Versioning (✅ Implemented 2026-11-18)
@@ -349,7 +349,7 @@ agent { label 'macos && xcode' }
 2. [x] Core folder separation: Core sources in `MissionLedgerCore/src/` (2026-11-18, `e94b226`)
 3. [ ] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed)
 4. [ ] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`, installer target. Compare results on Windows, then delete the `.sln`/`.vcxproj`/`Version.props` and add `build/` to `.gitignore`
-5. [ ] Add `tests/fixtures/sample.ml` and a CTest smoke test (CLI → 2 PDFs)
+5. [ ] CTest smoke test (CLI → 2 PDFs). Fixture done: `tests/fixtures/sample.ml` (2026-11-18)
 6. [ ] Write the Jenkinsfile (Windows first)
 7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal)
 8. [ ] Add the parallel macOS stage (including automated checks)
