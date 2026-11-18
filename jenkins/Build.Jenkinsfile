@@ -25,6 +25,30 @@ void runCmd(String command) {
     if (isUnix()) { sh command } else { bat command }
 }
 
+// preflight.cmake runs on CMake itself, so check CMake first: a missing CMake then says what to do
+// instead of "command not found". (No ">" or parentheses in the bat echo lines: cmd would parse them.)
+void requireCmake() {
+    if (isUnix()) {
+        sh '''#!/bin/sh
+command -v cmake >/dev/null 2>&1 && exit 0
+echo "ERROR: cmake is not in the PATH of the Jenkins agent on this node."
+echo "Install CMake 3.25+ (e.g. brew install cmake), then add its folder to the node's PATH:"
+echo "  Manage Jenkins > Nodes > this node > Configure > Environment variables: PATH+CMAKE=/opt/homebrew/bin"
+echo "Agent PATH: $PATH"
+exit 1
+'''
+    } else {
+        bat '''@echo off
+where cmake >nul 2>nul && exit /b 0
+echo ERROR: cmake is not in the PATH of the Jenkins agent on this node.
+echo Install CMake 3.25+ with "Add CMake to the system PATH for all users", then restart the Jenkins agent,
+echo or set PATH+CMAKE in the node settings: Manage Jenkins - Nodes - this node - Configure - Environment variables.
+echo Agent PATH: %PATH%
+exit /b 1
+'''
+    }
+}
+
 // Failure notification: stub. Replace the body with mail / a messenger webhook when needed
 void notifyResult(String result) {
     echo "[notify] Build ${env.BUILD_NUMBER} (${env.APP_VERSION ?: '?'}): ${result} - ${env.BUILD_URL ?: ''} (notification not set up yet)"
@@ -77,6 +101,7 @@ pipeline {
                                 env.APP_VERSION = readFile('VERSION').trim()
                                 currentBuild.displayName = "#${env.BUILD_NUMBER} v${env.APP_VERSION} ${params.CONFIGURATION}"
                             }
+                            requireCmake()
                             runCmd "cmake -DPLATFORM=${platformOf(env.NODE)} \"-DWORKSPACE=${env.WORKSPACE}\" -P jenkins/scripts/preflight.cmake"
                         }
                     }
