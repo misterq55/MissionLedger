@@ -32,8 +32,9 @@ void requireCmake() {
         sh '''#!/bin/sh
 command -v cmake >/dev/null 2>&1 && exit 0
 echo "ERROR: cmake is not in the PATH of the Jenkins agent on this node."
-echo "Install CMake 3.25+ (e.g. brew install cmake), then add its folder to the node's PATH:"
-echo "  Manage Jenkins > Nodes > this node > Configure > Environment variables: PATH+CMAKE=/opt/homebrew/bin"
+echo "Install it on the node (once, by hand):  sh jenkins/scripts/node_setup_macos.sh"
+echo "then add its folder to the node's PATH:"
+echo "  Manage Jenkins > Nodes > this node > Configure > Environment variables: PATH+CMAKE=/Applications/CMake.app/Contents/bin"
 echo "Agent PATH: $PATH"
 exit 1
 '''
@@ -41,8 +42,10 @@ exit 1
         bat '''@echo off
 where cmake >nul 2>nul && exit /b 0
 echo ERROR: cmake is not in the PATH of the Jenkins agent on this node.
-echo Install CMake 3.25+ with "Add CMake to the system PATH for all users", then restart the Jenkins agent,
-echo or set PATH+CMAKE in the node settings: Manage Jenkins - Nodes - this node - Configure - Environment variables.
+echo Install it on the node once, in an administrator PowerShell:
+echo   powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\\scripts\\node_setup_windows.ps1
+echo then set PATH+CMAKE=C:\\Program Files\\CMake\\bin in the node settings: Manage Jenkins - Nodes - this node - Configure - Environment variables,
+echo or reboot the node: the agent service keeps the PATH it started with.
 echo Agent PATH: %PATH%
 exit /b 1
 '''
