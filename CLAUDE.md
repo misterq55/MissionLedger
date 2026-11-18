@@ -99,7 +99,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 
 **Current release**: v1.0.0 (2026-11-18, Windows only) — see [CHANGELOG.md](CHANGELOG.md)
 
-**Completed Features** (as of 2026-11-18):
+**Completed Features** (as of 2026-11-19):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -146,7 +146,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
 4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
-5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Then add `macos` to `IMPLEMENTED` in the Jenkinsfile
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". **Open decision** at the start: whether to add a scoped advance approval to the Working Rules (e.g. "commits/pushes to `main` during roadmap 7"); until then the per-turn rule applies
 6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
 **Next Steps** (features):

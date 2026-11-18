@@ -240,6 +240,24 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 | Installer | `.dmg` (`create-dmg` or `hdiutil`), as a CMake target |
 | Signing / notarization | Deferred (§0). Requires the Apple Developer Program. Sign with `codesign` (hardened runtime) and notarize with `notarytool`. Unsigned builds work on the build Mac and, after "Open Anyway", on other Macs |
 
+### How the macOS work is done (decided 2026-11-19)
+
+Working directly on the Mac is inconvenient, so the build is developed through CI:
+
+- Edit on Windows → push to `main` (no separate branch) → run Jenkins with `PLATFORM=macos` → read the log → fix. Every few changes also run `PLATFORM=windows` (or `both`) to make sure Windows still builds
+- Mac-only CMake goes inside `if(APPLE)`, so the Windows build is not affected
+- Limit: the MacMini agent is started over SSH and cannot open windows, so the GUI (app launch, Korean text on screen, double-click opening of `.ml`) cannot be checked by Jenkins. Check it by hand once at the end (Screen Sharing / VNC, or at the Mac), with a checklist
+- Facts checked: the vendored wxWidgets includes the macOS sources (`src/osx`, `include/wx/osx`); MacMini is arm64 with Xcode 16.4 and CMake 3.31.12 (`/Applications/CMake.app`); the first build on the Mac is expected to take 10 minutes or more (wxWidgets)
+- Open decision: each try needs a commit and push, so the per-turn approval rule (CLAUDE.md) means many round trips. Decide at the start of this work whether to add a scoped advance approval (e.g. "commits and pushes to `main` during roadmap 7")
+
+| Step | Work | Checked by |
+|---|---|---|
+| ① | `macos` configure/build/test presets, Apple branches in CMake, build **Core + CLI only** | Compile, smoke tests (`ctest --preset macos-release`) |
+| ② | PDF Korean font: Malgun Gothic does not exist on macOS. Consider bundling Noto Sans KR in the repository (OFL license) so both platforms use the same font | PDF artifacts, opened on Windows |
+| ③ | GUI app: `MACOSX_BUNDLE`, `Info.plist`, `.icns` icon, `MacOpenFiles()` | Build succeeds; running it is checked by hand at the end |
+| ④ | Universal (`CMAKE_OSX_ARCHITECTURES="arm64;x86_64"`) | `lipo -archs` in the Jenkins log (§7) |
+| ⑤ | Add `macos` to `IMPLEMENTED` in `jenkins/Build.Jenkinsfile`; `PLATFORM=both` builds both | Both platforms green |
+
 ---
 
 ## 7. Verifying macOS Builds (Checking from Windows)
@@ -328,7 +346,7 @@ agent { label 'macos && xcode' }
 4. [x] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, `GenerateProjectFiles.bat`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`. Compared on Windows, then deleted the `.sln`/`.vcxproj`/`Version.props` and added `build/` to `.gitignore` (2026-11-18, see §3)
 5. [x] CTest smoke tests (`list`/`budget list` totals, 2 PDFs from `tests/fixtures/sample.ml`), test presets, `installer` target (ISCC, Release only) and the `windows-release` workflow preset; `build_installer.bat` became a wrapper for the workflow. Checked that a wrong expected value fails the test and stops the workflow before packaging, and that `installer` refuses Debug (2026-11-18)
 6. [x] `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, parameters, macOS cell = preflight only) and `jenkins/scripts/preflight.cmake` written (2026-11-18). Checked on Windows: preflight passes on the dev PC and lists 3 problems on a simulated bare node; all Windows stages run in a fresh clone (Release + installer, Debug, JUnit file with 5 tests, exe version `1.0.0.<BUILD_NUMBER>`). Nodes prepared with `node_check_*` / `node_setup_*` and `PATH+CMAKE`; first successful Jenkins build 2026-11-19 (about 10 minutes, first build on the nodes)
-7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal), `macos` presets
+7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done"
 8. [ ] Turn on the macOS cell: add `macos` to `IMPLEMENTED` in the Jenkinsfile, plus the checks of §7 (`lipo -archs`, `otool -L`)
 9. [ ] `.dmg` creation; signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
 10. [ ] Deployment: implement the `DEPLOY` stage (Google Drive under consideration, §0): force Release + clean build, check `VERSION` against the release tag, upload the installers; release notes from this version's CHANGELOG section. Then set the `DEPLOY` default to off
