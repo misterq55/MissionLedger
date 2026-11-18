@@ -7,6 +7,26 @@
 #include <limits>
 #include <cstring>
 
+namespace
+{
+    // 필수 옵션이 빠졌을 때: 오류와 해당 명령의 사용법을 출력하고 1을 반환
+    int missingOption(const char* message, const char* usage)
+    {
+        std::cerr << message << std::endl;
+        std::cerr << usage << std::endl;
+        return 1;
+    }
+
+    const char* const kUsageAdd =
+        "사용법: MissionLedgerCLI add --file <파일> --type <income|expense> --amount <금액> --category <카테고리> [옵션]";
+    const char* const kUsageBudgetAdd =
+        "사용법: MissionLedgerCLI budget add --file <파일> --type <income|expense> --category <카테고리> --amount <금액> [--item <항목>]";
+    const char* const kUsageBudgetUpdate =
+        "사용법: MissionLedgerCLI budget update --file <파일> --id <ID> [--type <income|expense>] [--category <카테고리>] [--item <항목>] [--amount <금액>]";
+    const char* const kUsageBudgetDelete =
+        "사용법: MissionLedgerCLI budget delete --file <파일> --id <ID>";
+}
+
 FMLCLIView::FMLCLIView()
 {
 }
@@ -266,23 +286,19 @@ int FMLCLIView::cmdAdd(const std::map<std::string, std::string>& options)
 
     if (fileIt == options.end())
     {
-        std::cerr << "오류: --file 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --file 옵션이 필요합니다.", kUsageAdd);
     }
     if (typeIt == options.end())
     {
-        std::cerr << "오류: --type 옵션이 필요합니다. (income 또는 expense)" << std::endl;
-        return 1;
+        return missingOption("오류: --type 옵션이 필요합니다. (income 또는 expense)", kUsageAdd);
     }
     if (amountIt == options.end())
     {
-        std::cerr << "오류: --amount 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --amount 옵션이 필요합니다.", kUsageAdd);
     }
     if (categoryIt == options.end())
     {
-        std::cerr << "오류: --category 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --category 옵션이 필요합니다.", kUsageAdd);
     }
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -471,23 +487,19 @@ int FMLCLIView::cmdBudgetAdd(const std::map<std::string, std::string>& options)
 
     if (fileIt == options.end())
     {
-        std::cerr << "오류: --file 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --file 옵션이 필요합니다.", kUsageBudgetAdd);
     }
     if (typeIt == options.end())
     {
-        std::cerr << "오류: --type 옵션이 필요합니다. (income 또는 expense)" << std::endl;
-        return 1;
+        return missingOption("오류: --type 옵션이 필요합니다. (income 또는 expense)", kUsageBudgetAdd);
     }
     if (categoryIt == options.end())
     {
-        std::cerr << "오류: --category 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --category 옵션이 필요합니다.", kUsageBudgetAdd);
     }
     if (amountIt == options.end())
     {
-        std::cerr << "오류: --amount 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --amount 옵션이 필요합니다.", kUsageBudgetAdd);
     }
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -566,13 +578,11 @@ int FMLCLIView::cmdBudgetUpdate(const std::map<std::string, std::string>& option
 
     if (fileIt == options.end())
     {
-        std::cerr << "오류: --file 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --file 옵션이 필요합니다.", kUsageBudgetUpdate);
     }
     if (idIt == options.end())
     {
-        std::cerr << "오류: --id 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --id 옵션이 필요합니다.", kUsageBudgetUpdate);
     }
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -682,13 +692,11 @@ int FMLCLIView::cmdBudgetDelete(const std::map<std::string, std::string>& option
 
     if (fileIt == options.end())
     {
-        std::cerr << "오류: --file 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --file 옵션이 필요합니다.", kUsageBudgetDelete);
     }
     if (idIt == options.end())
     {
-        std::cerr << "오류: --id 옵션이 필요합니다." << std::endl;
-        return 1;
+        return missingOption("오류: --id 옵션이 필요합니다.", kUsageBudgetDelete);
     }
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -712,8 +720,12 @@ int FMLCLIView::cmdBudgetDelete(const std::map<std::string, std::string>& option
         return 1;
     }
 
-    // 예산 삭제
-    controller->DeleteBudget(budgetId);
+    // 예산 삭제 (없는 ID면 Model이 false를 반환)
+    if (!controller->DeleteBudget(budgetId))
+    {
+        std::cerr << "오류: ID " << budgetId << "인 예산을 찾을 수 없습니다." << std::endl;
+        return 1;
+    }
 
     // 저장
     if (controller->SaveFile())
@@ -789,7 +801,12 @@ void FMLCLIView::Run()
     while (true)
     {
         std::cout << "> ";
-        std::cin >> command;
+        if (!(std::cin >> command))
+        {
+            // 입력 끝(EOF, 파이프/리다이렉트 종료) 또는 입력 오류: 무한 루프 방지
+            std::cout << std::endl;
+            break;
+        }
 
         if (command == "exit" || command == "quit")
         {
