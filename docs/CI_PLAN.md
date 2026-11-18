@@ -188,12 +188,14 @@ Written 2026-11-18. The commands were run on Windows in a fresh clone with a 108
 |---|---|
 | `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names and the list of implemented platforms are at the top (`PLATFORMS`, `IMPLEMENTED`) |
 | `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
+| `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts
+ode_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
 
 ### Stages per platform (CMake presets, §3)
 
 | Stage | Command | When |
 |---|---|---|
-| Preflight | `cmake -DPLATFORM=<p> -DWORKSPACE=<ws> -P jenkins/scripts/preflight.cmake`; also sets the build name `#N v1.0.0 Release` | Always |
+| Preflight | Check that `cmake` is on the agent's PATH (clear message with the agent PATH if not), then `cmake -DPLATFORM=<p> -DWORKSPACE=<ws> -P jenkins/scripts/preflight.cmake`; also sets the build name `#N v1.0.0 Release` | Always |
 | Clean | delete `build/<p>/` | `CLEAN_BUILD` |
 | Configure | `cmake --preset <p> -DML_BUILD_NUMBER=<BUILD_NUMBER>` | Implemented platforms |
 | Build | `cmake --build --preset <p>-<config> --parallel` | 〃 |
@@ -204,12 +206,13 @@ Written 2026-11-18. The commands were run on Windows in a fresh clone with a 108
 ### Jenkins setup (once)
 
 1. Plugins: Pipeline, Git, Timestamper, JUnit
-2. Nodes `WindowsMini` and `MacMini` online (the node name is used as the label). Tools per §8; run the preflight script on a node by hand to check it
+2. Nodes `WindowsMini` and `MacMini` online (the node name is used as the label). Tools per §8; check a node with `jenkins/scripts/node_check_*` (what is installed where), then the preflight script. The agent's PATH can differ from a terminal's: a Windows service sees only the System PATH and must be restarted after a PATH change; on macOS add `PATH+HOMEBREW=/opt/homebrew/bin` under the node's Environment variables
 3. New Item → **Pipeline** → Definition "Pipeline script from SCM" → SCM Git, `https://github.com/misterq55/MissionLedger.git` (public, no credentials) → Branch `*/main` → Script Path `jenkins/Build.Jenkinsfile`
 4. The first run uses the default parameters (`PLATFORM=both`, so `MacMini` must be online); afterwards "Build with Parameters" shows the choices
 
 ### Notes
 
+- First run (build #2, 2026-11-19): pipeline structure worked on both nodes (checkout, matrix, failure notification stub); both failed in Preflight because `cmake` was not on the agents' PATH. The agent's real environment is shown under Manage Jenkins → Nodes → node → System Information
 - Timeouts: 60 minutes per platform, **including the wait for its node** (Declarative cannot time the wait alone). If a node is offline, run with `PLATFORM` set to the other platform
 - Archive retention: last 20 builds, artifacts of the last 5 (an installer is about 28 MB)
 - Korean CLI output can look garbled in the Jenkins console (code page); the smoke test reads the output as UTF-8, so results are not affected
