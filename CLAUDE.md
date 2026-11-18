@@ -107,7 +107,9 @@ After this, you can build the entire solution normally with MSBuild.
 
 ## Current Implementation Status
 
-**Completed Features** (as of 2026-03-19):
+**Current release**: v1.0.0 (2026-11-18, Windows only) — see [CHANGELOG.md](CHANGELOG.md)
+
+**Completed Features** (as of 2026-11-18):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -157,6 +159,14 @@ After this, you can build the entire solution normally with MSBuild.
   - 페이지 분기 시 카테고리/항목 병합 셀 세그먼트 단위 분할 처리 (거래 단위 페이지 분기)
   - 금액 셀 우측 여백 수정 (텍스트 끝닿음 방지)
   - 컬럼 헤더와 첫 번째 데이터 셀 간 불필요한 간격 제거
+- ✅ Windows Installer (Inno Setup) — [docs/INSTALLER.md](docs/INSTALLER.md)
+  - `.ml` file association, Start menu/desktop shortcuts, uninstall cleanup
+  - Bundles `vc_redist.x64.exe` (installed only when missing/outdated); admin install only
+  - `build_installer.bat` → `installer\output\MissionLedger-<version>-Setup.exe`
+- ✅ Versioning (v1.0.0) — [docs/VERSIONING.md](docs/VERSIONING.md)
+  - Root `VERSION` file is the single source of truth (`Version.props` → `.rc`, `.iss`, bat)
+  - `CHANGELOG.md` (Keep a Changelog), annotated tags `vX.Y.Z`
+- ✅ Core folder separation: Core sources in `MissionLedgerCore/src/` (one project = one folder)
 
 **Design Decision**: Real-time Budget Tracking
 - ⏸️ Phase 3 (Budget-Transaction Integration) postponed
@@ -164,10 +174,19 @@ After this, you can build the entire solution normally with MSBuild.
 - Simplified architecture: Budget tab = budget planning only
 - Settlement comparison performed during PDF export (not real-time)
 
-**Next Steps**:
+**Next Steps** (build infrastructure, in order — details in [docs/CI_PLAN.md](docs/CI_PLAN.md) §0 and §10):
+1. 📋 Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (official release archive, trimmed)
+2. 📋 CMake migration: generated IDE projects (Unreal GenerateProjectFiles style), per-folder automatic source collection, `add_subdirectory` for PDF-Writer/wxWidgets; then delete `.sln`/`.vcxproj`/`Version.props`
+3. 📋 Smoke test fixture (`tests/fixtures/sample.ml`) + Jenkinsfile (Windows, then macOS)
+4. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred
+
+**Next Steps** (features):
 - 📋 Excel/CSV export (transaction list + settlement report)
-- 📋 Installer with .ml file association
 - 📋 Additional features (multi-currency support, custom report templates, etc.)
+
+**Known leftovers** (low priority): `MLMVCHolderExample.h` includes non-existent headers (not built); `MissionLedger.vcxproj.filters` has stale Core entries (goes away with CMake); `register_ml_extension.reg` writes an HKCU association to the Debug exe that overrides the installer's — consider deleting it
+
+**Session wrap-up**: before starting a new task or switching to another PC, update this status section, `CHANGELOG.md` `[미배포]`, and the roadmap in `docs/CI_PLAN.md`, then commit and push. Claude's local memory does not travel between PCs; anything another session needs must be in the repository
 
 ## Coding Conventions
 
