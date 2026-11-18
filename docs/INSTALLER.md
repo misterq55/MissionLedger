@@ -1,276 +1,166 @@
-# Windows 설치 프로그램 구현 계획
+# Windows 설치 프로그램
 
-## Context
+> 상태: ✅ Setup 생성 및 설치 기능 구현 완료 (v1.0.0, 2026-11-18) · 깨끗한 PC에서의 검증은 하지 않음 (상용 배포 대상 아님)
+> 도구: [Inno Setup](https://jrsoftware.org/isinfo.php) 6.7 이상
+> 초기 구현 계획 문서: `git show 4495514:docs/INSTALLER.md`
 
-MissionLedger는 현재 수동으로 빌드하고 배포해야 하는 상태입니다. 사용자가 프로그램을 설치하고 `.ml` 파일을 더블클릭하여 열 수 있도록 Windows 설치 프로그램이 필요합니다.
+사용자가 MissionLedger를 설치하고 `.ml` 파일을 더블클릭으로 열 수 있게 하는 Windows 설치 프로그램입니다.
+결과물은 `installer\output\MissionLedger-<버전>-Setup.exe` 하나입니다.
 
-**현재 상태:**
-- 실행 파일: `x64/Release/MissionLedger.exe` (7.5 MB)
-- `.ml` 파일 연결: `register_ml_extension.reg`로 수동 등록 (하드코딩된 경로)
-- 리소스 파일: 없음 (아이콘, 버전 정보 미존재)
-- 설치 프로그램: 없음
+---
 
-**목표:**
-1. `.ml` 파일 확장자를 MissionLedger와 연결 (더블클릭으로 열기)
-2. Windows 프로그램 추가/제거에 등록
-3. 시작 메뉴 바로가기 생성
-4. 프로그램 제거 기능
-5. 전문적인 설치 경험 제공
+## 1. 구성 파일
 
-**이미 구현된 기능:**
-- `main.cpp`의 명령줄 인수 처리 (34-39줄)
-  - `argc > 1`이면 `argv[1]`을 파일 경로로 사용
-  - `.ml` 파일 확인 후 자동 열기
-  - 더블클릭 지원이 완전히 준비됨
+| 파일 | 역할 |
+|---|---|
+| `installer/MissionLedger.iss` | 설치 프로그램 정의. 복사할 파일, 바로가기, `.ml` 파일 연결, 제거 동작 |
+| `build_installer.bat` | Release 빌드 → exe 확인 → 설치 파일 컴파일을 한 번에 실행하는 편의 스크립트 |
+| `VERSION` | 버전의 유일한 원천. 설치 파일 버전과 파일 이름이 여기서 정해집니다 ([VERSIONING.md](VERSIONING.md)) |
+| `MissionLedger/MissionLedger.rc` | exe에 아이콘과 버전 정보를 넣는 리소스 스크립트 |
+| `MissionLedger/resources/app.ico` | 앱 아이콘. `.ml` 파일 아이콘과 설치 프로그램 아이콘으로도 쓰입니다 |
+| `LICENSE.txt` | 설치 중 표시되는 라이선스 (MIT) |
 
-## 선택한 도구: Inno Setup
+`main.cpp`는 명령줄 인수로 받은 `.ml` 파일을 자동으로 열기 때문에, 더블클릭으로 열기는 레지스트리 등록만으로 동작합니다.
 
-**이유:**
-- wxWidgets 커뮤니티에서 "매우 간단하고 효과적"이라고 평가
-- 학습 곡선이 낮음 (스크립트 기반)
-- `.ml` 파일 확장자 연결이 쉬움
-- 무료 오픈소스, GUI 도구 제공 (Inno Script Studio)
-- 단일 실행 파일 프로젝트에 적합
+## 2. 설치 파일 만들기
 
-**대안 (제외 이유):**
-- WiX Toolset: XML 기반으로 복잡함, 기업 수준 기능 불필요
-- NSIS: Inno Setup보다 장점 없음
+### 방법 A: 스크립트 (권장)
 
-## 구현 단계
+저장소 루트에서 실행합니다.
 
-### Phase 1: 리소스 파일 준비
-
-#### 1.1 애플리케이션 아이콘 생성
-**파일:** `MissionLedger/resources/app.ico`
-
-**방법:**
-1. 온라인 도구 (converticon.com 등)로 임시 아이콘 생성
-   - 크기: 32x32, 48x48, 256x256 포함
-   - 디자인: 장부/선교 관련 심볼 (단순하게)
-2. 또는 Visual Studio에서 새 아이콘 리소스 생성
-
-**테스트용 대안:** Windows 기본 아이콘 임시 사용
-
-#### 1.2 리소스 스크립트 생성
-**파일:** `MissionLedger/MissionLedger.rc`
-
-Windows 리소스 컴파일러가 읽는 파일:
-- 아이콘 임베딩
-- 버전 정보 (회사명, 제품명, 파일 버전 등)
-- UTF-8 지원 (Korean, Unicode)
-
-#### 1.3 버전 정보 헤더
-**파일:** `MissionLedger/src/MLVersion.h`
-
-버전 상수 정의:
-- `ML_VERSION_MAJOR`, `MINOR`, `PATCH`
-- `ML_VERSION_STRING` (예: "1.0.0")
-- `ML_APP_NAME`, `ML_APP_NAME_KR`
-
-#### 1.4 프로젝트 파일 수정
-**파일:** `MissionLedger/MissionLedger.vcxproj`
-
-`<ItemGroup>` 섹션에 추가:
-```xml
-<ItemGroup>
-  <ResourceCompile Include="MissionLedger.rc" />
-</ItemGroup>
-<ItemGroup>
-  <Image Include="resources\app.ico" />
-</ItemGroup>
-```
-
-빌드 시 리소스 컴파일러(rc.exe)가 자동 실행되어 EXE에 임베딩
-
-### Phase 2: Inno Setup 설치
-
-1. https://jrsoftware.org/isinfo.php에서 다운로드
-2. Inno Setup 6.7.0 이상 설치
-3. (선택) Inno Script Studio 설치 (GUI 편집기)
-
-### Phase 3: 설치 스크립트 작성
-
-**파일:** `installer/MissionLedger.iss`
-
-**주요 섹션:**
-- `[Setup]`: 앱 이름, 버전, 경로, 출력 설정
-- `[Files]`: 포함할 파일 (MissionLedger.exe, CLI 등)
-- `[Icons]`: 시작 메뉴/바탕화면 바로가기
-- `[Registry]`: `.ml` 파일 확장자 연결 (HKEY_CLASSES_ROOT)
-- `[Run]`: 설치 완료 후 실행 옵션
-
-**레지스트리 설정 (핵심):**
-```pascal
-; .ml 파일 확장자 연결
-Root: HKA; Subkey: "Software\Classes\.ml\OpenWithProgids"; ...
-Root: HKA; Subkey: "Software\Classes\MissionLedgerDocument.ml"; ...
-Root: HKA; Subkey: "...\DefaultIcon"; ValueData: "{app}\MissionLedger.exe,0"
-Root: HKA; Subkey: "...\shell\open\command"; ValueData: "{app}\MissionLedger.exe %1"
-```
-
-**GUID 생성 필요:** Visual Studio → Tools → Create GUID → Registry Format
-
-### Phase 4: 빌드 자동화
-
-**파일:** `build_installer.bat`
-
-단계:
-1. Release 빌드 (`msbuild MissionLedger.sln /p:Configuration=Release`)
-2. 실행 파일 확인 (`x64\Release\MissionLedger.exe` 존재 여부)
-3. Inno Setup 컴파일 (`ISCC.exe installer\MissionLedger.iss`)
-4. 출력: `installer/output/MissionLedger-1.0.0-Setup.exe`
-
-### Phase 5: 라이선스 파일 (선택)
-
-**파일:** `LICENSE.txt`
-
-MIT, GPL, 또는 사유 라이선스 추가 (나중에 결정 가능)
-
-## 수정/생성 파일 목록
-
-### 새로 생성
-1. `MissionLedger/resources/app.ico` - 애플리케이션 아이콘
-2. `MissionLedger/MissionLedger.rc` - 리소스 스크립트 (~50줄)
-3. `MissionLedger/src/MLVersion.h` - 버전 헤더 (~10줄)
-4. `installer/MissionLedger.iss` - Inno Setup 스크립트 (~100줄)
-5. `build_installer.bat` - 빌드 자동화 (~30줄)
-6. `LICENSE.txt` - 라이선스 (선택)
-
-### 수정
-1. `MissionLedger/MissionLedger.vcxproj` - 리소스 파일 추가 (2-3줄)
-
-**변경 없음:**
-- `main.cpp` - 명령줄 인수 처리가 이미 완벽하게 구현됨 (34-39줄)
-
-## 검증 방법
-
-### 1. 빌드 검증
-```bash
-# Release 빌드
-msbuild MissionLedger.sln /p:Configuration=Release /p:Platform=x64
-
-# 실행 파일 속성 확인 (리소스 임베딩 확인)
-# x64\Release\MissionLedger.exe 우클릭 → 속성 → 자세히
-# 버전 정보, 아이콘이 표시되어야 함
-
-# 설치 프로그램 빌드
+```bat
 build_installer.bat
 ```
 
-### 2. 설치 테스트
+### 방법 B: 수동
 
-**환경:** 가상 머신 또는 Windows Sandbox 권장
+```bat
+msbuild MissionLedger.sln /p:Configuration=Release /p:Platform=x64
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MissionLedger.iss
+```
 
-**절차:**
-1. `installer\output\MissionLedger-1.0.0-Setup.exe` 실행
-2. 설치 마법사 진행 (기본 설정으로)
-3. 설치 완료 확인
+Inno Setup GUI에서 `.iss`를 열고 Compile을 눌러도 됩니다.
 
-**확인 항목:**
+### 주의
+
+- 설치 파일 버전은 `VERSION` 파일에서 읽습니다. `.iss`에 버전을 직접 적지 않습니다.
+- **Release 빌드를 먼저 해야 합니다.** `x64\Release\MissionLedger.exe`의 버전이 `VERSION`과 다르면 ISCC가 오류를 내고 중단합니다. 예전 exe가 새 버전 이름으로 포장되는 사고를 막기 위해서입니다.
+- Visual C++ 런타임 설치 파일(`vc_redist.x64.exe`)은 Visual Studio 2022 설치 폴더에서 자동으로 찾습니다 (Community → Professional → Enterprise → Build Tools 순서, `VC\Redist\MSVC\v143\`). 따로 내려받을 필요가 없습니다. 다른 위치의 파일을 쓰려면 `ISCC /DVCRedistPath="...\vc_redist.x64.exe"`로 지정합니다.
+
+## 3. 설치 프로그램 동작
+
+### 설치
+
+| 항목 | 내용 |
+|---|---|
+| 설치 위치 | `C:\Program Files\MissionLedger\` |
+| 권한 | **관리자만** (모든 사용자 설치). Visual C++ 런타임 설치에 관리자 권한이 필요해서 "현재 사용자만 설치"는 허용하지 않습니다 |
+| 설치되는 파일 | `MissionLedger.exe`, `README.md`, `LICENSE.txt` |
+| Visual C++ 런타임 | 런타임이 없거나 포함된 버전보다 낮은 PC에서만 화면 표시 없이 설치합니다. 이미 있으면 건너뜁니다 (아래 참고) |
+| 바로가기 | 시작 메뉴 "미션레저" 폴더 (프로그램 + 제거). 바탕화면 바로가기는 선택 사항입니다 |
+| 요구 사항 | Windows 10 1809 이상, x64 |
+| 언어 | 한국어 |
+| 완료 후 | "미션레저 실행" 체크박스 |
+
+### `.ml` 파일 연결 (레지스트리)
+
+`HKA` 루트를 씁니다. 관리자 설치이므로 `HKLM\Software\Classes`에 기록됩니다.
+(`HKEY_CLASSES_ROOT`는 `HKLM`과 `HKCU`의 `Software\Classes`를 합친 보기이며, 같은 키가 있으면 `HKCU`가 우선합니다.)
+
+| 키 | 값 | 용도 |
+|---|---|---|
+| `Software\Classes\MissionLedgerDocument.ml` | `MissionLedger Document` | ProgID (파일 형식 이름) |
+| `...\MissionLedgerDocument.ml\DefaultIcon` | `"{app}\MissionLedger.exe",0` | `.ml` 파일 아이콘 |
+| `...\MissionLedgerDocument.ml\shell\open\command` | `"{app}\MissionLedger.exe" "%1"` | 더블클릭 시 실행 명령 |
+| `Software\Classes\.ml` | `MissionLedgerDocument.ml` | 확장자 → ProgID 연결 |
+| `Software\Classes\.ml\OpenWithProgids` | `MissionLedgerDocument.ml` | "연결 프로그램" 목록에 표시 |
+| `Software\Classes\Applications\MissionLedger.exe` | `FriendlyAppName`, `SupportedTypes`, `shell\open\command` | "연결 프로그램" 메뉴의 앱 이름과 지원 형식 |
+
+- `ChangesAssociations=yes`이므로 설치와 제거 후 탐색기 아이콘이 바로 갱신됩니다.
+- `%1`을 따옴표로 감싸서 공백이나 한글이 있는 경로도 열립니다.
+- Windows 10/11에서는 사용자가 다른 앱을 기본값으로 고른 적이 있으면(`UserChoice`) 그 선택이 우선합니다. 이 경우 "연결 프로그램 → 미션레저"를 한 번 선택해야 합니다.
+
+### Visual C++ 런타임
+
+exe가 동적 런타임(`/MD`)으로 빌드되어 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`이 필요합니다. 런타임이 없는 PC에서는 *"MSVCP140.dll이 없어 코드 실행을 진행할 수 없습니다"* 오류로 실행되지 않으므로, 설치 프로그램에 런타임 설치 파일(약 25MB)을 포함했습니다.
+
+- 판단 기준: `HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64`의 `Installed`, `Major`, `Minor`, `Bld` 값을 포함된 `vc_redist.x64.exe`의 버전과 비교합니다. 없거나 낮을 때만 설치합니다.
+- 설치 옵션: `/install /quiet /norestart`
+- 제거할 때 런타임은 지우지 않습니다. 다른 프로그램도 함께 쓰는 구성 요소이기 때문입니다.
+- 대안: 정적 런타임(`/MT`)으로 빌드하면 런타임 동봉이 필요 없습니다. 그 대신 wxWidgets와 PDF-Writer를 `/MT`로 다시 빌드해야 합니다. wxWidgets를 다시 빌드할 때 전환을 검토합니다 (5절).
+
+### 제거
+
+- 설치 폴더 전체를 삭제합니다.
+- 시작 메뉴와 바탕화면 바로가기를 삭제합니다.
+- ProgID 키와 `Applications\MissionLedger.exe` 키를 삭제합니다.
+- `.ml`의 기본값과 `OpenWithProgids` 값을 삭제합니다. 다른 앱이 `.ml`에 등록한 값은 건드리지 않습니다.
+- 사용자가 저장한 `.ml` 파일은 삭제하지 않습니다.
+
+## 4. 설치 테스트 체크리스트
+
+필요할 때 참고하는 체크리스트입니다. 다른 사람에게 배포하기 전이라면 **Windows Sandbox** 또는 VM처럼 깨끗한 환경에서 확인하는 것이 좋습니다. 개발 PC에는 VC++ 런타임과 이전 레지스트리 등록이 남아 있어 문제가 가려질 수 있습니다.
+
+### 설치
+- [ ] `MissionLedger-<버전>-Setup.exe` 실행 → 기본 설정으로 설치 완료
 - [ ] `C:\Program Files\MissionLedger\MissionLedger.exe` 존재
+- [ ] (런타임이 없는 환경) 설치 중 "Visual C++ 런타임을 설치하는 중..." 표시 후 프로그램이 정상 실행
+- [ ] exe 속성 → 자세히에서 버전과 아이콘 확인
 - [ ] 시작 메뉴에 "미션레저" 폴더 생성
-- [ ] 바탕화면 바로가기 생성 (선택한 경우)
-- [ ] 프로그램 추가/제거에 "미션레저" 등록
+- [ ] 프로그램 추가/제거에 "미션레저"가 올바른 버전으로 표시
+- [ ] 설치 완료 화면에서 실행 → 프로그램이 정상적으로 뜸
 
-### 3. .ml 파일 연결 테스트
+### `.ml` 파일 연결
+- [ ] 탐색기에서 `.ml` 파일 아이콘이 MissionLedger 아이콘으로 표시
+- [ ] `.ml` 파일 더블클릭 → 프로그램이 실행되고 파일이 열림
+- [ ] 경로에 공백과 한글이 있는 `.ml` 파일도 열림
+- [ ] 결산 PDF와 거래 내역서 PDF 내보내기가 동작하고 한글이 정상 표시
+- [ ] regedit에서 `HKEY_CLASSES_ROOT\.ml` (기본값) = `MissionLedgerDocument.ml`
 
-**파일 생성:**
-1. MissionLedger 실행 → 거래 추가 → "test.ml"로 저장
-2. 또는 기존 .ml 파일 사용
+### 제거
+- [ ] 프로그램 추가/제거 또는 시작 메뉴 "미션레저 제거"로 제거
+- [ ] 설치 폴더, 시작 메뉴 폴더, 바탕화면 바로가기 삭제
+- [ ] `.ml` 파일 아이콘이 기본 아이콘으로 돌아감
+- [ ] regedit에서 `MissionLedgerDocument.ml` 키 삭제 확인
 
-**테스트:**
-- [ ] 파일 탐색기에서 `test.ml` 아이콘이 MissionLedger 아이콘으로 표시
-- [ ] `test.ml` 더블클릭 → MissionLedger 실행 및 파일 열기
-- [ ] 거래 내역이 정상 표시
+### 업그레이드
+- [ ] 이전 버전이 설치된 상태에서 새 버전 설치 → 덮어쓰기로 정상 설치, 프로그램 목록에 하나만 표시
 
-**레지스트리 확인 (regedit):**
-- [ ] `HKEY_CLASSES_ROOT\.ml` → "MissionLedgerDocument.ml"
-- [ ] `HKEY_CLASSES_ROOT\MissionLedgerDocument.ml\DefaultIcon` → 아이콘 경로
-- [ ] `HKEY_CLASSES_ROOT\MissionLedgerDocument.ml\shell\open\command` → 실행 명령
+## 5. 알려진 이슈와 남은 작업
 
-### 4. 제거 테스트
+| 항목 | 내용 | 우선순위 |
+|---|---|---|
+| 정적 런타임(`/MT`) 전환 검토 | 현재는 `vc_redist.x64.exe`를 동봉해 해결했습니다 (3절). `/MT`로 바꾸면 설치 파일이 약 4MB로 줄고, 관리자 권한 없이 설치하거나 exe만 복사해 쓸 수 있습니다. wxWidgets와 PDF-Writer를 `/MT`로 다시 빌드해야 하므로 wxWidgets 재빌드 때 함께 검토합니다 | 낮음 |
+| **개발 PC의 수동 등록과 충돌** | `register_ml_extension.reg`를 실행한 적이 있는 PC에는 `HKCU\Software\Classes\.ml` → `MissionLedger.Document`(Debug exe 경로)가 남아 있습니다. HKCU가 HKLM보다 우선하므로, 관리자 설치 후에도 더블클릭하면 Debug exe가 실행될 수 있습니다. 해당 키를 지우거나 `.reg` 파일을 삭제하는 것을 검토합니다 | 중간 |
+| CLI 미포함 | `MissionLedgerCLI.exe`는 설치되지 않습니다. 필요하면 `[Files]`에 추가합니다 | 낮음 |
+| 폰트 번들 미사용 | `[Files]`의 `fonts\*.ttf` 항목이 주석 처리돼 있습니다. PDF는 시스템의 맑은 고딕을 씁니다. 코드는 `{app}\fonts\`를 먼저 찾도록 준비돼 있습니다 | 낮음 |
+| 코드 서명 없음 | 서명하지 않은 설치 파일은 SmartScreen 경고가 뜹니다. 인증서 비용이 연 $100–300입니다 | 선택 |
+| CI 연동 | `build_installer.bat`의 MSBuild 경로가 Community 에디션으로 고정돼 있고 끝에 `pause`가 있습니다. CI는 bat을 쓰지 않고 Jenkinsfile에서 단계별로 실행합니다 ([CI_PLAN.md](CI_PLAN.md)) | CI 도입 시 |
+| 자동 업데이트, 다국어 | 미구현 | 선택 |
+| 회사명/제품명 | `MissionLedger Project`, `선교 및 프로젝트 예산 관리 프로그램`은 임시값입니다. `MLVersion.h`와 `.iss`의 `MyAppPublisher`에서 바꿉니다 | 선택 |
+| 아이콘 | `app.ico`가 임시 아이콘이라면 장부나 선교와 관련된 단순한 심볼로 교체를 검토합니다 | 선택 |
+| 라이선스 | 현재 MIT (`LICENSE.txt`). 필요하면 다시 검토합니다 | 선택 |
 
-**절차:**
-1. 프로그램 추가/제거에서 "미션레저" 제거
-2. 또는 시작 메뉴 "미션레저 제거" 실행
+### 배포 이후 고려할 것
 
-**확인 항목:**
-- [ ] `C:\Program Files\MissionLedger\` 디렉토리 삭제
-- [ ] 시작 메뉴 폴더 삭제
-- [ ] 바탕화면 바로가기 삭제
-- [ ] 프로그램 목록에서 제거
-- [ ] `.ml` 파일 연결 해제 (기본 아이콘으로 변경)
-- [ ] 레지스트리 항목 삭제
+1. 설치 파일 배포 위치 (GitHub Releases 등)
+2. 사용자 가이드 작성
+3. 다운로드 페이지나 웹사이트
+4. 자동 업데이트 (선택)
 
-## 예상 소요 시간
+## 6. 구현 이력
 
-- Phase 1: 리소스 준비 - 1-2시간
-- Phase 2: Inno Setup 설치 - 15분
-- Phase 3: 스크립트 작성 - 1-2시간
-- Phase 4: 빌드 통합 - 30분
-- Phase 5: 테스트 및 검증 - 1-2시간
+| 커밋 | 내용 |
+|---|---|
+| `d52588c` | 리소스 스크립트, 아이콘, 버전 헤더 추가 |
+| `0d32271` | Inno Setup 스크립트, `build_installer.bat`, `LICENSE.txt` 추가 |
+| `392b303` | 폰트 파일을 선택적으로 포함하도록 수정 |
+| `c8196d1` | `.ml` 파일 연결 레지스트리 정리 (`HKA`, `OpenWithProgids`, 제거 시 정리) |
+| `20a8f7e` | `VERSION` 파일 기반 버전 단일화, exe 버전 대조, bat 괄호 버그 수정 |
+| (v1.0.0 태그 커밋) | Visual C++ 런타임 동봉, 관리자 설치로 고정 |
 
-**총 예상:** 4-7시간
+### 도구 선택 이유 (Inno Setup)
 
-## 구현 우선순위
-
-### 필수 (MVP)
-1. 애플리케이션 아이콘 (임시라도)
-2. 리소스 스크립트 및 버전 정보
-3. Inno Setup 스크립트 (.ml 파일 연결)
-4. 기본 설치/제거 테스트
-
-### 권장
-1. 빌드 자동화 스크립트
-2. 레지스트리 검증
-3. 라이선스 파일
-
-### 선택 (미래)
-1. 코드 서명 (Windows Defender SmartScreen 경고 방지)
-2. 자동 업데이트 기능
-3. 다중 언어 지원 (영어, 일본어 등)
-
-## Critical Files
-
-설치 프로그램 구현의 핵심 파일 5개:
-
-1. **installer/MissionLedger.iss**
-   - Inno Setup 메인 스크립트
-   - .ml 파일 연결, 레지스트리 설정 정의
-   - 전체 설치 프로세스의 핵심
-
-2. **MissionLedger/MissionLedger.rc**
-   - Windows 리소스 스크립트
-   - 아이콘 및 버전 정보 임베딩
-   - 프로그램 속성에 표시되는 메타데이터
-
-3. **MissionLedger/resources/app.ico**
-   - 애플리케이션 아이콘
-   - .ml 파일의 파일 탐색기 아이콘
-   - 모든 UI 위치에서 표시
-
-4. **build_installer.bat**
-   - 빌드 자동화 스크립트
-   - Release 빌드 → Inno Setup 컴파일
-   - 단일 명령으로 설치 프로그램 생성
-
-5. **MissionLedger/MissionLedger.vcxproj**
-   - 프로젝트 파일 (수정)
-   - 리소스 파일을 빌드에 포함
-   - 빌드 시 rc.exe 자동 실행
-
-## 참고 사항
-
-- **아이콘 디자인**: 장부/선교 관련 심볼 권장 (단순하게)
-- **회사/제품명**: 나중에 수정 가능
-  - 기본값: "MissionLedger Project", "선교 및 프로젝트 예산 관리 프로그램"
-- **라이선스**: 나중에 결정 (MIT/GPL/사유)
-- **코드 서명**: 비용 발생 ($100-300/년), 선택 사항
-
-## 다음 단계 (구현 후)
-
-설치 프로그램 완성 후 고려할 사항:
-1. GitHub Releases에 설치 파일 배포
-2. 사용자 가이드/문서 작성
-3. 다운로드 페이지 또는 웹사이트 제작
-4. 자동 업데이트 기능 추가 (선택)
+- 스크립트 기반이라 배우기 쉽고, 단일 exe 앱의 파일 연결을 간단하게 처리할 수 있습니다.
+- WiX Toolset은 XML 기반으로 복잡하고, 이 규모에 필요 없는 기업용 기능이 많아 제외했습니다.
+- NSIS는 Inno Setup보다 나은 점이 없어 제외했습니다.

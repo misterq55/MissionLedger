@@ -42,6 +42,8 @@
   - `.ml` 파일 연결 (더블클릭으로 열기, 파일 아이콘 표시)
   - 시작 메뉴 및 바탕화면 바로가기
   - 프로그램 추가/제거에 등록, 제거 시 파일 연결 정리
+  - Visual C++ 런타임이 없는 PC에서는 런타임 자동 설치
+  - 관리자 권한(모든 사용자)으로 설치
 
 [미배포]: https://github.com/misterq55/MissionLedger/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/misterq55/MissionLedger/releases/tag/v1.0.0

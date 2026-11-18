@@ -33,6 +33,35 @@
 #if ExeVersion != MyAppVersion
   #error MissionLedger.exe 버전이 VERSION 파일과 다릅니다. Release 빌드를 다시 실행하세요.
 #endif
+
+; ===== Visual C++ 런타임 =====
+; MissionLedger.exe는 동적 런타임(/MD)으로 빌드되어 MSVCP140.dll 등이 필요합니다.
+; Visual Studio에 포함된 vc_redist.x64.exe를 설치 파일에 넣고, 런타임이 없거나 오래된 PC에서만 설치합니다.
+; 다른 경로를 쓰려면 ISCC /DVCRedistPath="...\vc_redist.x64.exe" 로 넘깁니다.
+#ifndef VCRedistPath
+  #define VSRoot "C:\Program Files\Microsoft Visual Studio\2022\"
+  #define VCRedistSub "\VC\Redist\MSVC\v143\vc_redist.x64.exe"
+  #if FileExists(VSRoot + "Community" + VCRedistSub)
+    #define VCRedistPath VSRoot + "Community" + VCRedistSub
+  #elif FileExists(VSRoot + "Professional" + VCRedistSub)
+    #define VCRedistPath VSRoot + "Professional" + VCRedistSub
+  #elif FileExists(VSRoot + "Enterprise" + VCRedistSub)
+    #define VCRedistPath VSRoot + "Enterprise" + VCRedistSub
+  #elif FileExists("C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" + VCRedistSub)
+    #define VCRedistPath "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" + VCRedistSub
+  #else
+    #error vc_redist.x64.exe를 찾을 수 없습니다. Visual Studio 2022의 C++ 워크로드를 설치하거나 /DVCRedistPath로 경로를 지정하세요.
+  #endif
+#endif
+#if !FileExists(VCRedistPath)
+  #error VCRedistPath에 지정한 vc_redist.x64.exe가 없습니다.
+#endif
+; 포함할 런타임의 버전 (예: 14.44.35211) - 설치된 런타임이 이보다 낮으면 설치
+#define VCRedistMajor
+#define VCRedistMinor
+#define VCRedistBuild
+#define VCRedistRev
+#expr GetVersionComponents(VCRedistPath, VCRedistMajor, VCRedistMinor, VCRedistBuild, VCRedistRev)
 #define MyAppAssocName "MissionLedger Document"
 #define MyAppAssocExt ".ml"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
@@ -67,8 +96,8 @@ SolidCompression=yes
 
 ; Windows 버전 요구사항
 MinVersion=10.0.17763
+; Visual C++ 런타임 설치에 관리자 권한이 필요하므로 "현재 사용자만 설치"는 허용하지 않습니다.
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
 
 ; UI 설정
 WizardStyle=modern
@@ -94,6 +123,8 @@ Source: "..\x64\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; 문서
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+; Visual C++ 런타임 설치 파일 - 필요한 PC에서만 임시 폴더에 풀고 설치 후 삭제
+Source: "{#VCRedistPath}"; DestDir: "{tmp}"; DestName: "vc_redist.x64.exe"; Flags: deleteafterinstall; Check: VCRedistNeedsInstall
 
 [Icons]
 ; 시작 메뉴 바로가기
@@ -104,7 +135,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Registry]
 ; .ml 파일 확장자 연결 (Windows 10/11 호환)
-; HKA: 관리자 설치 시 HKLM, 사용자 설치 시 HKCU의 Software\Classes에 기록
+; HKA: 관리자 설치이므로 HKLM\Software\Classes에 기록 (사용자 설치였다면 HKCU)
 
 ; 1. ProgID 등록
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppAssocName}"; Flags: uninsdeletekey
@@ -123,6 +154,9 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
+; Visual C++ 런타임 설치 (필요한 경우에만, 화면 표시 없음)
+; 종료 코드 3010(재부팅 필요)도 정상으로 처리됩니다.
+Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Visual C++ 런타임을 설치하는 중..."; Flags: waituntilterminated; Check: VCRedistNeedsInstall
 ; 설치 완료 후 실행 옵션
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
@@ -131,6 +165,28 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+// Visual C++ 2015-2022 런타임(x64)이 없거나, 포함한 버전보다 낮으면 True
+function VCRedistNeedsInstall(): Boolean;
+var
+  Installed, Major, Minor, Bld: Cardinal;
+  Key: String;
+begin
+  Key := 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64';
+  Result := True;
+  if RegQueryDWordValue(HKLM64, Key, 'Installed', Installed) and (Installed = 1) and
+     RegQueryDWordValue(HKLM64, Key, 'Major', Major) and
+     RegQueryDWordValue(HKLM64, Key, 'Minor', Minor) and
+     RegQueryDWordValue(HKLM64, Key, 'Bld', Bld) then
+  begin
+    if Major <> {#VCRedistMajor} then
+      Result := Major < {#VCRedistMajor}
+    else if Minor <> {#VCRedistMinor} then
+      Result := Minor < {#VCRedistMinor}
+    else
+      Result := Bld < {#VCRedistBuild};
+  end;
+end;
+
 // 설치 전 확인 사항
 function InitializeSetup(): Boolean;
 begin
