@@ -23,11 +23,17 @@
   #error VERSION 파일이 비어 있습니다.
 #endif
 
+; 포장할 exe가 있는 폴더. CMake 빌드는 ISCC /DExeDir="...\build\windows\bin\Release" 로 넘깁니다.
+; (CMake 이전 기간에는 기본값이 MSBuild 출력 폴더 x64\Release)
+#ifndef ExeDir
+  #define ExeDir AddBackslash(SourcePath) + "..\x64\Release"
+#endif
+
 ; 안전장치: 포장할 exe의 버전이 VERSION과 다르면 중단합니다.
 ; (VERSION을 고치고 Release 빌드를 하지 않은 채 설치 파일을 만드는 실수 방지)
-#define MyAppExePath AddBackslash(SourcePath) + "..\x64\Release\" + MyAppExeName
+#define MyAppExePath AddBackslash(ExeDir) + MyAppExeName
 #if !FileExists(MyAppExePath)
-  #error x64\Release\MissionLedger.exe 가 없습니다. Release 빌드를 먼저 실행하세요.
+  #error MissionLedger.exe 가 없습니다. Release 빌드를 먼저 실행하세요. (ExeDir 확인)
 #endif
 #define ExeVersion GetStringFileInfo(MyAppExePath, "ProductVersion")
 #if ExeVersion != MyAppVersion
@@ -116,7 +122,7 @@ Name: "desktopicon"; Description: "바탕화면 바로가기 만들기(&D)"; Gro
 
 [Files]
 ; 실행 파일 및 라이브러리
-Source: "..\x64\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppExePath}"; DestDir: "{app}"; Flags: ignoreversion
 ; 배포 폰트 (PDF 내보내기용) - 폰트 파일이 있을 경우에만 포함
 ; Note: Noto Sans KR 폰트를 MissionLedger\fonts\ 디렉토리에 다운로드하면 자동 포함됩니다
 ; Source: "..\MissionLedger\fonts\*.ttf"; DestDir: "{app}\fonts"; Flags: ignoreversion skipifsourcedoesntexist
