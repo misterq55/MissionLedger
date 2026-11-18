@@ -30,6 +30,10 @@ OutputDir=output
 OutputBaseFilename=MissionLedger-{#MyAppVersion}-Setup
 SetupIconFile=..\MissionLedger\resources\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName={#MyAppName}
+
+; 파일 연결 변경 시 설치/제거 후 탐색기에 알림 (아이콘 갱신)
+ChangesAssociations=yes
 
 ; 압축 설정
 Compression=lzma2/max
@@ -73,14 +77,24 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; .ml 파일 확장자 연결 (Windows 10/11 방식)
-; HKEY_CLASSES_ROOT\.ml -> MissionLedgerDocument.ml
-Root: HKA; Subkey: "Software\Classes\{#MyAppAssocExt}\OpenWithProgids"; ValueType: string; ValueName: "{#MyAppAssocKey}"; ValueData: ""; Flags: uninsdeletevalue
+; .ml 파일 확장자 연결 (Windows 10/11 호환)
+; HKA: 관리자 설치 시 HKLM, 사용자 설치 시 HKCU의 Software\Classes에 기록
+
+; 1. ProgID 등록
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppAssocName}"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-; 애플리케이션 등록 (Open With 메뉴용)
+
+; 2. .ml 확장자 → ProgID 연결
+Root: HKA; Subkey: "Software\Classes\{#MyAppAssocExt}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppAssocKey}"; Flags: uninsdeletevalue
+
+; 3. OpenWithProgids ("연결 프로그램" 목록에 표시)
+Root: HKA; Subkey: "Software\Classes\{#MyAppAssocExt}\OpenWithProgids"; ValueType: string; ValueName: "{#MyAppAssocKey}"; ValueData: ""; Flags: uninsdeletevalue
+
+; 4. 애플리케이션 등록 (Open With 메뉴용)
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: "{#MyAppAssocExt}"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
 ; 설치 완료 후 실행 옵션
@@ -95,14 +109,4 @@ Type: filesandordirs; Name: "{app}"
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-end;
-
-// .ml 파일 연결 알림
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if CurStep = ssPostInstall then
-  begin
-    // 파일 연결 갱신을 위해 탐색기에 알림
-    RegWriteStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ml', 'Progid', '{#MyAppAssocKey}');
-  end;
 end;
