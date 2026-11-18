@@ -1,7 +1,7 @@
 # CI/CD Plan: Jenkins Build Automation (Windows + macOS)
 
-> Created: 2026-11-18
-> Status: Planning (not implemented)
+> Created: 2026-11-18 · Decisions recorded: 2026-11-18
+> Status: Planning (CI not implemented). Prerequisites partly done: single-source versioning, Core folder separation
 
 ## Goals
 
@@ -9,6 +9,21 @@
 - Stages: Build → Test → Installer → Deploy
 - Target platforms: **Windows x64** and **macOS** (Universal: arm64 + x86_64)
 - Build machines: existing Windows/macOS machines that are already Jenkins nodes for other projects
+- **Keep per-node setup to a minimum.** A node needs only general-purpose tools (compiler, CMake, Git, installer tool). Everything specific to this project, including wxWidgets, comes from the repository
+
+---
+
+## 0. Decisions
+
+| Topic | Decision | Notes |
+|---|---|---|
+| Build system | **CMake** generates the IDE projects (Visual Studio `.sln`, Xcode) from `CMakeLists.txt`, like Unreal's GenerateProjectFiles | Generated projects live in `build/` and are never committed. Never add files or change settings through the IDE; edit the source folders and `CMakeLists.txt` |
+| Source collection | Each project collects the sources under its own folder automatically (`file(GLOB_RECURSE ... CONFIGURE_DEPENDS)`) | Rule: one project = one folder. ✅ Folder separation done (`e94b226`): Core sources are in `MissionLedgerCore/src/` |
+| wxWidgets | **Vendor wxWidgets 3.2.8** in `third_party/wxWidgets/` and build it with `add_subdirectory`, the same way as PDF-Writer | Static libraries, only `base` and `core` (the app uses nothing else). Nothing is installed on nodes and no `WXWIN` is needed. See §2 |
+| Scripts | Build, test and packaging logic lives in CMake (`CMakePresets.json` + workflow presets), so the same command works on both platforms | `build_installer.bat` is replaced by `cmake --workflow --preset release`. Only steps that exist on a single platform (signing, notarization) get short platform scripts (PowerShell / sh) |
+| C++ runtime (Windows) | Keep the dynamic runtime (`/MD`) and **bundle `vc_redist.x64.exe`** in the installer (already implemented, see [INSTALLER.md](INSTALLER.md)) | Optional later: switch to `/MT` with `CMAKE_MSVC_RUNTIME_LIBRARY` (applies to vendored wxWidgets and PDF-Writer too) and drop the bundled redist |
+| macOS signing | Not now. Build and test unsigned first | Distributing to others without Gatekeeper warnings needs the Apple Developer Program ($99/year). Check Apple's nonprofit fee waiver first. A few known users can use System Settings → Privacy & Security → "Open Anyway" |
+| Versioning | ✅ Done. Root `VERSION` file is the single source of truth | See §1 and [VERSIONING.md](VERSIONING.md) |
 
 ---
 
@@ -16,10 +31,12 @@
 
 | Issue | Location | Fix |
 |---|---|---|
-| The trailing `pause` hangs CI builds | `build_installer.bat` | Don't call this script from CI; run each step directly in the Jenkinsfile |
-| MSBuild path is hard-coded to the Community edition | `build_installer.bat`, CLAUDE.md | Find it with `vswhere.exe` (no longer needed after the CMake migration) |
+| The trailing `pause` hangs CI builds | `build_installer.bat` | Don't call this script from CI. After the CMake migration the script is replaced by a workflow preset |
+| MSBuild path is hard-coded to the Community edition | `build_installer.bat`, CLAUDE.md | Goes away with the CMake migration (`cmake --build`) |
 | ~~The version is hard-coded in 3 separate places~~ ✅ Done (2026-11-18) | `MLVersion.h`, `MissionLedger.iss` (`MyAppVersion`), `build_installer.bat` (output filename) | The root `VERSION` file is now the single source of truth (see [VERSIONING.md](VERSIONING.md)) |
-| `third_party/pdfwriter/build` is gitignored | pdfwriter `.gitignore` | Build it with CMake in CI (folded in via `add_subdirectory` after the CMake migration) |
+| ~~Core sources live in the GUI folder~~ ✅ Done (2026-11-18, `e94b226`) | `MissionLedger/src/` | Moved to `MissionLedgerCore/src/` (one project = one folder) |
+| wxWidgets is outside the repository and its build is undocumented | `WXWIN` = `C:\wxWidgets-3.2.6` on the dev PC (docs said 3.2.8) | Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (see §2) |
+| `third_party/pdfwriter/build` is gitignored, but `MissionLedger.sln` references the vcxproj files generated there | `.sln`, pdfwriter `.gitignore` | A fresh clone must run CMake for PDF-Writer before the `.sln` opens. Goes away with `add_subdirectory` |
 | No sample `.ml` file is committed for smoke tests | All `.ml` files in the root are untracked | Add `tests/fixtures/sample.ml` with non-personal data |
 | The build system works only with Visual Studio | `.sln` / `.vcxproj` | **Migrate to CMake** (required before a macOS build is possible) |
 
@@ -27,11 +44,11 @@
 
 The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). What CI relies on:
 
-- **Source of truth**: the root `VERSION` file (`MAJOR.MINOR.PATCH`, one line). CI reads it with `Get-Content VERSION`
-- **Build number**: pass `msbuild ... /p:MLBuildNumber=%BUILD_NUMBER%` (read by `Version.props`, becomes the 4th part of the exe file version)
+- **Source of truth**: the root `VERSION` file (`MAJOR.MINOR.PATCH`, one line). CI reads it with `readFile('VERSION')`
+- **Build number**: currently `msbuild ... /p:MLBuildNumber=%BUILD_NUMBER%` (read by `Version.props`). After the CMake migration: `-DML_BUILD_NUMBER=%BUILD_NUMBER%`
 - **Installer**: `MissionLedger.iss` reads `VERSION` itself; `ISCC /DMyAppVersion=x.y.z` still overrides it. ISCC fails if the packaged exe's `ProductVersion` differs from it
-- On tag builds, check that the Git tag (`v1.2.3`) matches `VERSION`, and fail the build if they differ (still to do, in the Jenkinsfile)
-- After the CMake migration: `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)`, and generate `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` with `configure_file`
+- On tag builds, check that the Git tag (`v1.2.3`) matches `VERSION`, and fail the build if they differ (in the Jenkinsfile)
+- After the CMake migration: `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)` → `.rc` defines, and `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` via `configure_file`. `Version.props` is then removed
 
 ---
 
@@ -39,11 +56,34 @@ The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). W
 
 "Deps" is short for **dependencies**: the external libraries that must be ready before the application can be built.
 
-| Library | How it is provided | CI work |
-|---|---|---|
-| wxWidgets 3.2.8 | Pre-installed on the node | Specify the path |
-| SQLite | Amalgamation source is in the repository | None (compiled with the app) |
-| PDF-Writer | Only the source is in the repository | Build with CMake (becomes part of the same build after the migration) |
+| Library | Now | After the CMake migration | CI work |
+|---|---|---|---|
+| SQLite | Amalgamation source in `third_party/sqlite/`, compiled inside the Core project | `sqlite3.c` added to the Core target | None |
+| PDF-Writer | Source in `third_party/pdfwriter/`; CMake-generated vcxproj files added to `MissionLedger.sln` | `add_subdirectory(third_party/pdfwriter)` | None |
+| wxWidgets | Prebuilt outside the repository (`C:\wxWidgets-3.2.6`, found via `WXWIN`) | **Source in `third_party/wxWidgets/` (3.2.8)**, `add_subdirectory` | None |
+
+All three come from the repository, so a fresh clone builds with no extra setup.
+
+### Vendoring wxWidgets
+
+- **Source**: the official release archive `wxWidgets-3.2.8.tar.bz2`, **not** a `git clone`. The Git repository keeps the bundled libraries (png, jpeg, zlib, expat, ...) as submodules, so a plain clone is missing them
+- **What to commit** (about 85 MB, about 4,900 files, measured on 3.2.6): `include/`, `src/`, `3rdparty/`, `build/cmake/`, `CMakeLists.txt`, licence files
+- **What to leave out**: `docs/`, `samples/`, `tests/`, `demos/`, `utils/`, `interface/`, and any build output (`lib/`)
+- Record the version and source URL in `third_party/wxWidgets/VERSION.txt`
+- Build options:
+  ```cmake
+  set(wxBUILD_SHARED OFF)                 # static libraries
+  set(wxBUILD_MONOLITHIC OFF)
+  # turn off modules the app does not use (it uses only base and core);
+  # confirm the exact option names against build/cmake/options.cmake of the vendored version
+  foreach(opt WEBVIEW STC PROPGRID RIBBON AUI GLCANVAS MEDIACTRL RICHTEXT XRC HTML)
+      set(wxUSE_${opt} OFF CACHE BOOL "" FORCE)
+  endforeach()
+  add_subdirectory(third_party/wxWidgets EXCLUDE_FROM_ALL)
+  target_link_libraries(MissionLedger PRIVATE wx::core wx::base)
+  ```
+- The first build compiles wxWidgets too and takes longer. Later builds are incremental as long as the build folder is kept (§8)
+- Upgrading within 3.2.x is API/ABI compatible (bug fixes only): replace the folder and rebuild. Don't move to 3.3.x as part of this work (new series with larger changes)
 
 ---
 
@@ -52,21 +92,53 @@ The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). W
 Maintaining both `.vcxproj` files and an Xcode project would mean editing two places every time a file is added. Use a single CMake build for both platforms instead.
 
 ```
-CMakeLists.txt                  # Root: common settings, find_package(wxWidgets)
-├── MissionLedgerCore/          # Static library (SQLite, Model, Storage)
-├── MissionLedger/              # GUI app (Win: WIN32 exe / Mac: MACOSX_BUNDLE .app)
-├── MissionLedgerCLI/           # CLI
-└── third_party/pdfwriter       # Included with add_subdirectory
+CMakeLists.txt                  # Root: reads VERSION, common settings, add_subdirectory for each part
+CMakePresets.json               # Configure/build/test/package presets and workflow presets (Win/Mac)
+├── MissionLedgerCore/          # Static library: src/** (model, controller, storage, export) + SQLite
+├── MissionLedger/              # GUI app: src/** + main.cpp + .rc (Win: WIN32 exe / Mac: MACOSX_BUNDLE .app)
+├── MissionLedgerCLI/           # CLI: src/** + main_cli.cpp
+└── third_party/
+    ├── sqlite/
+    ├── pdfwriter/              # add_subdirectory
+    └── wxWidgets/              # add_subdirectory (3.2.8, vendored)
 ```
 
-The same build commands work on both platforms:
-```
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
+### Source collection
+
+```cmake
+file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.h)
+add_library(MissionLedgerCore STATIC ${CORE_SOURCES} ${PROJECT_SOURCE_DIR}/third_party/sqlite/sqlite3.c)
+target_include_directories(MissionLedgerCore PUBLIC src)       # GUI/CLI inherit Core's include path
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src FILES ${CORE_SOURCES})   # IDE filters = folder tree
 ```
 
-- Keep the existing `.sln` alongside CMake until the migration is stable
-- After the migration, check on Windows that the results match the current MSBuild output (run the exe, generate PDFs with the CLI)
+- Adding a file = create it in the project's folder, then build. CMake notices the new file and regenerates the IDE project
+- Every file under a project's folder is compiled, so don't keep backup or scratch `.cpp` files there
+- Include paths stay rooted at each project's `src/`, so `#include` lines don't change
+
+### Daily workflow
+
+```bash
+cmake --preset windows                   # generate build/windows/MissionLedger.sln (once, or when presets change)
+cmake --build --preset windows-release   # or open the .sln and press F5 as before
+cmake --workflow --preset release        # configure → build → smoke test → installer, same on Win/Mac
+```
+
+| Task | Now | After |
+|---|---|---|
+| Edit, build, debug | Visual Studio | Unchanged (generated `.sln`, or VS "Open Folder") |
+| Add a source file | Solution Explorer | Create it in the folder; never through the IDE (it would go into the generated project only, possibly under `build/`) |
+| Include paths, defines, link options | Property pages | `CMakeLists.txt` |
+| Debugger arguments / working dir | Property pages | `VS_DEBUGGER_*` target properties or `launch.vs.json` |
+| Build output | `x64\Release\` | `build/<preset>/...` (update `.iss` and other paths accordingly) |
+| New PC | Build wxWidgets, set `WXWIN`, run CMake for PDF-Writer | Clone and build |
+
+### Migration steps
+
+1. Write the CMake build next to the existing `.sln` (vendor wxWidgets 3.2.8 at the same time)
+2. Check on Windows that the results match the current MSBuild output: run the GUI, generate both PDFs with the CLI, compare exe version info, build the installer
+3. **Then delete the old build files right away** (`.sln`, `.vcxproj`, `.filters`, `Version.props`) so files don't have to be registered in two places. Keep the transition short
+4. Add `build/` to `.gitignore`
 
 ---
 
@@ -89,40 +161,28 @@ Checkout → Version → Build → Smoke Test → Package → (Sign) → Archive
 
 ---
 
-## 5. Draft Jenkinsfile (Current MSBuild Setup, Windows Only)
+## 5. Draft Jenkinsfile (CMake-Based)
 
-> After the CMake migration, replace the `Deps` and `Build` stages with CMake commands and add a parallel macOS stage.
+> Written for after the CMake migration. Preset names are placeholders until `CMakePresets.json` exists. No wxWidgets path or `WXWIN` is needed: it is built from `third_party/`.
 
 ```groovy
 pipeline {
-    agent { label 'windows && vs2022' }
+    agent none
 
     options {
         timestamps()
-        timeout(time: 60, unit: 'MINUTES')
+        timeout(time: 90, unit: 'MINUTES')      // first build on a node also compiles wxWidgets
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '5'))
     }
 
-    environment {
-        WXWIN = 'C:\\wxWidgets-3.2.8'
-        ISCC  = 'C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe'
-    }
-
     stages {
         stage('Version') {
+            agent any
             steps {
                 script {
-                    env.MSBUILD = powershell(returnStdout: true, script: '''
-                        & "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe" `
-                          -latest -products * -requires Microsoft.Component.MSBuild `
-                          -find "MSBuild\\**\\Bin\\MSBuild.exe" | Select-Object -First 1
-                    ''').trim()
-
                     env.APP_VERSION = readFile('VERSION').trim()
-
                     currentBuild.displayName = "#${BUILD_NUMBER} v${APP_VERSION}"
-
                     if (buildingTag() && env.TAG_NAME != "v${env.APP_VERSION}") {
                         error "Tag (${env.TAG_NAME}) does not match VERSION (v${env.APP_VERSION})"
                     }
@@ -130,81 +190,56 @@ pipeline {
             }
         }
 
-        stage('Deps: PDF-Writer') {
-            steps {
-                bat '''
-                    if not exist third_party\\pdfwriter\\build mkdir third_party\\pdfwriter\\build
-                    cd third_party\\pdfwriter\\build
-                    if not exist CMakeCache.txt cmake .. -G "Visual Studio 17 2022" -A x64 || exit /b 1
-                    cmake --build . --config Release -- /m /v:minimal || exit /b 1
-                '''
-            }
-        }
-
-        stage('Build') {
-            steps {
-                bat '"%MSBUILD%" MissionLedger.sln /p:Configuration=Release /p:Platform=x64 /p:MLBuildNumber=%BUILD_NUMBER% /m /v:minimal /nologo'
-            }
-        }
-
-        stage('Smoke Test') {
-            steps {
-                bat '''
-                    if not exist out mkdir out
-                    x64\\Release\\MissionLedgerCLI.exe export-settlement tests\\fixtures\\sample.ml out\\settlement.pdf || exit /b 1
-                    x64\\Release\\MissionLedgerCLI.exe export-transactions tests\\fixtures\\sample.ml out\\transactions.pdf || exit /b 1
-                    if not exist out\\settlement.pdf exit /b 1
-                '''
-            }
-        }
-
-        stage('Package') {
-            when { anyOf { branch 'main'; buildingTag() } }
-            steps {
-                bat '"%ISCC%" /Qp /DMyAppVersion=%APP_VERSION% installer\\MissionLedger.iss'
+        stage('Build & Package') {
+            parallel {
+                stage('Windows') {
+                    agent { label 'windows && vs2022' }
+                    environment { ISCC = 'C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe' }
+                    steps {
+                        bat 'cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%'
+                        bat 'cmake --build --preset windows-release'
+                        bat 'ctest --preset windows-release'          // CLI smoke test: sample.ml → 2 PDFs
+                        script {
+                            if (env.BRANCH_NAME == 'main' || buildingTag()) {
+                                bat 'cmake --build --preset windows-release --target installer'   // runs ISCC
+                            }
+                        }
+                        stash name: 'win', includes: 'installer/output/*.exe', allowEmpty: true
+                    }
+                    post { success { archiveArtifacts artifacts: 'installer/output/*.exe, build/**/Release/*.pdb, build/**/smoke/*.pdf', allowEmptyArchive: true, fingerprint: true } }
+                }
+                stage('macOS') {
+                    agent { label 'macos && xcode' }
+                    steps {
+                        sh 'cmake --preset macos -DML_BUILD_NUMBER=$BUILD_NUMBER'
+                        sh 'cmake --build --preset macos-release'
+                        sh 'ctest --preset macos-release'
+                        sh 'lipo -archs build/macos/MissionLedger/Release/MissionLedger.app/Contents/MacOS/MissionLedger'
+                        // later: codesign → notarize → dmg (§6)
+                        stash name: 'mac', includes: 'build/macos/**/*.dmg', allowEmpty: true
+                    }
+                }
             }
         }
 
         stage('Release') {
             when { buildingTag() }
+            agent { label 'windows' }
             steps {
                 input message: "Deploy v${APP_VERSION} to GitHub Releases?", ok: 'Deploy'
+                unstash 'win'
+                unstash 'mac'
                 withCredentials([string(credentialsId: 'github-token', variable: 'GH_TOKEN')]) {
-                    bat 'gh release create %TAG_NAME% installer\\output\\MissionLedger-%APP_VERSION%-Setup.exe --title "MissionLedger %APP_VERSION%" --generate-notes'
+                    // release notes = this version's section of CHANGELOG.md, extracted to out\release-notes.md
+                    bat 'gh release create %TAG_NAME% installer\\output\\MissionLedger-%APP_VERSION%-Setup.exe --title "MissionLedger %APP_VERSION%" --notes-file out\\release-notes.md'
                 }
             }
         }
     }
-
-    post {
-        success {
-            archiveArtifacts artifacts: 'installer/output/*.exe, x64/Release/*.exe, x64/Release/*.pdb, out/*.pdf',
-                             allowEmptyArchive: true, fingerprint: true
-        }
-    }
 }
 ```
 
-### Multi-Platform Structure (After the CMake Migration)
-
-```groovy
-stage('Build & Package') {
-    parallel {
-        stage('Windows') {
-            agent { label 'windows && vs2022 && wx-3.2' }
-            steps { /* cmake build → smoke test → ISCC → (signtool) → stash */ }
-        }
-        stage('macOS') {
-            agent { label 'macos && xcode && wx-3.2' }
-            steps { /* cmake build → smoke test → .app → codesign → notarize → dmg → stash */ }
-        }
-    }
-}
-stage('Release') {
-    when { buildingTag() }
-    // Unstash both platforms' artifacts and upload them to a single GitHub Release
-}
-```
+- Until the CMake migration is done, there is no Jenkinsfile. The previous MSBuild-only draft (which needed `WXWIN` and a separate PDF-Writer stage) is in the history of this file
 
 ---
 
@@ -212,20 +247,21 @@ stage('Release') {
 
 ### Code Readiness
 
-- `MLPDFExporter.cpp` (font paths) and `main_cli.cpp` (UTF-8 argument conversion) already have `_WIN32` / `__APPLE__` branches
-- wxWidgets, SQLite, and PDF-Writer are all cross-platform libraries
+- `MLPDFDocument.cpp` (font search paths) and `main_cli.cpp` (UTF-8 argument conversion) already have `_WIN32` / `__APPLE__` branches
+- wxWidgets, SQLite, and PDF-Writer are all cross-platform libraries, and all three are built from the repository
 - The main blocker is the build system (→ CMake migration)
 
 ### Additional macOS Work
 
 | Item | Details |
 |---|---|
-| wxWidgets | Build it yourself and install it to a fixed path instead of using Homebrew (Universal static build; protects against `brew upgrade` from other projects) |
-| App bundle | Write `Info.plist`, convert `app.ico` to `.icns`, register `.ml` with `CFBundleDocumentTypes` |
+| wxWidgets | Built from `third_party/wxWidgets/` like on Windows. `CMAKE_OSX_ARCHITECTURES="arm64;x86_64"` makes wxWidgets and the app Universal in one build. No Homebrew |
+| App bundle | Write `Info.plist`, convert `app.ico` to `.icns`, register `.ml` with `CFBundleDocumentTypes` / `UTExportedTypeDeclarations` |
 | Opening files | macOS passes double-clicked files through `wxApp::MacOpenFiles()`, not argv, so it must be overridden |
+| File paths | Check that the Korean path handling in `main.cpp` works on macOS (UTF-8 paths) |
 | Fonts | Malgun Gothic is not available. Use Apple SD Gothic Neo or bundle Noto Sans KR |
-| Installer | `.dmg` (`create-dmg` or `hdiutil`) |
-| Signing / notarization | Requires an Apple Developer account. Sign with `codesign` and notarize with `notarytool` (Gatekeeper blocks unsigned apps) |
+| Installer | `.dmg` (`create-dmg` or `hdiutil`), as a CMake target |
+| Signing / notarization | Deferred (§0). Requires the Apple Developer Program. Sign with `codesign` (hardened runtime) and notarize with `notarytool`. Unsigned builds work on the build Mac and, after "Open Anyway", on other Macs |
 
 ---
 
@@ -239,8 +275,8 @@ A macOS app cannot be run directly on Windows: it is a Mach-O binary, and Apple'
 | Architecture | `lipo -archs .../MacOS/MissionLedger` | Log (`arm64 x86_64`) |
 | CLI behavior | `MissionLedgerCLI export-settlement sample.ml out.pdf` | **Download the PDF artifact and compare it side by side with the Windows build's PDF** |
 | Missing dependencies | Use `otool -L` to look for external paths such as `/opt/homebrew` | Fail the build if any remain |
-| Signature | `codesign --verify --deep --strict` | Log |
-| Notarization / Gatekeeper | `spctl -a -vv MissionLedger.app` | Log (`accepted`) |
+| Signature (once signing is set up) | `codesign --verify --deep --strict` | Log |
+| Notarization / Gatekeeper (once signing is set up) | `spctl -a -vv MissionLedger.app` | Log (`accepted`) |
 | GUI launch | Launch the app, then take a screenshot with `screencapture` | Screenshot PNG artifact |
 
 - GUI screenshots require the agent to run in a **logged-in user session** with screen recording permission (an agent started as a LaunchDaemon cannot open windows)
@@ -253,23 +289,37 @@ A macOS app cannot be run directly on Windows: it is a Mach-O binary, and Apple'
 
 The nodes are shared with other projects, so keep the following in mind.
 
+### What a Node Needs
+
+Only general-purpose tools. Nothing specific to MissionLedger is installed on a node.
+
+| | Windows | macOS |
+|---|---|---|
+| Compiler | Visual Studio 2022 **Build Tools** (no IDE needed): "Desktop development with C++" workload (v143, Windows 10/11 SDK). Also provides `vc_redist.x64.exe` for the installer | Xcode + Command Line Tools |
+| CMake | A stable release (3.25+ for workflow presets). Avoid release candidates (the dev PC currently has 4.0.0-rc2) | Same |
+| Git | ✅ | ✅ |
+| Packaging | Inno Setup 6.7+ | `hdiutil` (built in) or `create-dmg` |
+| Jenkins agent | Java runtime | Java runtime, running in a logged-in session (§7) |
+
+Not needed: wxWidgets, `WXWIN`, any library path.
+
 ### Pin the Toolchain
 
 | Item | Approach |
 |---|---|
-| wxWidgets | Don't rely on global environment variables; set the path explicitly in the Jenkinsfile `environment` (`C:\wxWidgets-3.2.8`, `/opt/wx/3.2.8`) |
+| wxWidgets / PDF-Writer / SQLite | Pinned by the repository (`third_party/`). Nothing to pin on the node |
 | Xcode | Pin the version with `DEVELOPER_DIR=/Applications/Xcode_XX.app/Contents/Developer` |
-| Visual Studio | Limit the range with `vswhere -version [17.0,18.0)` and specify the CMake generator explicitly |
+| Visual Studio | Specify the CMake generator (`Visual Studio 17 2022`) in the preset; limit with `vswhere -version [17.0,18.0)` if several versions are installed |
 
 ### Labels
 
-Use labels to show which tools are installed on each node.
+Use labels only for the general tools.
 ```groovy
-agent { label 'windows && vs2022 && wx-3.2' }
-agent { label 'macos && xcode && wx-3.2' }
+agent { label 'windows && vs2022' }
+agent { label 'macos && xcode' }
 ```
 
-### macOS Code-Signing Keychain
+### macOS Code-Signing Keychain (once signing is set up)
 
 - Don't put the certificate in the login keychain (builds from other projects could access it)
 - Use a temporary keychain for each build: `security create-keychain` → `import` → `codesign` → `delete-keychain`
@@ -279,13 +329,14 @@ agent { label 'macos && xcode && wx-3.2' }
 
 - Executors are shared, so cap `/m` and `-j` if needed
 - Serialize shared resources such as the signing stage with Lockable Resources
-- Keep workspaces for incremental builds (don't use `cleanWs()`), but manage disk space with `buildDiscarder` and periodic cleanup. Do clean builds only for tag builds
+- Keep workspaces for incremental builds (don't use `cleanWs()`). This matters more now: the first build on a node compiles wxWidgets, later builds reuse it. Manage disk space (a few hundred MB per workspace) with `buildDiscarder` and periodic cleanup. Do clean builds only for tag builds
+- Downloading is limited to the Git checkout; there are no other network fetches during the build
 
 ---
 
 ## 9. Additional Suggestions
 
-- **Code signing (Windows)**: unsigned installers trigger SmartScreen warnings. Sign the exe and the Setup with `signtool sign /fd sha256 /tr <timestamp-url>` and store the certificate in Credentials
+- **Code signing (Windows)**: unsigned installers trigger SmartScreen warnings ("More info → Run anyway"). Sign the exe and the Setup with `signtool sign /fd sha256 /tr <timestamp-url>` and store the certificate in Credentials. Optional for non-commercial distribution
 - **Keep PDBs**: archive the `.pdb` files for each release to analyze crash dumps
 - **Parallel Debug build**: compile the Debug configuration in PR builds too, to catch errors that occur only in Debug
 - **Update checks**: a future in-app update check can use the GitHub Releases API directly
@@ -294,11 +345,13 @@ agent { label 'macos && xcode && wx-3.2' }
 
 ## 10. Roadmap
 
-1. [ ] CMake migration: port sources, include paths, preprocessor definitions, and link settings from the 3 vcxproj files (Core, GUI, CLI), then compare results on Windows
-2. [x] Single-source versioning: `VERSION` → MSBuild (`Version.props`), `.iss`, `build_installer.bat` (2026-11-18). CMake / `Info.plist` remain for steps 1 and 5
-3. [ ] Add `tests/fixtures/sample.ml` for smoke tests
-4. [ ] Write the Windows Jenkinsfile (CMake-based)
-5. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle)
-6. [ ] Add the parallel macOS stage (including automated checks)
-7. [ ] Signing and notarization (Windows signtool, macOS codesign/notarytool), `.dmg` creation
-8. [ ] Tag-based deployment to GitHub Releases
+1. [x] Single-source versioning: `VERSION` → MSBuild (`Version.props`), `.iss`, `build_installer.bat` (2026-11-18)
+2. [x] Core folder separation: Core sources in `MissionLedgerCore/src/` (2026-11-18, `e94b226`)
+3. [ ] Vendor wxWidgets 3.2.8 in `third_party/wxWidgets/` (release archive, trimmed)
+4. [ ] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`, installer target. Compare results on Windows, then delete the `.sln`/`.vcxproj`/`Version.props` and add `build/` to `.gitignore`
+5. [ ] Add `tests/fixtures/sample.ml` and a CTest smoke test (CLI → 2 PDFs)
+6. [ ] Write the Jenkinsfile (Windows first)
+7. [ ] Get a local macOS build working (`MacOpenFiles`, fonts, bundle, Universal)
+8. [ ] Add the parallel macOS stage (including automated checks)
+9. [ ] `.dmg` creation; signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
+10. [ ] Tag-based deployment to GitHub Releases

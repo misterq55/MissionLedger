@@ -47,7 +47,7 @@ MSYS_NO_PATHCONV=1 "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBu
 
 ### Dependencies
 
-- **wxWidgets 3.2.8**: GUI framework at `C:\wxWidgets-3.2.8` (WXWIN environment variable required)
+- **wxWidgets 3.2.6**: GUI framework, prebuilt static libraries outside the repository at `C:\wxWidgets-3.2.6` (`WXWIN` environment variable required; GUI project only). Planned: vendor 3.2.8 in `third_party/wxWidgets/` with the CMake migration ([docs/CI_PLAN.md](docs/CI_PLAN.md))
 - **Visual Studio 2022**: Windows 10 SDK, v143 toolset
 - **SQLite**: Embedded via amalgamation (third_party/sqlite/)
 - **PDF-Writer**: PDF generation library (third_party/pdfwriter/)
