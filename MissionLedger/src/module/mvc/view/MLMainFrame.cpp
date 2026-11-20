@@ -13,6 +13,7 @@
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
 #include "module/common/format/MLFormat.h"
+#include "module/common/currency/MLCurrency.h"
 
 // 메뉴 ID 정의
 enum
@@ -540,8 +541,10 @@ void wxMLMainFrame::loadTransactionToInput(int transactionId)
 
     if (data.UseExchangeRate) {
         currencyCombo->SetValue(wxString::FromUTF8(data.Currency.c_str()));
-        originalAmountText->SetValue(wxString::Format("%.2f", data.OriginalAmount));
-        exchangeRateText->SetValue(wxString::Format("%.2f", data.ExchangeRate));
+        // Up to 6 decimals, trailing zeros removed: "%.2f" cut a rate of 9.4512 to 9.45, and saving
+        // the transaction again (even after editing only the description) recalculated the amount
+        originalAmountText->SetValue(wxString::FromUTF8(FMLFormat::FormatDecimalPlain(data.OriginalAmount, 6)));
+        exchangeRateText->SetValue(wxString::FromUTF8(FMLFormat::FormatDecimalPlain(data.ExchangeRate, 6)));
         updateConvertedAmount();
     }
 }
@@ -1414,7 +1417,12 @@ void wxMLMainFrame::updateConvertedAmount()
         return;
     }
 
-    int64_t convertedAmount = static_cast<int64_t>(originalAmount * exchangeRate);
+    int64_t convertedAmount = 0;
+    if (!FMLCurrency::ConvertToKRW(originalAmount, exchangeRate, convertedAmount))
+    {
+        convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: (범위 초과)"));
+        return;
+    }
     wxString amountStr = wxString::FromUTF8(FMLFormat::FormatAmount(convertedAmount));
     convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: ") + amountStr + wxString::FromUTF8("원"));
 
@@ -1458,7 +1466,11 @@ bool wxMLMainFrame::collectTransactionDataFromInput(FMLTransactionData& outData)
             return false;
         }
 
-        amount = static_cast<int64_t>(originalAmount * exchangeRate);
+        if (!FMLCurrency::ConvertToKRW(originalAmount, exchangeRate, amount)) {
+            wxMessageBox(wxString::FromUTF8("원화 환산 금액이 너무 큽니다. 외화 금액과 환율을 확인하세요."),
+                        wxString::FromUTF8("입력 오류"), wxOK | wxICON_ERROR);
+            return false;
+        }
 
         // 환율 데이터 설정
         outData.UseExchangeRate = true;

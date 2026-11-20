@@ -3,6 +3,7 @@
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
 #include "module/common/format/MLFormat.h"
+#include "module/common/currency/MLCurrency.h"
 #include <iomanip>
 #include <sstream>
 #include <limits>
@@ -389,8 +390,12 @@ int FMLCLIView::cmdAdd(const std::map<std::string, std::string>& options)
             data.OriginalAmount = std::stod(originalIt->second);
             data.ExchangeRate = std::stod(rateIt->second);
 
-            // 금액 자동 계산 (환율 적용)
-            data.Amount = static_cast<int64_t>(data.OriginalAmount * data.ExchangeRate);
+            // 금액 자동 계산 (환율 적용, 원 단위 반올림)
+            if (!FMLCurrency::ConvertToKRW(data.OriginalAmount, data.ExchangeRate, data.Amount))
+            {
+                std::cerr << "오류: 원화 환산 금액이 범위를 벗어났습니다." << std::endl;
+                return 1;
+            }
         }
         catch (const std::exception&)
         {
@@ -983,8 +988,13 @@ void FMLCLIView::handleAddTransaction()
             return;
         }
 
-        // 금액 자동 계산
-        data.Amount = static_cast<int64_t>(data.OriginalAmount * data.ExchangeRate);
+        // 금액 자동 계산 (원 단위 반올림)
+        if (!FMLCurrency::ConvertToKRW(data.OriginalAmount, data.ExchangeRate, data.Amount))
+        {
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "원화 환산 금액이 범위를 벗어났습니다." << std::endl;
+            return;
+        }
         std::cout << "→ 원화 환산 금액: " << FMLFormat::FormatAmount(data.Amount) << "원" << std::endl;
 
         std::cin.ignore(); // 버퍼 비우기

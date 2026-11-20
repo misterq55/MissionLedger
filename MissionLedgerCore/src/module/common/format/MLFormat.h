@@ -21,6 +21,9 @@ public:
     // Decimals are limited to 0..6. Non-finite or huge values (|value| * 10^maxDecimals >= 9e18) give "-"
     static std::string FormatDecimal(double value, int maxDecimals, int minDecimals = 0);
 
+    // Same without thousands separators, for edit fields that are parsed back: (1350.25, 6) -> "1350.25"
+    static std::string FormatDecimalPlain(double value, int maxDecimals);
+
     // Columns a UTF-8 string takes in a monospaced console: Hangul, CJK and fullwidth characters
     // count 2, everything else 1. Invalid bytes count 1 each
     static size_t DisplayWidth(const std::string& utf8);
