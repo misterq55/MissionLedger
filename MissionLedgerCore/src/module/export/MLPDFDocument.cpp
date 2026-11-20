@@ -14,6 +14,11 @@
     #include <unistd.h>
     #include <limits.h>
     #include <sys/stat.h>
+    #include <cstdlib>
+    #ifdef __APPLE__
+        #include <mach-o/dyld.h>    // _NSGetExecutablePath
+        #include <cstdint>
+    #endif
 #endif
 
 namespace {
@@ -45,6 +50,20 @@ namespace {
                 return fullPath.substr(0, lastSlash);
         }
         return "";
+    #elif defined(__APPLE__)
+        // macOS has no /proc: ask dyld, then resolve symlinks and "..".
+        // A first call with a too-small buffer reports the size needed
+        uint32_t size = 0;
+        _NSGetExecutablePath(nullptr, &size);
+        std::string rawPath(size, '\0');
+        if (size == 0 || _NSGetExecutablePath(&rawPath[0], &size) != 0)
+            return "";
+        char resolved[PATH_MAX];
+        if (realpath(rawPath.c_str(), resolved) == nullptr)
+            return "";
+        const std::string fullPath(resolved);
+        const size_t lastSlash = fullPath.find_last_of('/');
+        return lastSlash != std::string::npos ? fullPath.substr(0, lastSlash) : "";
     #else
         char buffer[PATH_MAX];
         ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
@@ -60,7 +79,8 @@ namespace {
     }
 
     // 검색 우선순위:
-    // 1. 실행 파일 근처 fonts/ 디렉토리 (배포 폰트)
+    // 1. 배포 폰트: 실행 파일 옆 fonts/ (Windows, CLI), macOS 앱 번들의 Contents/Resources/fonts/
+    //    (원본: third_party/fonts/NotoSansKR, 빌드와 설치 프로그램이 복사)
     // 2. 시스템 폰트 디렉토리 (플랫폼별)
     static std::string findFontFile(const std::string& fontName, bool searchKorean)
     {
@@ -70,12 +90,17 @@ namespace {
         std::string exeDir = getExecutablePath();
         if (!exeDir.empty()) {
     #ifdef _WIN32
-            std::string bundledFontPath = exeDir + "\\fonts\\" + fontName;
+            const std::vector<std::string> bundledDirs = { exeDir + "\\fonts\\" };
+    #elif defined(__APPLE__)
+            // exeDir is Contents/MacOS inside an app bundle
+            const std::vector<std::string> bundledDirs = { exeDir + "/fonts/", exeDir + "/../Resources/fonts/" };
     #else
-            std::string bundledFontPath = exeDir + "/fonts/" + fontName;
+            const std::vector<std::string> bundledDirs = { exeDir + "/fonts/" };
     #endif
-            if (fileExists(bundledFontPath))
-                return bundledFontPath;
+            for (const auto& dir : bundledDirs) {
+                if (fileExists(dir + fontName))
+                    return dir + fontName;
+            }
         }
 
         // 2. 시스템 폰트 디렉토리 검색
@@ -124,11 +149,11 @@ namespace {
         // 1단계: 한글 폰트 시도
         std::string koreanFont;
         if (bold) {
-            koreanFont = findFontFile("NotoSansKR-Bold.ttf", true);
+            koreanFont = findFontFile("NotoSansKR-Bold.otf", true);
             if (koreanFont.empty())
                 koreanFont = findFontFile("malgunbd.ttf", true);
         } else {
-            koreanFont = findFontFile("NotoSansKR-Regular.ttf", true);
+            koreanFont = findFontFile("NotoSansKR-Regular.otf", true);
             if (koreanFont.empty())
                 koreanFont = findFontFile("malgun.ttf", true);
         }
