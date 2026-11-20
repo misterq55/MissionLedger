@@ -1095,13 +1095,13 @@ void FMLCLIView::DisplayTransactions(const std::vector<FMLTransactionData>& data
     }
 
     // 헤더 출력
-    std::cout << std::left
-        << std::setw(6) << "ID"
-        << std::setw(8) << "유형"
-        << std::setw(15) << "카테고리"
-        << std::setw(20) << "항목"
-        << std::setw(15) << "금액"
-        << std::setw(20) << "날짜/시간"
+    std::cout
+        << FMLFormat::FitColumn("ID", 6)
+        << FMLFormat::FitColumn("유형", 8)
+        << FMLFormat::FitColumn("카테고리", 15)
+        << FMLFormat::FitColumn("항목", 20)
+        << FMLFormat::FitColumn("금액", 15)
+        << FMLFormat::FitColumn("날짜/시간", 20)
         << std::endl;
     printSeparator();
 
@@ -1218,11 +1218,6 @@ void FMLCLIView::OnBudgetCleared()
 // Private helper methods
 void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeader)
 {
-    // 안전한 substr 헬퍼 람다
-    auto safeSub = [](const std::string& str, size_t len) -> std::string {
-        return str.length() > len ? str.substr(0, len) : str;
-    };
-
     if (showHeader)
     {
         std::cout << "ID: " << data.TransactionId << std::endl;
@@ -1245,13 +1240,14 @@ void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeade
     }
     else
     {
-        std::cout << std::left
-            << std::setw(6) << data.TransactionId
-            << std::setw(8) << getTypeString(data.Type)
-            << std::setw(15) << safeSub(data.Category, 14)
-            << std::setw(20) << safeSub(data.Item, 19)
-            << std::setw(15) << FMLFormat::FormatAmount(data.Amount) + "원"
-            << std::setw(20) << safeSub(data.DateTime, 19)
+        // Widths in console columns (Hangul = 2), cut at character boundaries
+        std::cout
+            << FMLFormat::FitColumn(std::to_string(data.TransactionId), 6)
+            << FMLFormat::FitColumn(getTypeString(data.Type), 8)
+            << FMLFormat::FitColumn(data.Category, 15)
+            << FMLFormat::FitColumn(data.Item, 20)
+            << FMLFormat::FitColumn(FMLFormat::FormatAmount(data.Amount) + "원", 15)
+            << FMLFormat::FitColumn(data.DateTime, 20)
             << std::endl;
     }
 }
@@ -1289,11 +1285,6 @@ std::string FMLCLIView::getBudgetTypeString(E_MLTransactionType type)
 
 void FMLCLIView::printBudget(const FMLBudgetData& data, bool showHeader)
 {
-    // 안전한 substr 헬퍼 람다
-    auto safeSub = [](const std::string& str, size_t len) -> std::string {
-        return str.length() > len ? str.substr(0, len) : str;
-    };
-
     if (showHeader)
     {
         std::cout << "ID: " << data.BudgetId << std::endl;
@@ -1304,12 +1295,13 @@ void FMLCLIView::printBudget(const FMLBudgetData& data, bool showHeader)
     }
     else
     {
-        std::cout << std::left
-            << std::setw(6) << data.BudgetId
-            << std::setw(8) << getBudgetTypeString(data.Type)
-            << std::setw(15) << safeSub(data.Category, 14)
-            << std::setw(20) << safeSub(data.Item, 19)
-            << std::setw(15) << FMLFormat::FormatAmount(data.BudgetAmount) + "원"
+        // Widths in console columns (Hangul = 2), cut at character boundaries
+        std::cout
+            << FMLFormat::FitColumn(std::to_string(data.BudgetId), 6)
+            << FMLFormat::FitColumn(getBudgetTypeString(data.Type), 8)
+            << FMLFormat::FitColumn(data.Category, 15)
+            << FMLFormat::FitColumn(data.Item, 20)
+            << FMLFormat::FitColumn(FMLFormat::FormatAmount(data.BudgetAmount) + "원", 15)
             << std::endl;
     }
 }
@@ -1343,12 +1335,12 @@ void FMLCLIView::DisplayBudgets(const std::vector<FMLBudgetData>& data)
     }
 
     // 헤더 출력
-    std::cout << std::left
-        << std::setw(6) << "ID"
-        << std::setw(8) << "유형"
-        << std::setw(15) << "카테고리"
-        << std::setw(20) << "항목"
-        << std::setw(15) << "예산액"
+    std::cout
+        << FMLFormat::FitColumn("ID", 6)
+        << FMLFormat::FitColumn("유형", 8)
+        << FMLFormat::FitColumn("카테고리", 15)
+        << FMLFormat::FitColumn("항목", 20)
+        << FMLFormat::FitColumn("예산액", 15)
         << std::endl;
     printSeparator();
 

@@ -18,6 +18,49 @@ namespace
         }
         return result;
     }
+
+    // Length in bytes of the UTF-8 sequence starting at text[pos] and its code point.
+    // An invalid or truncated sequence is taken as one byte (code point 0xFFFD)
+    size_t decodeUtf8(const std::string& text, size_t pos, uint32_t& codePoint)
+    {
+        const unsigned char lead = static_cast<unsigned char>(text[pos]);
+        size_t length = 1;
+        if (lead < 0x80)      { codePoint = lead; return 1; }
+        else if (lead >= 0xF0 && lead < 0xF8) { length = 4; codePoint = lead & 0x07; }
+        else if (lead >= 0xE0) { length = 3; codePoint = lead & 0x0F; }
+        else if (lead >= 0xC0) { length = 2; codePoint = lead & 0x1F; }
+        else                  { codePoint = 0xFFFD; return 1; }
+
+        if (pos + length > text.size()) { codePoint = 0xFFFD; return 1; }
+        for (size_t i = 1; i < length; ++i)
+        {
+            const unsigned char next = static_cast<unsigned char>(text[pos + i]);
+            if ((next & 0xC0) != 0x80) { codePoint = 0xFFFD; return 1; }
+            codePoint = (codePoint << 6) | (next & 0x3F);
+        }
+        return length;
+    }
+
+    // East Asian Wide / Fullwidth ranges (simplified): 2 columns in a console
+    size_t codePointWidth(uint32_t cp)
+    {
+        const bool wide =
+            (cp >= 0x1100 && cp <= 0x115F) ||   // Hangul Jamo (leading)
+            (cp >= 0x2E80 && cp <= 0x303E) ||   // CJK radicals, punctuation
+            (cp >= 0x3041 && cp <= 0x33FF) ||   // Kana, Hangul compatibility Jamo, CJK symbols
+            (cp >= 0x3400 && cp <= 0x4DBF) ||   // CJK extension A
+            (cp >= 0x4E00 && cp <= 0x9FFF) ||   // CJK unified ideographs
+            (cp >= 0xA000 && cp <= 0xA4CF) ||   // Yi
+            (cp >= 0xAC00 && cp <= 0xD7A3) ||   // Hangul syllables
+            (cp >= 0xF900 && cp <= 0xFAFF) ||   // CJK compatibility ideographs
+            (cp >= 0xFE30 && cp <= 0xFE4F) ||   // CJK compatibility forms
+            (cp >= 0xFF00 && cp <= 0xFF60) ||   // Fullwidth forms
+            (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+            (cp >= 0x1F300 && cp <= 0x1F64F) || // Emoji
+            (cp >= 0x1F900 && cp <= 0x1F9FF) ||
+            (cp >= 0x20000 && cp <= 0x3FFFD);   // CJK extensions B and later
+        return wide ? 2 : 1;
+    }
 }
 
 std::string FMLFormat::FormatAmount(int64_t amount)
@@ -61,4 +104,37 @@ std::string FMLFormat::FormatDecimal(double value, int maxDecimals, int minDecim
 
     // No "-0" when a small negative value rounds to zero
     return (value < 0 && scaled != 0) ? "-" + result : result;
+}
+
+size_t FMLFormat::DisplayWidth(const std::string& utf8)
+{
+    size_t width = 0;
+    uint32_t codePoint = 0;
+    for (size_t pos = 0; pos < utf8.size();)
+    {
+        pos += decodeUtf8(utf8, pos, codePoint);
+        width += codePointWidth(codePoint);
+    }
+    return width;
+}
+
+std::string FMLFormat::FitColumn(const std::string& utf8, size_t width)
+{
+    const size_t maxTextWidth = width > 0 ? width - 1 : 0;
+
+    std::string result;
+    size_t used = 0;
+    uint32_t codePoint = 0;
+    for (size_t pos = 0; pos < utf8.size();)
+    {
+        const size_t length = decodeUtf8(utf8, pos, codePoint);
+        const size_t charWidth = codePointWidth(codePoint);
+        if (used + charWidth > maxTextWidth)
+            break;
+        result.append(utf8, pos, length);
+        used += charWidth;
+        pos += length;
+    }
+    result.append(width - used, ' ');
+    return result;
 }

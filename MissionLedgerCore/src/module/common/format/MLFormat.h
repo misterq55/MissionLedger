@@ -20,4 +20,12 @@ public:
     //   (5000, 2) -> "5,000", (12.5, 2) -> "12.5", (12.345, 2) -> "12.35", (24.5, 2, 2) -> "24.50"
     // Decimals are limited to 0..6. Non-finite or huge values (|value| * 10^maxDecimals >= 9e18) give "-"
     static std::string FormatDecimal(double value, int maxDecimals, int minDecimals = 0);
+
+    // Columns a UTF-8 string takes in a monospaced console: Hangul, CJK and fullwidth characters
+    // count 2, everything else 1. Invalid bytes count 1 each
+    static size_t DisplayWidth(const std::string& utf8);
+
+    // Fixed-width console column: cut at a character boundary to at most width - 1 columns
+    // (so one space always separates columns), then pad with spaces to exactly width columns
+    static std::string FitColumn(const std::string& utf8, size_t width);
 };
