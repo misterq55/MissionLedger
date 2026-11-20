@@ -1,6 +1,10 @@
 # CLI smoke test runner (called by CTest, see tests/CMakeLists.txt)
 #
-#   cmake -DCASE=<case> -DCLI=<MissionLedgerCLI.exe> -DFIXTURE=<sample.ml> -DOUT_DIR=<dir> -P cli_smoke.cmake
+#   cmake -DCASE=<case> -DCLI=<MissionLedgerCLI.exe> -DFIXTURE=<sample.ml> -DOUT_DIR=<dir> [-DARCH=x86_64] -P cli_smoke.cmake
+#
+# ARCH (macOS only): run that architecture of a Universal binary with "arch -<ARCH>" (x86_64 on an
+# Apple Silicon Mac goes through Rosetta 2). If the Mac cannot run it, print SMOKE_SKIPPED: CTest
+# then reports the test as skipped (SKIP_REGULAR_EXPRESSION in tests/CMakeLists.txt), not passed.
 #
 # Each case runs the CLI once and fails unless
 #   - the exit code is 0 (missing_file: non-zero, and no file is created),
@@ -42,6 +46,17 @@ else()
     message(FATAL_ERROR "cli_smoke.cmake: unknown CASE '${CASE}'")
 endif()
 
+set(runner "")
+if(DEFINED ARCH)
+    execute_process(COMMAND arch -${ARCH} /usr/bin/true RESULT_VARIABLE arch_rc OUTPUT_QUIET ERROR_QUIET)
+    if(NOT arch_rc EQUAL 0)
+        message("SMOKE_SKIPPED: this Mac cannot run ${ARCH} code (for x86_64 on Apple Silicon: install Rosetta 2 with "
+                "'softwareupdate --install-rosetta --agree-to-license')")
+        return()
+    endif()
+    set(runner arch -${ARCH})
+endif()
+
 file(MAKE_DIRECTORY "${OUT_DIR}")
 if(pdf)
     file(REMOVE "${pdf}")   # a PDF left over from an earlier run must not make the test pass
@@ -52,7 +67,7 @@ set(empty_input "${OUT_DIR}/empty_stdin.txt")
 file(WRITE "${empty_input}" "")
 
 execute_process(
-    COMMAND "${CLI}" ${args}
+    COMMAND ${runner} "${CLI}" ${args}
     INPUT_FILE "${empty_input}"
     OUTPUT_VARIABLE out
     ERROR_VARIABLE err

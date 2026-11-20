@@ -113,12 +113,14 @@ if(WIN32 AND ML_BUILD_GUI)
     set_target_properties(installer PROPERTIES FOLDER "Packaging")
 elseif(APPLE AND ML_BUILD_GUI)
     # macOS: disk image with the app bundle. cmake --build --preset macos-installer
+    string(REPLACE ";" "," ml_archs "${CMAKE_OSX_ARCHITECTURES}")   # checked with lipo before packaging
     add_custom_target(installer
         COMMAND ${CMAKE_COMMAND}
             -DCONFIG=$<CONFIG>
             -DAPP=$<TARGET_BUNDLE_DIR:MissionLedger>
             -DOUT=${CMAKE_CURRENT_SOURCE_DIR}/installer/output/MissionLedger-${ML_VERSION}.dmg
             -DWORK=${CMAKE_CURRENT_BINARY_DIR}/installer
+            -DARCHS=${ml_archs}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/installer/package_macos.cmake
         COMMENT "Building disk image (installer/output/MissionLedger-${ML_VERSION}.dmg)"
         VERBATIM)

@@ -1,6 +1,11 @@
 # Builds the macOS disk image (.dmg) (called by the "installer" target on macOS, see the root CMakeLists.txt)
 #
-#   cmake -DCONFIG=<Release> -DAPP=<path to MissionLedger.app> -DOUT=<.dmg path> -DWORK=<scratch dir> -P package_macos.cmake
+#   cmake -DCONFIG=<Release> -DAPP=<path to MissionLedger.app> -DOUT=<.dmg path> -DWORK=<scratch dir>
+#         [-DARCHS=arm64,x86_64] -P package_macos.cmake
+#
+# Before packaging, the app's executable is checked (docs/CI_PLAN.md §7) and the build fails if
+#   - it lacks one of ARCHS (lipo -archs; ARCHS = CMAKE_OSX_ARCHITECTURES, comma separated), or
+#   - it links a library outside /usr/lib and /System (otool -L), e.g. from Homebrew, that other Macs lack.
 #
 # The image holds MissionLedger.app and a link to /Applications: the user drags the app onto the link.
 # Only built-in tools are used (ditto, hdiutil, plutil). Unsigned for now (docs/CI_PLAN.md §0): on another
@@ -26,6 +31,46 @@ if(NOT rc EQUAL 0)
     message(FATAL_ERROR "Info.plist is not valid: ${APP}/Contents/Info.plist")
 endif()
 execute_process(COMMAND plutil -p "${APP}/Contents/Info.plist")
+
+# Architectures (Universal build: arm64 = Apple Silicon, x86_64 = Intel)
+get_filename_component(exe_name "${APP}" NAME_WLE)
+set(exe "${APP}/Contents/MacOS/${exe_name}")
+execute_process(COMMAND lipo -archs "${exe}" OUTPUT_VARIABLE archs OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE rc)
+if(NOT rc EQUAL 0)
+    message(FATAL_ERROR "lipo -archs failed on ${exe}")
+endif()
+message(STATUS "Architectures: ${archs}")
+if(ARCHS)
+    string(REPLACE "," ";" wanted "${ARCHS}")
+    string(REPLACE " " ";" found "${archs}")
+    foreach(a IN LISTS wanted)
+        if(NOT a IN_LIST found)
+            message(FATAL_ERROR "${exe} has no ${a} code (found: ${archs}, expected: ${ARCHS})")
+        endif()
+    endforeach()
+endif()
+
+# Linked libraries: only the system's (all of ours are static)
+execute_process(COMMAND otool -L "${exe}" OUTPUT_VARIABLE libs RESULT_VARIABLE rc)
+if(NOT rc EQUAL 0)
+    message(FATAL_ERROR "otool -L failed on ${exe}")
+endif()
+message(STATUS "Linked libraries:\n${libs}")
+string(REPLACE "\n" ";" lib_lines "${libs}")
+set(foreign "")
+foreach(line IN LISTS lib_lines)
+    # "<tab>/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version ...)"
+    if(line MATCHES "^[ \t]+([^ \t].*) \\(compatibility version")
+        set(lib "${CMAKE_MATCH_1}")
+        if(NOT lib MATCHES "^/usr/lib/" AND NOT lib MATCHES "^/System/")
+            list(APPEND foreign "${lib}")
+        endif()
+    endif()
+endforeach()
+if(foreign)
+    list(REMOVE_DUPLICATES foreign)
+    message(FATAL_ERROR "The app links libraries that other Macs may not have: ${foreign}")
+endif()
 
 # Staging folder: the app (ditto keeps permissions, symlinks and the signature) + Applications link
 set(stage "${WORK}/dmg")

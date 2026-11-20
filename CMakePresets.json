@@ -13,10 +13,10 @@
     {
       "name": "macos",
       "displayName": "macOS (Xcode)",
-      "description": "MissionLedger.app + CLI. Minimum macOS 11.0 (Big Sur); without it the minimum is the build Mac's SDK version",
+      "description": "MissionLedger.app + CLI, Universal (Apple Silicon + Intel). Minimum macOS 11.0 (Big Sur); without it the minimum is the build Mac's SDK version",
       "generator": "Xcode",
       "binaryDir": "${sourceDir}/build/macos",
-      "cacheVariables": { "ML_BUILD_GUI": "ON", "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0" },
+      "cacheVariables": { "ML_BUILD_GUI": "ON", "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0", "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64" },
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
     }
   ],
