@@ -1159,17 +1159,26 @@ int wxCALLBACK wxMLMainFrame::CompareTransactions(wxIntPtr item1, wxIntPtr item2
 
     case 4: // 영수증번호 (숫자/문자열 혼합 지원)
         {
-            const bool isNum1 = !data1.ReceiptNumber.empty() &&
-                                std::all_of(data1.ReceiptNumber.begin(),
-                                           data1.ReceiptNumber.end(), ::isdigit);
-            const bool isNum2 = !data2.ReceiptNumber.empty() &&
-                                std::all_of(data2.ReceiptNumber.begin(),
-                                           data2.ReceiptNumber.end(), ::isdigit);
+            // ASCII digits only. ::isdigit(char) is undefined for the negative bytes of UTF-8 text
+            // (e.g. Korean receipt numbers) and asserts in MSVC Debug builds
+            const auto isDigits = [](const std::string& text) {
+                return !text.empty() && std::all_of(text.begin(), text.end(),
+                    [](char c) { return c >= '0' && c <= '9'; });
+            };
 
-            if (isNum1 && isNum2) {
-                const int64_t receiptNum1 = std::stoll(data1.ReceiptNumber);
-                const int64_t receiptNum2 = std::stoll(data2.ReceiptNumber);
-                result = (receiptNum1 < receiptNum2) ? -1 : (receiptNum1 > receiptNum2) ? 1 : 0;
+            if (isDigits(data1.ReceiptNumber) && isDigits(data2.ReceiptNumber)) {
+                // Compare as numbers without converting: std::stoll threw (and ended the app)
+                // for numbers longer than 18 digits. Leading zeros removed, then shorter = smaller
+                const auto significant = [](const std::string& digits) {
+                    const size_t first = digits.find_first_not_of('0');
+                    return first == std::string::npos ? std::string("0") : digits.substr(first);
+                };
+                const std::string num1 = significant(data1.ReceiptNumber);
+                const std::string num2 = significant(data2.ReceiptNumber);
+                if (num1.size() != num2.size())
+                    result = (num1.size() < num2.size()) ? -1 : 1;
+                else
+                    result = num1.compare(num2) < 0 ? -1 : (num1.compare(num2) > 0 ? 1 : 0);
             } else {
                 result = data1.ReceiptNumber.compare(data2.ReceiptNumber);
             }
