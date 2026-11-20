@@ -1,0 +1,4 @@
+# Font files are binary: never convert line endings (core.autocrlf), never diff as text
+*.otf binary
+*.ttf binary
+*.ttc binary

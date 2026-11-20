@@ -123,9 +123,9 @@ Name: "desktopicon"; Description: "바탕화면 바로가기 만들기(&D)"; Gro
 [Files]
 ; 실행 파일 및 라이브러리
 Source: "{#MyAppExePath}"; DestDir: "{app}"; Flags: ignoreversion
-; 배포 폰트 (PDF 내보내기용) - 폰트 파일이 있을 경우에만 포함
-; Note: Noto Sans KR 폰트를 MissionLedger\fonts\ 디렉토리에 다운로드하면 자동 포함됩니다
-; Source: "..\MissionLedger\fonts\*.ttf"; DestDir: "{app}\fonts"; Flags: ignoreversion skipifsourcedoesntexist
+; PDF 내보내기 폰트 (Noto Sans KR, OFL 라이선스 파일 포함). 실행 파일 옆 fonts\ 에서 찾음
+; 폰트가 없으면 설치 프로그램 빌드가 실패하도록 skipifsourcedoesntexist는 쓰지 않음
+Source: "..\third_party\fonts\NotoSansKR\*"; DestDir: "{app}\fonts"; Flags: ignoreversion
 ; 문서
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion

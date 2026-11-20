@@ -1,0 +1,24 @@
+Noto Sans KR 2.004 (Noto Sans CJK, Korean subset OTF), Regular and Bold
+
+Source:   https://github.com/notofonts/noto-cjk, tag Sans2.004 (2022-01-27)
+          https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/SubsetOTF/KR/NotoSansKR-Regular.otf
+          https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/SubsetOTF/KR/NotoSansKR-Bold.otf
+          https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/LICENSE
+SHA-256:  69975a0ac8472717870aefeab0a4d52739308d90856b9955313b2ad5e0148d68  NotoSansKR-Regular.otf
+          5a6ceb287ed2fc6cfc6213144ebea68cbd94b20fc9eb873d8486493bf02d9bda  NotoSansKR-Bold.otf
+          6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2  LICENSE
+Licence:  SIL Open Font License 1.1 (LICENSE). Bundling with the app is allowed; the licence file
+          must go with the fonts (the build and the installer copy the whole folder)
+Added:    2026-11-20
+
+Used by:  PDF export (MissionLedgerCore/src/module/export/MLPDFDocument.cpp looks for
+          fonts/NotoSansKR-Regular.otf and NotoSansKR-Bold.otf next to the executable,
+          or in Contents/Resources/fonts/ of the macOS app bundle)
+Why:      the same font on Windows and macOS (Malgun Gothic does not exist on macOS, and the
+          macOS system font has no separate bold face for export). docs/CI_PLAN.md §0 "PDF font"
+
+Coverage: checked 2026-11-20 with sample characters in an exported PDF: Hangul, Korean Hanja
+          (大韓民國 學校), kana, Japanese shinjitai (気 駅 広) and Traditional Chinese (們這說話) are
+          drawn; Simplified Chinese (们这说话) is not (boxes). Accepted for now. To cover it, replace
+          these files with Noto Sans CJK KR (Sans/OTF/Korean/NotoSansCJKkr-*.otf, full pan-CJK set,
+          about 16 MB per weight) and change the file names in MLPDFDocument.cpp

@@ -79,6 +79,17 @@ if(ML_BUILD_GUI)
 endif()
 add_subdirectory(MissionLedgerCLI)
 
+# ----- PDF export font: third_party/fonts/NotoSansKR -> bin/<Config>/fonts/ (next to the executables) -----
+# A target that runs on every build (not a POST_BUILD step), so the fonts are there even when no
+# executable relinks, e.g. an incremental build in an existing workspace. Copying ~10 MB is quick
+add_custom_target(fonts ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/NotoSansKR"
+        "$<TARGET_FILE_DIR:MissionLedgerCLI>/fonts"
+    COMMENT "Copying PDF fonts (Noto Sans KR) next to the executables"
+    VERBATIM)
+set_target_properties(fonts PROPERTIES FOLDER "Packaging")
+
 # ----- Smoke tests (CTest): ctest --preset windows-release -----
 enable_testing()
 add_subdirectory(tests)
