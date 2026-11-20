@@ -62,34 +62,44 @@ VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
 
 ## 3. 릴리스 절차
 
+릴리스 스크립트가 `VERSION`, `CHANGELOG.md`, 커밋, 태그를 한 번에 처리합니다. 사람이 입력하는 것은 버전 번호 하나뿐이어서 `VERSION`과 태그가 어긋나지 않습니다.
+
 1. **변경 확인**
    ```bash
    git log --oneline v<이전 버전>..HEAD
    ```
+   `CHANGELOG.md`의 `[미배포]`에 사용자에게 보이는 변경이 모두 적혀 있는지 확인합니다.
 2. **버전 결정**: 1절의 기준에 따릅니다.
-3. **`VERSION` 수정**: 예: `1.0.0` → `1.1.0`
-4. **`CHANGELOG.md` 정리**: `[미배포]` 섹션 제목을 `[1.1.0] - YYYY-MM-DD`로 바꾸고, 그 위에 빈 `[미배포]` 섹션을 새로 만듭니다.
-5. **커밋**
-   ```bash
-   git commit -am "Release: v1.1.0"
-   ```
-6. **태그**: annotated 태그로 답니다.
-   ```bash
-   git tag -a v1.1.0 -m "MissionLedger 1.1.0"
-   git push origin main --follow-tags
-   ```
-7. **설치 파일 생성**
+3. **릴리스 스크립트 실행**
    ```bat
-   build_installer.bat
+   release.bat 1.1.0          :: Windows (인수 없이 실행하면 버전을 물어봄)
+   ./release.sh 1.1.0         # macOS / Linux
    ```
-   (`cmake --workflow --preset windows-release`와 같습니다. 스모크 테스트가 실패하면 설치 파일을 만들지 않습니다.) 결과물은 `installer\output\MissionLedger-1.1.0-Setup.exe`입니다.
+   (`cmake -DVERSION=1.1.0 -P scripts/release.cmake`와 같습니다.) 스크립트가 하는 일:
+   - **확인**: `main` 브랜치인지, 커밋되지 않은 변경이 없는지(추적하지 않는 파일은 상관없음), `origin/main`보다 뒤처지지 않았는지, 버전 형식, 지금 `VERSION`보다 큰지, 태그 `v1.1.0`이 아직 없는지, `[미배포]`에 항목이 있는지. 하나라도 걸리면 아무것도 바꾸지 않고 멈춥니다
+   - **수정**: `VERSION` → `1.1.0`, `CHANGELOG.md`의 `[미배포]` → `[1.1.0] - <오늘 날짜>`(그 위에 빈 `[미배포]`), 아래쪽 비교 링크
+   - **커밋** `Release: v1.1.0`(`VERSION`과 `CHANGELOG.md`만), annotated **태그** `v1.1.0`
+   - push하지 않고 멈춥니다. push 전에는 `git tag -d v1.1.0`과 `git reset --hard HEAD~1`로 완전히 되돌릴 수 있습니다
+4. **push**
+   ```bash
+   git push origin main v1.1.0
+   ```
+   (`release.bat 1.1.0 push`로 3–4를 한 번에 해도 됩니다.)
+5. **Jenkins 빌드** (`PLATFORM=both`, `Release`, 기본값 그대로): 이 커밋에 태그 `v<VERSION>`이 있으므로 릴리스로 판단하고, 클린 빌드 → 테스트 → 설치 파일(.exe, .dmg) → Google Drive 업로드까지 합니다 (`docs/CI_PLAN.md` §4–§5)
+   - `MissionLedger/v1.1.0/`: 설치 파일 2개와 `릴리스노트.txt`(CHANGELOG의 해당 버전 부분)
+   - `MissionLedger/latest/`: 같은 파일로 교체. 팀원에게는 이 폴더의 공유 링크를 보냅니다 (링크는 바뀌지 않음)
+   - 같은 버전 폴더가 이미 있으면 업로드하지 않고 실패합니다 (덮어쓰지 않음)
+
+로컬에서 설치 파일만 만들 때는 `build_installer.bat`(= `cmake --workflow --preset windows-release`)을 씁니다. 결과물은 `installer\output\MissionLedger-<버전>-Setup.exe`입니다.
 
 ## 4. 태그 규칙
 
 - 형식은 `v` + 버전입니다. (예: `v1.1.0`)
 - **annotated 태그**를 씁니다 (`git tag -a`). 작성자와 날짜가 기록됩니다.
 - 태그 메시지는 짧게 둡니다. 변경 내용은 `CHANGELOG.md`에만 적습니다.
-- 태그는 `VERSION`이 해당 버전으로 바뀐 커밋에 답니다. CI는 태그와 `VERSION`이 다르면 빌드를 실패시킵니다 (예정, `docs/CI_PLAN.md` 참고).
+- 태그는 `VERSION`이 해당 버전으로 바뀐 커밋에 답니다. 릴리스 스크립트가 둘을 함께 만듭니다. 직접 태그를 달 일은 없습니다.
+- CI는 원격 태그 `v<VERSION>`이 빌드하는 커밋을 가리키면 릴리스로 보고 업로드합니다. 커밋에 다른 `v*` 태그가 있으면(태그와 `VERSION`이 다르면) 빌드를 실패시킵니다 (`jenkins/scripts/release_check.cmake`).
+- **태그를 push하는 것이 곧 배포 결정입니다.** 태그가 있는 커밋을 업로드 없이 빌드만 하려면 Jenkins에서 `DEPLOY`를 끄고 실행합니다.
 
 ## 5. 변경 이력
 

@@ -24,6 +24,7 @@ cmake --build --preset windows-installer  # Inno Setup installer from the Releas
 cmake --workflow --preset windows-release # all of it: configure → Release build → smoke test → installer
 cmake --workflow --preset macos-release   # same on macOS; the installer is an unsigned .dmg (installer/output/)
 build_installer.bat                       # local double-click wrapper for the workflow above (ends with pause; not for CI)
+release.bat 1.1.0                         # release: VERSION + CHANGELOG + commit + tag v1.1.0 (macOS: ./release.sh); then push and run Jenkins
 ```
 
 - Output: `build/windows/bin/<Debug|Release>/MissionLedger.exe`, `MissionLedgerCLI.exe` (+ `.pdb`)
@@ -31,7 +32,7 @@ build_installer.bat                       # local double-click wrapper for the w
 - CMake, not MSBuild, is called directly, so the Visual Studio edition path does not matter. In Git Bash pass `--parallel` instead of `/m` (MSYS path conversion mangles `/` switches; use `MSYS_NO_PATHCONV=1` if a `/` switch is needed)
 - CI build number: `cmake --preset windows -DML_BUILD_NUMBER=N` (4th field of the exe version)
 - CI (Jenkins) calls the presets one per stage (configure / build / test / installer) so each result shows separately; the workflow preset and `build_installer.bat` are for people
-- Jenkins: one Pipeline job, Script Path `jenkins/Build.Jenkinsfile`, parameters `PLATFORM` (both/windows/macos), `CONFIGURATION`, `CLEAN_BUILD`, `DEPLOY` (stub). Node check on any PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake`
+- Jenkins: one Pipeline job, Script Path `jenkins/Build.Jenkinsfile`, parameters `PLATFORM` (both/windows/macos), `CONFIGURATION`, `CLEAN_BUILD`, `DEPLOY` (default on: uploads only when the commit has the tag `v<VERSION>`), `DEPLOY_DRY_RUN`. Node check on any PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake`
 - Smoke tests check exit codes, the totals in `tests/fixtures/README.md`, that both PDFs are created (not PDF contents) and that opening a missing file fails without creating it; on macOS the same five also run on the x86_64 half (Rosetta). Output goes to `build/windows/tests/out/<Config>/`
 - The `installer` target finds `ISCC.exe` in the default Inno Setup 6 folder; elsewhere configure with `-DML_ISCC=<path>`
 
@@ -68,7 +69,7 @@ MissionLedger/                   # Repository root
 │   └── wxWidgets/               # wxWidgets 3.2.8 source subset (add_subdirectory)
 ├── tests/                       # CTest smoke tests (CMakeLists.txt, cli_smoke.cmake) + fixtures/sample.ml
 ├── installer/                   # Inno Setup script (.iss), package.cmake (installer target)
-├── jenkins/                     # Build.Jenkinsfile (Jenkins Pipeline job, Script Path), scripts/preflight.cmake (node check), scripts/node_check_* (node inventory), scripts/node_setup_* (install missing tools, by hand)
+├── jenkins/                     # Build.Jenkinsfile (Jenkins Pipeline job, Script Path), scripts/preflight.cmake (node check), scripts/release_check.cmake + deploy.cmake (Google Drive upload), scripts/node_check_* (node inventory), scripts/node_setup_* (install missing tools, by hand)
 ├── MissionLedgerCore/           # Core static library (pure C++, no wxWidgets); CMakeLists.txt
 │   └── src/
 │       ├── MLDefine.h          # Core enums and data structures
@@ -153,7 +154,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
 4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
 5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). ✅ Step ① done 2026-11-20 (macOS presets, `ML_BUILD_GUI=OFF`, Jenkinsfile builds macOS Core + CLI; Jenkins #6 green on both platforms, Mac 5/5 smoke tests). ✅ Step ② done 2026-11-20 (Noto Sans KR bundled in `third_party/fonts/NotoSansKR/` for both platforms, `getExecutablePath()` fixed on macOS; Jenkins #7 green, Mac PDFs with regular and bold). ✅ Step ③ built 2026-11-21 (`MissionLedger.app`: `Info.plist`, `.icns`, `MacOpenFiles()`, fonts in `Contents/Resources/fonts/`, plus a basic unsigned `.dmg` moved up from roadmap 9; Jenkins #9 green on both). The app has not been run yet: the GUI is checked by hand at the end of roadmap 7 on a Jenkins build (decided 2026-11-21). ✅ Steps ④–⑤ done 2026-11-21 (Universal arm64 + x86_64, smoke tests also on x86_64 through Rosetta, `lipo`/`otool` checks before the `.dmg`; Jenkins #12–#13 green on both). **Next: GUI check by hand** on the `.dmg` from Jenkins (the last open item of roadmap 7; checklist: install, "Open Anyway", window/Korean text, `.ml` double-click with the app closed and running, menus/⌘ shortcuts, CRUD, budget, filter, save/reopen, PDF export)
-6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
+6. 🔄 Deployment to Google Drive (written 2026-11-21): `release.bat`/`release.sh` (`scripts/release.cmake`) makes VERSION + CHANGELOG + commit + tag from one version number; a Jenkins build of a tagged commit (`PLATFORM=both`, Release) does a clean build and uploads both installers and `릴리스노트.txt` to `gdrive:MissionLedger/v<VERSION>/` and `latest/` (share `latest/` once; its link stays). rclone config = Jenkins secret file `missionledger-rclone-conf` (same `rclone.conf` as `tenetris-rclone-conf`, kept separate on purpose). Tested locally with a fake rclone. Still to do: Jenkins run with `DEPLOY_DRY_RUN` (checks the remote name `gdrive`, rclone on WindowsMini), then the first real release after the Mac GUI check. Details: [docs/CI_PLAN.md](docs/CI_PLAN.md) §0, §4–§5, [docs/VERSIONING.md](docs/VERSIONING.md) §3
 
 **Next Steps** (features):
 - 📋 CLI full review (`MLCLIView`): check every command and option, error handling and exit codes, the two help texts (argument mode vs interactive mode list different commands), and interactive input parsing. See TODO.md
@@ -222,7 +223,7 @@ if (isValid) {
 
 ### Versioning
 - The root `VERSION` file (`MAJOR.MINOR.PATCH`) is the **only** place the version is written. Never hard-code version numbers in `MLVersion.h`, `.iss`, or scripts
-- Bump the version only at release time; record user-visible changes under `[미배포]` in `CHANGELOG.md` as you work
+- Bump the version only at release time, and only with `release.bat` / `release.sh` (it writes VERSION, CHANGELOG, commit and tag together); record user-visible changes under `[미배포]` in `CHANGELOG.md` as you work
 - Policy and release procedure: [docs/VERSIONING.md](docs/VERSIONING.md)
 
 ## Architecture Guidelines

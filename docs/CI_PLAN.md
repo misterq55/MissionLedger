@@ -26,7 +26,7 @@
 | Versioning | ✅ Done. Root `VERSION` file is the single source of truth | See §1 and [VERSIONING.md](VERSIONING.md) |
 | Jenkins job | ✅ One **Pipeline** job ("Pipeline script from SCM", `main`), started by hand with parameters. No Multibranch, no webhook | Jenkinsfiles live in `jenkins/` (`jenkins/Build.Jenkinsfile`). Nodes: `WindowsMini`, `MacMini`. See §4–§5 |
 | PDF font | ✅ **Bundle Noto Sans KR** (Regular + Bold, OFL) in `third_party/fonts/NotoSansKR/` and use it on both platforms (decided and done 2026-11-20, roadmap 7 step ②) | Same PDF output on Windows and macOS (expected; Windows PDFs change from Malgun Gothic to Noto Sans KR). CMake copies the fonts next to the executable (`fonts/`; macOS app: `Contents/Resources/fonts/`); the installer and the macOS bundle take them from `third_party/fonts`. CJK coverage stays as now (Hangul, Korean Hanja; not Japanese shinjitai or Simplified Chinese), not needed yet. If it is needed later, swap in Noto Sans CJK KR (full pan-CJK set, about 16 MB per weight) in the same folder and change the file names in the code |
-| Deploy target | **Google Drive** under consideration instead of GitHub Releases (roadmap 10) | Likely rclone on the node with credentials in Jenkins. A personal Google account needs an OAuth user token (service accounts have no My Drive storage); a Workspace shared drive can use a service account |
+| Deploy target | ✅ **Google Drive** (decided 2026-11-21, roadmap 10) | rclone on the deploy node (WindowsMini); `rclone.conf` (remote `gdrive`, OAuth user token of a personal account) is the Jenkins secret file `missionledger-rclone-conf`, never in the repository. Layout `MissionLedger/v<VERSION>/` (kept) + `MissionLedger/latest/` (replaced on each release; share that folder once, its link stays the same). No share links are made automatically |
 
 ---
 
@@ -50,7 +50,7 @@ The policy and the full flow are documented in [VERSIONING.md](VERSIONING.md). W
 - **Source of truth**: the root `VERSION` file (`MAJOR.MINOR.PATCH`, one line). CI reads it with `readFile('VERSION')`
 - **Build number**: `cmake --preset windows -DML_BUILD_NUMBER=%BUILD_NUMBER%` (4th field of the exe version)
 - **Installer**: `MissionLedger.iss` reads `VERSION` itself; `ISCC /DMyAppVersion=x.y.z` still overrides it. ISCC fails if the packaged exe's `ProductVersion` differs from it
-- Deploy builds (roadmap 10): check that the release tag (`v1.2.3`) matches `VERSION` and fail if not. The job is not Multibranch, so it does not see tags by itself; check with git in the Deploy stage
+- Releases (roadmap 10, done): `release.bat` / `release.sh` (`scripts/release.cmake`) writes `VERSION` and CHANGELOG, commits and tags `v<VERSION>` in one step, so the version number is the only input. A build is a release when the remote tag `v<VERSION>` points to the commit being built (`jenkins/scripts/release_check.cmake`, `git ls-remote`, since the job is not Multibranch and does not fetch tags); another `v*` tag on the commit fails the build
 - CMake (done): `file(READ VERSION ...)` → `project(MissionLedger VERSION ...)` → `.rc` defines (`Version.props` removed). Planned for macOS: `CFBundleShortVersionString` / `CFBundleVersion` in `Info.plist` via `configure_file`
 
 ---
@@ -161,9 +161,10 @@ cmake --workflow --preset windows-release # configure → Release build → smok
 
 ```
 Platforms (matrix, both run to the end) ──────────────────────────────────────────┐
-  WindowsMini: Preflight → Clean? → Configure → Build → Test → Package* → Archive │→ Deploy (stub)
+  WindowsMini: Preflight → Clean? → Configure → Build → Test → Package* → Archive │→ Deploy** (on WindowsMini)
   MacMini:     Preflight → Clean? → Configure → Build → Test → Package* → Archive │
 * Release only. Windows: Inno Setup .exe; macOS: unsigned .dmg (since roadmap 7 step ③, §6)
+** Only for a release (tag v<VERSION> on this commit) with PLATFORM=both, Release, DEPLOY on; after both platforms succeeded
 ```
 
 | Parameter | Values (default first) | Effect |
@@ -171,7 +172,8 @@ Platforms (matrix, both run to the end) ─────────────�
 | `PLATFORM` | `both`, `windows`, `macos` | A platform that is not selected is skipped without waiting for its node |
 | `CONFIGURATION` | `Release`, `Debug` | Preset `<platform>-release` / `-debug`. Debug skips Package and archives only the smoke test PDFs (a Debug exe needs the debug runtime, so it is not shipped) |
 | `CLEAN_BUILD` | off | Deletes `build/<platform>/` first. Normal builds keep the workspace so wxWidgets is not rebuilt |
-| `DEPLOY` | on | **Stub**: prints a message only. Roadmap 10 implements it (then: default off, force Release + clean build) |
+| `DEPLOY` | on | Upload when the commit is a release (tag `v<VERSION>`); an untagged commit never uploads, so on is safe as the default. A release also forces a clean build. Needs `PLATFORM=both` and `Release` (otherwise the build is UNSTABLE with a message and nothing is uploaded). Untick to rebuild a tagged commit without uploading |
+| `DEPLOY_DRY_RUN` | off | Runs the Deploy stage on any commit without writing: rclone, the secret file, the remote, the existing folders and the release notes are checked, uploads run with `rclone --dry-run`. Needs `PLATFORM=both`, `Release` |
 
 - If one platform fails the whole build is FAILURE, but the other platform still finishes (matrix `failFast` off), so both problems show up in one run
 - Started by hand ("Build with Parameters"). Polling or a webhook can be added later (`triggers { pollSCM(...) }`)
@@ -188,6 +190,9 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 | File | Purpose |
 |---|---|
 | `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names, the platforms that build and the platforms that package are at the top (`PLATFORMS`, `IMPLEMENTED`, `PACKAGED`) |
+| `jenkins/scripts/release_check.cmake` | Is this build a release? Writes `yes`/`no` (Preflight, and again in Deploy) |
+| `jenkins/scripts/deploy.cmake` | The upload (§4 `DEPLOY`): both installers + `릴리스노트.txt` (this version's CHANGELOG section, CRLF + BOM for Notepad) to `gdrive:MissionLedger/v<VERSION>/`; refuses if that folder exists; then `rclone sync` to `latest/` only if this is the highest version there (`sync` keeps the folder and its share link). Tested with a fake rclone on a local folder (2026-11-21) |
+| `scripts/release.cmake` + `release.bat` / `release.sh` | Release script (docs/VERSIONING.md §3) |
 | `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
 | `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
 | `jenkins/scripts/node_setup_windows.ps1`, `node_setup_macos.sh` | **Run by hand, once per node** (the pipeline only checks, it never installs: nodes are shared, installs need admin rights, and the agent would not see a new PATH in the same run). Installs only what is missing, at pinned versions with SHA-256 checks: Windows CMake 3.31.12 (MSI, system PATH) and Inno Setup 6.7.4 (all users); macOS CMake 3.31.12 (official universal package in `/Applications/CMake.app`, not Homebrew, which installs the newest untested version). Visual Studio, Git and Xcode are only checked, with instructions. Windows: administrator PowerShell, `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_setup_windows.ps1`; macOS: `sh jenkins/scripts/node_setup_macos.sh`. Run on both nodes on 2026-11-19 (installed CMake 3.31.12 on both and Inno Setup 6.7.4 on WindowsMini, hashes matched); preflight and the CMake check in the Jenkinsfile print these commands when something is missing |
@@ -197,11 +202,11 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 | Stage | Command | When |
 |---|---|---|
 | Preflight | Check that `cmake` is on the agent's PATH (clear message with the agent PATH if not), then `cmake -DPLATFORM=<p> -DWORKSPACE=<ws> -P jenkins/scripts/preflight.cmake`; also sets the build name `#N v1.0.0 Release` | Always |
-| Clean | delete `build/<p>/` | `CLEAN_BUILD` |
+| Clean | delete `build/<p>/` | `CLEAN_BUILD`, or a release that is uploaded |
 | Configure | `cmake --preset <p> -DML_BUILD_NUMBER=<BUILD_NUMBER>` | Implemented platforms |
 | Build | `cmake --build --preset <p>-<config> --parallel` | 〃 |
 | Test | `ctest --preset <p>-<config> --output-junit ctest-junit.xml` → JUnit report `build/<p>/ctest-junit.xml` | 〃 |
-| Package | delete `installer/output/`, then `cmake --build --preset <p>-installer` | Release, packaged platforms (`PACKAGED`, Windows only for now) |
+| Package | delete `installer/output/`, then `cmake --build --preset <p>-installer`; `stash` the installer when this build uploads | Release, packaged platforms (`PACKAGED`: Windows, macOS) |
 | Archive | `installer/output/*`, `build/<p>/bin/Release/*.pdb` (Release, packaged platforms); `build/<p>/tests/out/<config>/*.pdf` | Implemented platforms |
 
 ### Jenkins setup (once)
@@ -351,4 +356,4 @@ agent { label 'macos && xcode' }
 7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done"
 8. [x] (done within roadmap 7, steps ③–⑤, 2026-11-21) Turn on the macOS cell fully: the checks of §7 (`lipo -archs`, `otool -L`) and the GUI in the build. (`macos` is in `IMPLEMENTED` since roadmap 7 step ①, building Core + CLI)
 9. [ ] `.dmg` styling (the basic unsigned `.dmg` exists since roadmap 7 step ③); signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
-10. [ ] Deployment: implement the `DEPLOY` stage (Google Drive under consideration, §0): force Release + clean build, check `VERSION` against the release tag, upload the installers; release notes from this version's CHANGELOG section. Then set the `DEPLOY` default to off
+10. [ ] Deployment (written 2026-11-21 and tested locally with a fake rclone; still to do: a Jenkins run with DEPLOY_DRY_RUN, then the first real upload with the next release): Google Drive with rclone, `DEPLOY` stage, release script, tag check, `latest/` (§0, §4, §5). The `DEPLOY` default stays on: the tag decides, not the checkbox (decided 2026-11-21)
