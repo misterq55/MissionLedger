@@ -102,7 +102,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 
 **Current release**: v1.0.0 (2026-11-18, Windows only) — see [CHANGELOG.md](CHANGELOG.md)
 
-**Completed Features** (as of 2026-11-19):
+**Completed Features** (as of 2026-11-20):
 - ✅ Full CRUD operations with Observer pattern
 - ✅ SQLite storage provider with DI pattern
 - ✅ File menu (New/Open/Save/SaveAs) with keyboard shortcuts
@@ -136,6 +136,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 - ✅ Core folder separation: Core sources in `MissionLedgerCore/src/` (one project = one folder)
 - ✅ CMake build (2026-11-18): generated IDE projects, vendored wxWidgets, `.sln`/`.vcxproj`/`Version.props` removed. Verified against the former MSBuild build (identical CLI output and PDFs except the document ID, same version info, GUI checked, installer builds)
 - ✅ Jenkins pipeline (2026-11-19): `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, macOS = node check only), `jenkins/scripts/` (preflight, node_check, node_setup). First successful build on Jenkins: WindowsMini built, tested and packaged, MacMini passed the node check (about 10 minutes, first build)
+- ✅ Formatting fixes (2026-11-20, found through the macOS build): amounts, decimals and console columns from one locale-independent Core class `FMLFormat`; foreign amount → KRW from `FMLCurrency::ConvertToKRW` (rounded, was truncated); GUI edit form keeps the exchange rate's precision; receipt-number sort no longer crashes on Korean or very long numbers. CLI/PDF output for `sample.ml` unchanged (PDFs byte-identical except the document ID); GUI checked by hand. Items only recorded: TODO.md "포맷/표시 관련 남은 항목"
 - ✅ CTest smoke tests, `installer` target and `windows-release` workflow preset (2026-11-18): 5 CLI tests (`sample.ml` totals and PDFs, missing file); the workflow stops before packaging when a test fails; verified from a clean `build/` (about 2.5 minutes)
 
 **Design Decision**: Real-time Budget Tracking
@@ -149,7 +150,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
 4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
-5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). Step ① (macOS presets, `ML_BUILD_GUI`, Jenkinsfile builds macOS Core + CLI) written 2026-11-20, checked on Windows only so far
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). ✅ Step ① done 2026-11-20 (macOS presets, `ML_BUILD_GUI=OFF`, Jenkinsfile builds macOS Core + CLI; Jenkins #6 green on both platforms, Mac 5/5 smoke tests). **Next: step ②** (bundle Noto Sans KR in `third_party/fonts/NotoSansKR/`, fix `getExecutablePath()` on macOS; the Mac PDF currently uses Apple SD Gothic Neo without bold)
 6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
 **Next Steps** (features):
