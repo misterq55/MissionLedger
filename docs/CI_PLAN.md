@@ -285,6 +285,26 @@ A macOS app cannot be run directly on Windows: it is a Mach-O binary, and Apple'
 - For a final manual check before a release, connect to the Mac from Windows with VNC (Screen Sharing)
 - Extra safeguard: a Linux (wxGTK) build in WSL catches Windows-only code early
 
+### Status of the checks (2026-11-21)
+
+- Done in the pipeline: architectures (`lipo`), dependencies (`otool -arch all -L`), CLI behavior on both halves (smoke tests, x86_64 through Rosetta)
+- PDFs compared (Jenkins #15): the Windows and macOS PDFs of `sample.ml` are **byte-identical except the random `/ID`**; the macOS PDFs were also viewed (Korean, bold, amounts, merged cells, wrapping as on Windows). So Core (SQLite, settlement, formatting, currency) and PDF export behave the same on macOS. Not covered: the GUI, and the app bundle's font folder (`Contents/Resources/fonts/`; the CLI uses `bin/<Config>/fonts/`)
+- Claude Code can download artifacts (PDF, PNG) through the Jenkins REST API and view them with its Read tool, on any PC that has the `JENKINS_*` user environment variables (§6)
+
+### GUI check automation (decided 2026-11-21: systematize it; not started)
+
+The GUI cannot be checked by Jenkins today: the MacMini agent runs over SSH, without access to the screen. There is no other Mac, so a manual check means Screen Sharing (VNC) to the MacMini. Decided to automate as much as possible instead, in three steps; the next session starts with ①.
+
+| Step | What | Who judges | Result |
+|---|---|---|---|
+| ① Feasibility | In the macOS cell after the build: `open` the app, wait a few seconds, `screencapture -x` to a PNG, quit the app; archive the PNG. Never fails the build | A person or Claude Code looks at the PNG | Tells whether an SSH-started agent can show the app in the logged-in session and capture it. A PNG with only the desktop background means missing **Screen Recording** permission (TCC) for the process that runs `screencapture` (to be granted once in System Settings) |
+| ② Self-test mode | `MissionLedger --self-test <sample.ml> <out dir>`: the app opens the file through the GUI code path (`OpenFileFromShell`), checks its own controls (transaction list has 10 rows, total labels show the `sample.ml` totals, title has the file name), exports both PDFs from the GUI code path (bundle font folder), then exits 0 or 1 with the failed items. A CTest test runs it and checks the PDFs' fonts like `cli_smoke.cmake` | **The program and the test script** (fixed conditions, like the CLI smoke tests; no person or AI at run time) | Every build (manual or not) fails if the app does not start, cannot open the file or cannot find the bundled fonts. Checks values, not looks. Probably also runnable on Windows, without screenshots (agent as a service has no desktop; guess) |
+| ③ Finder-style open | `open sample.ml` (Launch Services → `MacOpenFiles`, the same path as a double-click) + screenshot | Program for "opened" (via ② checks), a person or Claude Code for the PNG | `.ml` association and `MacOpenFiles` |
+
+- Facts: the MacMini is **always logged in** (user said 2026-11-21). The Jenkins agent user is `seomungyu` (workspace `/Users/seomungyu/jenkins/...`)
+- Open questions for ①: is the logged-in user the same as the agent user (`seomungyu`)? If not, `open` from SSH will not reach that session. Does `screencapture` from the SSH-started agent need Screen Recording permission (expected: yes; to be seen in ①)?
+- Not automated on purpose: pixel comparison with a reference screenshot (breaks on any font rendering or window position change); typing/menus/⌘ shortcuts and the dmg install with "Open Anyway" stay a short manual VNC check before a release
+
 ---
 
 ## 8. Notes for Shared Nodes
@@ -353,7 +373,7 @@ agent { label 'macos && xcode' }
 4. [x] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, `GenerateProjectFiles.bat`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`. Compared on Windows, then deleted the `.sln`/`.vcxproj`/`Version.props` and added `build/` to `.gitignore` (2026-11-18, see §3)
 5. [x] CTest smoke tests (`list`/`budget list` totals, 2 PDFs from `tests/fixtures/sample.ml`), test presets, `installer` target (ISCC, Release only) and the `windows-release` workflow preset; `build_installer.bat` became a wrapper for the workflow. Checked that a wrong expected value fails the test and stops the workflow before packaging, and that `installer` refuses Debug (2026-11-18)
 6. [x] `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, parameters, macOS cell = preflight only) and `jenkins/scripts/preflight.cmake` written (2026-11-18). Checked on Windows: preflight passes on the dev PC and lists 3 problems on a simulated bare node; all Windows stages run in a fresh clone (Release + installer, Debug, JUnit file with 5 tests, exe version `1.0.0.<BUILD_NUMBER>`). Nodes prepared with `node_check_*` / `node_setup_*` and `PATH+CMAKE`; first successful Jenkins build 2026-11-19 (about 10 minutes, first build on the nodes)
-7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done"
+7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done". Steps ①–⑤ done 2026-11-21; open: the GUI check, to be automated first (§7 "GUI check automation", next session starts with its step ①)
 8. [x] (done within roadmap 7, steps ③–⑤, 2026-11-21) Turn on the macOS cell fully: the checks of §7 (`lipo -archs`, `otool -L`) and the GUI in the build. (`macos` is in `IMPLEMENTED` since roadmap 7 step ①, building Core + CLI)
 9. [ ] `.dmg` styling (the basic unsigned `.dmg` exists since roadmap 7 step ③); signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
 10. [ ] Deployment (written 2026-11-21; tested locally with a fake rclone and on Jenkins: #14 untagged build skips Deploy, #15 `DEPLOY_DRY_RUN` passed: secret file, remote `gdrive`, both installers stashed to WindowsMini, release notes; `gdrive:MissionLedger` does not exist yet and is created by the first upload. rclone v1.76.0 is on WindowsMini (`C:\Tools\rclone`), not on MacMini (not needed). Still to do: the first real release (also the first real run of `release.bat`, the tag-triggered path, the forced clean build and the Drive writes); then share `MissionLedger/latest/` once): Google Drive with rclone, `DEPLOY` stage, release script, tag check, `latest/` (§0, §4, §5). The `DEPLOY` default stays on: the tag decides, not the checkbox (decided 2026-11-21)
