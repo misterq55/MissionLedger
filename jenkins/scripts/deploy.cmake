@@ -28,6 +28,9 @@ if(NOT REMOTE MATCHES "^([^:]+):(.+)$")
 endif()
 set(remote_name "${CMAKE_MATCH_1}")
 get_filename_component(root "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+# Relative FILES / WORK (as the Jenkinsfile passes them) are relative to the current directory = the workspace
+get_filename_component(FILES "${FILES}" ABSOLUTE)
+get_filename_component(WORK "${WORK}" ABSOLUTE)
 
 file(READ "${root}/VERSION" version)
 string(STRIP "${version}" version)
@@ -45,7 +48,8 @@ if(NOT RCLONE)
                         "Install it and add its folder to the node's PATH (Jenkins node settings: PATH+RCLONE=...)")
 endif()
 
-# rclone wrapper: fails the deploy on an error unless ALLOW_FAIL is given (then the exit code is returned)
+# rclone wrapper: fails the deploy on an error unless ALLOW_FAIL is given (then the exit code is returned and
+# the caller decides; rclone's own "ERROR : directory not found" for an expected missing folder is not printed)
 function(run_rclone out_var)
     cmake_parse_arguments(R "ALLOW_FAIL" "RESULT" "" ${ARGN})
     execute_process(COMMAND "${RCLONE}" ${R_UNPARSED_ARGUMENTS}
@@ -58,7 +62,7 @@ function(run_rclone out_var)
     if(R_RESULT)
         set(${R_RESULT} "${rc}" PARENT_SCOPE)
     endif()
-    if(err)
+    if(err AND rc EQUAL 0)
         message("${err}")   # rclone writes its progress and --dry-run notices to stderr
     endif()
 endfunction()
