@@ -209,12 +209,10 @@ static void drawCategoryGroup(
 
             std::string amountStr = FMLFormat::FormatAmount(transaction.Amount) + "원";
             if (transaction.UseExchangeRate && transaction.Currency != "KRW") {
-                std::ostringstream oss;
-                oss << std::fixed << std::setprecision(1);
-                oss << " (" << transaction.Currency << " "
-                    << FMLFormat::FormatAmount(static_cast<int64_t>(transaction.OriginalAmount))
-                    << " @ " << transaction.ExchangeRate << ")";
-                amountStr += oss.str();
+                // Original amount: up to 2 decimals (cents), rate: up to 4 decimals
+                amountStr += " (" + transaction.Currency + " "
+                    + FMLFormat::FormatDecimal(transaction.OriginalAmount, 2)
+                    + " @ " + FMLFormat::FormatDecimal(transaction.ExchangeRate, 4) + ")";
             }
 
             double estimatedWidth = amountStr.length() * fontSize * 0.465;
@@ -377,9 +375,8 @@ bool FMLPDFExporter::ExportSettlement(
 
             for (const auto& rate : data.ExchangeRates) {
                 doc.CheckPageBreak();
-                std::stringstream ss;
-                ss << std::fixed << std::setprecision(2) << rate.second << "원";
-                doc.DrawRow(FMLPDFRow(rowHeight).AddCell(rate.first, tableWidth * 0.6).AddCell(ss.str(), tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10);
+                const std::string rateStr = FMLFormat::FormatDecimal(rate.second, 2, 2) + "원";
+                doc.DrawRow(FMLPDFRow(rowHeight).AddCell(rate.first, tableWidth * 0.6).AddCell(rateStr, tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10);
             }
             doc.MoveDown(sectionSpacing);
         }

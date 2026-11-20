@@ -985,7 +985,7 @@ void FMLCLIView::handleAddTransaction()
 
         // 금액 자동 계산
         data.Amount = static_cast<int64_t>(data.OriginalAmount * data.ExchangeRate);
-        std::cout << "→ 원화 환산 금액: " << data.Amount << "원" << std::endl;
+        std::cout << "→ 원화 환산 금액: " << FMLFormat::FormatAmount(data.Amount) << "원" << std::endl;
 
         std::cin.ignore(); // 버퍼 비우기
     }
@@ -1235,8 +1235,9 @@ void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeade
         // 환율 정보 표시
         if (data.UseExchangeRate)
         {
-            std::cout << "  ↳ 환율 적용: " << data.OriginalAmount << " " << data.Currency
-                      << " × " << data.ExchangeRate << " = " << data.Amount << "원" << std::endl;
+            std::cout << "  ↳ 환율 적용: " << FMLFormat::FormatDecimal(data.OriginalAmount, 2) << " " << data.Currency
+                      << " × " << FMLFormat::FormatDecimal(data.ExchangeRate, 4)
+                      << " = " << FMLFormat::FormatAmount(data.Amount) << "원" << std::endl;
         }
 
         std::cout << "영수증 번호: " << data.ReceiptNumber << std::endl;
