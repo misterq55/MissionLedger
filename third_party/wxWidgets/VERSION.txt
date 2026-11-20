@@ -8,6 +8,8 @@ Added:    2026-11-18
 
 Included (copied unchanged from the archive):
   CMakeLists.txt, README.md
+  wx-config.in, wx-config-inplace.in  (read by build/cmake/config.cmake for every non-MSVC build,
+                                      e.g. macOS; added 2026-11-21 after Jenkins #8 failed without them)
   include/  src/  3rdparty/
   art/                          (stock icons #included by src/common/artstd.cpp, arttango.cpp)
   build/cmake/
@@ -23,7 +25,7 @@ Removed after copying:
 Left out:
   docs/ (except the licence files), samples/, tests/, demos/, utils/, interface/,
   locale/, misc/, distrib/, lib/, the rest of build/ (bakefiles, msw, osx, ...),
-  autoconf/configure files, wxwidgets.props
+  the other root-level autoconf/configure files, wxwidgets.props
 
 Consequences for the CMake configuration:
   - wxUSE_XRC must be OFF (wxrc lives in utils/)
