@@ -12,7 +12,7 @@ public:
   virtual bool OnInit() {
 #ifdef _DEBUG
     // Debug 빌드에서만 로그 파일 설정
-    wxString logPath = wxStandardPaths::Get().GetUserDataDir() + "\\MissionLedger_debug.log";
+    wxString logPath = wxStandardPaths::Get().GetUserDataDir() + wxFILE_SEP_PATH + "MissionLedger_debug.log";
     if (!wxDirExists(wxStandardPaths::Get().GetUserDataDir())) {
       wxMkdir(wxStandardPaths::Get().GetUserDataDir());
     }
@@ -36,6 +36,7 @@ public:
 
     // Frame 생성 (wxWidgets는 new로 생성, wxWidgets가 메모리 관리)
     wxMLMainFrame* frame = new wxMLMainFrame();
+    MainFrame = frame;
 
     // MVCHolder에 등록
     mvcHolder.SetModel(model);
@@ -55,50 +56,10 @@ public:
     }
 #endif
 
-    // 명령줄 인수로 파일이 전달된 경우 열기
+    // 명령줄 인수로 파일이 전달된 경우 열기 (Windows: .ml 더블클릭, 연결 프로그램)
     if (argc > 1) {
-      wxString filePath = argv[1];
-      wxLogDebug("Received command-line argument: %s", filePath);
-
-      if (!wxFileExists(filePath)) {
-        wxMessageBox(
-          wxString::Format(wxString::FromUTF8("파일을 찾을 수 없습니다:\n%s"), filePath),
-          wxString::FromUTF8("파일 열기 실패"),
-          wxOK | wxICON_ERROR
-        );
-        wxLogDebug("File does not exist: %s", filePath);
-      } else if (!filePath.EndsWith(".ml")) {
-        wxMessageBox(
-          wxString::FromUTF8("MissionLedger 파일(.ml)이 아닙니다."),
-          wxString::FromUTF8("파일 형식 오류"),
-          wxOK | wxICON_ERROR
-        );
-        wxLogDebug("File does not have .ml extension");
-      } else {
-        // UTF-8로 명시적 변환 (한글 경로 지원)
-        const std::string utf8Path = filePath.ToUTF8().data();
-        const bool result = model->OpenFile(utf8Path);
-
-        if (!result) {
-#ifdef _DEBUG
-          wxMessageBox(
-            wxString::Format(
-              wxString::FromUTF8("파일을 열 수 없습니다:\n%s\n\n로그 파일:\n%s"),
-              filePath,
-              wxStandardPaths::Get().GetUserDataDir() + "\\MissionLedger_debug.log"
-            ),
-            wxString::FromUTF8("파일 열기 실패"),
-            wxOK | wxICON_ERROR
-          );
-#else
-          wxMessageBox(
-            wxString::Format(wxString::FromUTF8("파일을 열 수 없습니다:\n%s"), filePath),
-            wxString::FromUTF8("파일 열기 실패"),
-            wxOK | wxICON_ERROR
-          );
-#endif
-        }
-      }
+      wxLogDebug("Received command-line argument: %s", argv[1]);
+      frame->OpenFileFromShell(argv[1]);
     }
 
 #ifdef _DEBUG
@@ -108,6 +69,16 @@ public:
     return true;
   }
 
+#ifdef __WXMAC__
+  // macOS: Finder에서 .ml 더블클릭 / "다음으로 열기" / Dock 아이콘에 끌어놓기.
+  // 파일은 명령줄 인수가 아니라 이 함수로 온다 (실행 중일 때도, 실행하면서 열 때도). 한 번에 하나만 연다
+  void MacOpenFiles(const wxArrayString& fileNames) override {
+    if (MainFrame && !fileNames.IsEmpty()) {
+      MainFrame->OpenFileFromShell(fileNames[0]);
+    }
+  }
+#endif
+
   virtual int OnExit() {
 #ifdef _DEBUG
     std::cout << "=== Application Exit ===" << std::endl;
@@ -116,6 +87,9 @@ public:
 #endif
     return wxApp::OnExit();
   }
+
+private:
+  wxMLMainFrame* MainFrame = nullptr;   // wxWidgets가 소유 (삭제하지 않음)
 };
 
 wxIMPLEMENT_APP(MissionLedger);

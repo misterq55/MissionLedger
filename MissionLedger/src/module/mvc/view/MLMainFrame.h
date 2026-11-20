@@ -47,6 +47,10 @@ public:
     void OnDataLoaded() override;
     void OnDataSaved() override;
 
+    // 프로그램 밖에서 전달된 파일 열기: 명령줄 인수(Windows 연결 프로그램), macOS 더블클릭(MacOpenFiles).
+    // 존재 여부와 .ml 확장자를 확인하고, 저장하지 않은 변경이 있으면 먼저 물어본다
+    void OpenFileFromShell(const wxString& filePath);
+
 private:
     // 이벤트 핸들러 - 거래
     void OnAddTransaction(wxCommandEvent& event);
@@ -85,6 +89,7 @@ private:
     void updateButtonStates();
     void updateTitle();
     bool checkUnsavedChanges();
+    bool openFileAtPath(const wxString& filePath);
     void updateConvertedAmount();
     bool collectTransactionDataFromInput(FMLTransactionData& outData);
 

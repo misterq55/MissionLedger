@@ -616,20 +616,46 @@ void wxMLMainFrame::OnOpenFile(wxCommandEvent& event)
 
     if (openDialog.ShowModal() == wxID_CANCEL) return;
 
-    auto controller = FMLMVCHolder::GetInstance().GetController();
-    if (controller)
+    openFileAtPath(openDialog.GetPath());
+}
+
+void wxMLMainFrame::OpenFileFromShell(const wxString& filePath)
+{
+    if (!wxFileExists(filePath))
     {
-        if (controller->OpenFile(openDialog.GetPath().ToUTF8().data()))
-        {
-            updateTitle();
-            clearInputFields();
-        }
-        else
-        {
-            wxMessageBox(wxString::FromUTF8("파일을 열 수 없습니다."),
-                wxString::FromUTF8("오류"), wxOK | wxICON_ERROR);
-        }
+        wxMessageBox(
+            wxString::Format(wxString::FromUTF8("파일을 찾을 수 없습니다:\n%s"), filePath),
+            wxString::FromUTF8("파일 열기 실패"), wxOK | wxICON_ERROR);
+        return;
     }
+    if (!filePath.Lower().EndsWith(".ml"))
+    {
+        wxMessageBox(wxString::FromUTF8("MissionLedger 파일(.ml)이 아닙니다."),
+            wxString::FromUTF8("파일 형식 오류"), wxOK | wxICON_ERROR);
+        return;
+    }
+    if (!checkUnsavedChanges()) return;
+
+    openFileAtPath(filePath);
+}
+
+bool wxMLMainFrame::openFileAtPath(const wxString& filePath)
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return false;
+
+    // UTF-8로 넘김 (한글 경로)
+    if (!controller->OpenFile(filePath.ToUTF8().data()))
+    {
+        wxMessageBox(
+            wxString::Format(wxString::FromUTF8("파일을 열 수 없습니다:\n%s"), filePath),
+            wxString::FromUTF8("파일 열기 실패"), wxOK | wxICON_ERROR);
+        return false;
+    }
+
+    updateTitle();
+    clearInputFields();
+    return true;
 }
 
 void wxMLMainFrame::OnSaveFile(wxCommandEvent& event)
