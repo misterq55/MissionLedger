@@ -16,6 +16,7 @@ The build is defined by `CMakeLists.txt` files; the Visual Studio solution is **
 
 ```bash
 cmake --preset windows                    # generate build/windows/MissionLedger.sln (= GenerateProjectFiles.bat)
+cmake --preset macos                      # macOS (Xcode), build/macos; Core + CLI only for now (ML_BUILD_GUI=OFF)
 cmake --build --preset windows-debug      # Debug build
 cmake --build --preset windows-release    # Release build
 ctest --preset windows-release            # CLI smoke tests on tests/fixtures/sample.ml (or windows-debug)
@@ -146,7 +147,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
 4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
-5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". **Open decision** at the start: whether to add a scoped advance approval to the Working Rules (e.g. "commits/pushes to `main` during roadmap 7"); until then the per-turn rule applies
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). Step ① (macOS presets, `ML_BUILD_GUI`, Jenkinsfile builds macOS Core + CLI) written 2026-11-20, checked on Windows only so far
 6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
 **Next Steps** (features):

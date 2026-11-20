@@ -162,8 +162,8 @@ cmake --workflow --preset windows-release # configure → Release build → smok
 ```
 Platforms (matrix, both run to the end) ──────────────────────────────────────────┐
   WindowsMini: Preflight → Clean? → Configure → Build → Test → Package* → Archive │→ Deploy (stub)
-  MacMini:     Preflight → "not implemented" (until roadmap 7–8)                  │
-* Release only
+  MacMini:     Preflight → Clean? → Configure → Build → Test → Archive            │
+* Release, Windows only (macOS .dmg: roadmap 9). macOS builds Core + CLI only until step ③ (§6)
 ```
 
 | Parameter | Values (default first) | Effect |
@@ -187,7 +187,7 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 
 | File | Purpose |
 |---|---|
-| `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names and the list of implemented platforms are at the top (`PLATFORMS`, `IMPLEMENTED`) |
+| `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names, the platforms that build and the platforms that package are at the top (`PLATFORMS`, `IMPLEMENTED`, `PACKAGED`) |
 | `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
 | `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
 | `jenkins/scripts/node_setup_windows.ps1`, `node_setup_macos.sh` | **Run by hand, once per node** (the pipeline only checks, it never installs: nodes are shared, installs need admin rights, and the agent would not see a new PATH in the same run). Installs only what is missing, at pinned versions with SHA-256 checks: Windows CMake 3.31.12 (MSI, system PATH) and Inno Setup 6.7.4 (all users); macOS CMake 3.31.12 (official universal package in `/Applications/CMake.app`, not Homebrew, which installs the newest untested version). Visual Studio, Git and Xcode are only checked, with instructions. Windows: administrator PowerShell, `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_setup_windows.ps1`; macOS: `sh jenkins/scripts/node_setup_macos.sh`. Run on both nodes on 2026-11-19 (installed CMake 3.31.12 on both and Inno Setup 6.7.4 on WindowsMini, hashes matched); preflight and the CMake check in the Jenkinsfile print these commands when something is missing |
@@ -201,8 +201,8 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 | Configure | `cmake --preset <p> -DML_BUILD_NUMBER=<BUILD_NUMBER>` | Implemented platforms |
 | Build | `cmake --build --preset <p>-<config> --parallel` | 〃 |
 | Test | `ctest --preset <p>-<config> --output-junit ctest-junit.xml` → JUnit report `build/<p>/ctest-junit.xml` | 〃 |
-| Package | delete `installer/output/`, then `cmake --build --preset <p>-installer` | Release |
-| Archive | `installer/output/*`, `build/<p>/bin/Release/*.pdb` (Release); `build/<p>/tests/out/<config>/*.pdf` | 〃 |
+| Package | delete `installer/output/`, then `cmake --build --preset <p>-installer` | Release, packaged platforms (`PACKAGED`, Windows only for now) |
+| Archive | `installer/output/*`, `build/<p>/bin/Release/*.pdb` (Release, packaged platforms); `build/<p>/tests/out/<config>/*.pdf` | Implemented platforms |
 
 ### Jenkins setup (once)
 
@@ -249,15 +249,16 @@ Working directly on the Mac is inconvenient, so the build is developed through C
 - Mac-only CMake goes inside `if(APPLE)`, so the Windows build is not affected
 - Limit: the MacMini agent is started over SSH and cannot open windows, so the GUI (app launch, Korean text on screen, double-click opening of `.ml`) cannot be checked by Jenkins. Check it by hand once at the end (Screen Sharing / VNC, or at the Mac), with a checklist
 - Facts checked: the vendored wxWidgets includes the macOS sources (`src/osx`, `include/wx/osx`); MacMini is arm64 with Xcode 16.4 and CMake 3.31.12 (`/Applications/CMake.app`); the first build on the Mac is expected to take 10 minutes or more (wxWidgets)
-- Open decision: each try needs a commit and push, so the per-turn approval rule (CLAUDE.md) means many round trips. Decide at the start of this work whether to add a scoped advance approval (e.g. "commits and pushes to `main` during roadmap 7")
+- Approval (decided 2026-11-20): no advance approval added; the per-turn rule in CLAUDE.md stays. Each try needs someone to run Jenkins and read the log anyway, so approving a push costs only one extra message
+- Jenkins from Claude Code (set up 2026-11-20, per PC): Claude can start a build and read its log through the Jenkins REST API (`POST {JENKINS_URL}/job/MissionLedger/buildWithParameters?PLATFORM=macos`, then `.../<n>/api/json` and `.../<n>/consoleText`), authenticated with a Jenkins API token. Setup on each PC: create a token per PC in Jenkins (user → Security → API Token), store it as the user environment variables `JENKINS_URL` (no trailing `/`), `JENKINS_USER`, `JENKINS_TOKEN`, never in the repository or in chat. Starting a build needs approval like a push (e.g. "push and run the build"); reading status and logs does not. The controller is served over plain http, so the token travels unencrypted: consider https before using it from outside the home network
 
 | Step | Work | Checked by |
 |---|---|---|
-| ① | `macos` configure/build/test presets, Apple branches in CMake, build **Core + CLI only** | Compile, smoke tests (`ctest --preset macos-release`) |
+| ① | `macos` configure/build/test presets (Xcode generator: multi-config like Visual Studio, so `bin/<Config>/` and the `-debug`/`-release` presets match Windows; Ninja would be an extra tool on the node), `ML_BUILD_GUI` option (the `macos` preset sets it OFF, so wxWidgets is not even configured), build **Core + CLI only**. The Jenkinsfile builds macOS from here (`IMPLEMENTED`); Package and the PDB archive stay Windows only (`PACKAGED`). Written 2026-11-20; checked on Windows: the `windows` preset is unchanged, and `ML_BUILD_GUI=OFF` configures without wxWidgets, builds only the CLI and passes the 5 smoke tests. Not yet run on the Mac | Compile, smoke tests (`ctest --preset macos-release`) |
 | ② | PDF Korean font (§0 "PDF font"): Malgun Gothic does not exist on macOS, so bundle Noto Sans KR in `third_party/fonts/NotoSansKR/` (with `OFL.txt`) for both platforms. Work: (a) `getExecutablePath()` in `MLPDFDocument.cpp` reads `/proc/self/exe` on non-Windows, which does not exist on macOS, so the bundled `fonts/` is never found there: use `_NSGetExecutablePath` on `__APPLE__`; (b) also search `../Resources/fonts/` for the app bundle; (c) CMake copies the fonts into the build output; (d) enable the commented-out font line in `installer/MissionLedger.iss` and point it to `third_party/fonts`; (e) CHANGELOG `[미배포]`: Windows PDFs now use Noto Sans KR. Check the downloaded font's glyph map first | PDF artifacts, opened on Windows |
 | ③ | GUI app: `MACOSX_BUNDLE`, `Info.plist`, `.icns` icon, `MacOpenFiles()` | Build succeeds; running it is checked by hand at the end |
 | ④ | Universal (`CMAKE_OSX_ARCHITECTURES="arm64;x86_64"`) | `lipo -archs` in the Jenkins log (§7) |
-| ⑤ | Add `macos` to `IMPLEMENTED` in `jenkins/Build.Jenkinsfile`; `PLATFORM=both` builds both | Both platforms green |
+| ⑤ | `PLATFORM=both` builds both with the full macOS build (GUI included); add the §7 checks (`lipo -archs`, `otool -L`). (`macos` was already added to `IMPLEMENTED` in step ①, because Jenkins skips the build of a platform that is not in it) | Both platforms green |
 
 ---
 
@@ -348,6 +349,6 @@ agent { label 'macos && xcode' }
 5. [x] CTest smoke tests (`list`/`budget list` totals, 2 PDFs from `tests/fixtures/sample.ml`), test presets, `installer` target (ISCC, Release only) and the `windows-release` workflow preset; `build_installer.bat` became a wrapper for the workflow. Checked that a wrong expected value fails the test and stops the workflow before packaging, and that `installer` refuses Debug (2026-11-18)
 6. [x] `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, parameters, macOS cell = preflight only) and `jenkins/scripts/preflight.cmake` written (2026-11-18). Checked on Windows: preflight passes on the dev PC and lists 3 problems on a simulated bare node; all Windows stages run in a fresh clone (Release + installer, Debug, JUnit file with 5 tests, exe version `1.0.0.<BUILD_NUMBER>`). Nodes prepared with `node_check_*` / `node_setup_*` and `PATH+CMAKE`; first successful Jenkins build 2026-11-19 (about 10 minutes, first build on the nodes)
 7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done"
-8. [ ] Turn on the macOS cell: add `macos` to `IMPLEMENTED` in the Jenkinsfile, plus the checks of §7 (`lipo -archs`, `otool -L`)
+8. [ ] Turn on the macOS cell fully: the checks of §7 (`lipo -archs`, `otool -L`) and the GUI in the build. (`macos` is in `IMPLEMENTED` since roadmap 7 step ①, building Core + CLI)
 9. [ ] `.dmg` creation; signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
 10. [ ] Deployment: implement the `DEPLOY` stage (Google Drive under consideration, §0): force Release + clean build, check `VERSION` against the release tag, upload the installers; release notes from this version's CHANGELOG section. Then set the `DEPLOY` default to off
