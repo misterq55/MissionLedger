@@ -25,6 +25,7 @@
 | macOS signing | Not now. Build and test unsigned first | Distributing to others without Gatekeeper warnings needs the Apple Developer Program ($99/year). Check Apple's nonprofit fee waiver first. A few known users can use System Settings → Privacy & Security → "Open Anyway" |
 | Versioning | ✅ Done. Root `VERSION` file is the single source of truth | See §1 and [VERSIONING.md](VERSIONING.md) |
 | Jenkins job | ✅ One **Pipeline** job ("Pipeline script from SCM", `main`), started by hand with parameters. No Multibranch, no webhook | Jenkinsfiles live in `jenkins/` (`jenkins/Build.Jenkinsfile`). Nodes: `WindowsMini`, `MacMini`. See §4–§5 |
+| PDF font | **Bundle Noto Sans KR** (Regular + Bold, OFL) in `third_party/fonts/NotoSansKR/` and use it on both platforms (decided 2026-11-20) | Same PDF output on Windows and macOS (expected; Windows PDFs change from Malgun Gothic to Noto Sans KR). CMake copies the fonts next to the executable (`fonts/`; macOS app: `Contents/Resources/fonts/`); the installer and the macOS bundle take them from `third_party/fonts`. CJK coverage stays as now (Hangul, Korean Hanja; not Japanese shinjitai or Simplified Chinese), not needed yet. If it is needed later, swap in Noto Sans CJK KR (full pan-CJK set, about 16 MB per weight) in the same folder and change the file names in the code |
 | Deploy target | **Google Drive** under consideration instead of GitHub Releases (roadmap 10) | Likely rclone on the node with credentials in Jenkins. A personal Google account needs an OAuth user token (service accounts have no My Drive storage); a Workspace shared drive can use a service account |
 
 ---
@@ -253,7 +254,7 @@ Working directly on the Mac is inconvenient, so the build is developed through C
 | Step | Work | Checked by |
 |---|---|---|
 | ① | `macos` configure/build/test presets, Apple branches in CMake, build **Core + CLI only** | Compile, smoke tests (`ctest --preset macos-release`) |
-| ② | PDF Korean font: Malgun Gothic does not exist on macOS. Consider bundling Noto Sans KR in the repository (OFL license) so both platforms use the same font | PDF artifacts, opened on Windows |
+| ② | PDF Korean font (§0 "PDF font"): Malgun Gothic does not exist on macOS, so bundle Noto Sans KR in `third_party/fonts/NotoSansKR/` (with `OFL.txt`) for both platforms. Work: (a) `getExecutablePath()` in `MLPDFDocument.cpp` reads `/proc/self/exe` on non-Windows, which does not exist on macOS, so the bundled `fonts/` is never found there: use `_NSGetExecutablePath` on `__APPLE__`; (b) also search `../Resources/fonts/` for the app bundle; (c) CMake copies the fonts into the build output; (d) enable the commented-out font line in `installer/MissionLedger.iss` and point it to `third_party/fonts`; (e) CHANGELOG `[미배포]`: Windows PDFs now use Noto Sans KR. Check the downloaded font's glyph map first | PDF artifacts, opened on Windows |
 | ③ | GUI app: `MACOSX_BUNDLE`, `Info.plist`, `.icns` icon, `MacOpenFiles()` | Build succeeds; running it is checked by hand at the end |
 | ④ | Universal (`CMAKE_OSX_ARCHITECTURES="arm64;x86_64"`) | `lipo -archs` in the Jenkins log (§7) |
 | ⑤ | Add `macos` to `IMPLEMENTED` in `jenkins/Build.Jenkinsfile`; `PLATFORM=both` builds both | Both platforms green |
