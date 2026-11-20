@@ -73,6 +73,8 @@ MissionLedger/                   # Repository root
 │       ├── interface/          # Abstract interfaces (IMLModel, IMLView, ...)
 │       └── module/
 │           ├── common/holder/  # FMLMVCHolder singleton
+│           ├── common/format/  # FMLFormat: amount/decimal/console-column text, locale-independent (GUI, CLI, PDF all use it)
+│           ├── common/currency/ # FMLCurrency: foreign amount x rate -> KRW (rounded), used by GUI and CLI
 │           ├── storage/        # FMLSQLiteStorage implementation
 │           ├── export/         # PDF export functionality
 │           └── mvc/
