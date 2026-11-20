@@ -1,6 +1,6 @@
 # Build node check (Windows / macOS), run before every build by jenkins/Build.Jenkinsfile
 #
-#   cmake -DPLATFORM=<windows|macos> [-DWORKSPACE=<path>] -P jenkins/scripts/preflight.cmake
+#   cmake -DPLATFORM=<windows|macos> [-DWORKSPACE=<path>] [-DREQUIRE_RCLONE=ON] -P jenkins/scripts/preflight.cmake
 #
 # Checks only general tools (docs/CI_PLAN.md §8): project dependencies come from the repository.
 # Every problem is listed, then the script fails once, so a new node can be fixed in one pass.
@@ -43,6 +43,19 @@ if(PF_GIT)
     ok("${out}")
 else()
     problem("git not found in PATH")
+endif()
+
+# ----- rclone (Google Drive upload): required only on the node that deploys (REQUIRE_RCLONE=ON, set by
+#       the Jenkinsfile when this build uploads); elsewhere it is only reported -----
+find_program(PF_RCLONE rclone)
+if(PF_RCLONE)
+    execute_process(COMMAND "${PF_RCLONE}" version OUTPUT_VARIABLE out OUTPUT_STRIP_TRAILING_WHITESPACE)
+    string(REGEX MATCH "^[^\n]*" out "${out}")
+    ok("${out} (${PF_RCLONE})")
+elseif(REQUIRE_RCLONE)
+    problem("rclone not found in PATH (needed to upload the release: https://rclone.org/install/, then PATH+RCLONE=<its folder> in the node settings)")
+else()
+    message(STATUS "  [ -- ] rclone not found (only needed on the node that uploads releases)")
 endif()
 
 if(PLATFORM STREQUAL "windows")
