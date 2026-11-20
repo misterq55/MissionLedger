@@ -1,6 +1,6 @@
 #include "MLSQLiteStorage.h"
 #include "module/mvc/model/transaction/MLTransaction.h"
-#include "third_party/sqlite/sqlite3.h"
+#include "sqlite3.h"
 #include <sstream>
 #include <iomanip>
 #include <ctime>

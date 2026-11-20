@@ -16,7 +16,9 @@ target_include_directories(MissionLedgerCore
     PUBLIC
         src                                         # GUI/CLI include Core headers from here
     PRIVATE
-        "${PROJECT_SOURCE_DIR}"                     # #include "third_party/sqlite/sqlite3.h"
+        # #include "sqlite3.h". Never add the repository root: on case-insensitive file systems (macOS)
+        # the root VERSION file would be found for the C++ standard header <version>
+        "${PROJECT_SOURCE_DIR}/third_party/sqlite"
         "${PROJECT_SOURCE_DIR}/third_party/pdfwriter")  # #include "PDFWriter/PDFWriter.h"
 
 target_link_libraries(MissionLedgerCore PUBLIC PDFHummus::PDFWriter)
