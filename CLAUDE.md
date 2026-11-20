@@ -16,12 +16,13 @@ The build is defined by `CMakeLists.txt` files; the Visual Studio solution is **
 
 ```bash
 cmake --preset windows                    # generate build/windows/MissionLedger.sln (= GenerateProjectFiles.bat)
-cmake --preset macos                      # macOS (Xcode), build/macos; Core + CLI only for now (ML_BUILD_GUI=OFF)
+cmake --preset macos                      # macOS (Xcode), build/macos: MissionLedger.app + CLI (arm64, macOS 11.0+)
 cmake --build --preset windows-debug      # Debug build
 cmake --build --preset windows-release    # Release build
 ctest --preset windows-release            # CLI smoke tests on tests/fixtures/sample.ml (or windows-debug)
 cmake --build --preset windows-installer  # Inno Setup installer from the Release build (Release only)
 cmake --workflow --preset windows-release # all of it: configure → Release build → smoke test → installer
+cmake --workflow --preset macos-release   # same on macOS; the installer is an unsigned .dmg (installer/output/)
 build_installer.bat                       # local double-click wrapper for the workflow above (ends with pause; not for CI)
 ```
 
@@ -151,7 +152,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
 4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
-5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). ✅ Step ① done 2026-11-20 (macOS presets, `ML_BUILD_GUI=OFF`, Jenkinsfile builds macOS Core + CLI; Jenkins #6 green on both platforms, Mac 5/5 smoke tests). ✅ Step ② done 2026-11-20 (Noto Sans KR bundled in `third_party/fonts/NotoSansKR/` for both platforms, `getExecutablePath()` fixed on macOS; Jenkins #7 green, Mac PDFs with regular and bold). **Next: step ③** (GUI app on macOS: `ML_BUILD_GUI` on in the `macos` preset, `MACOSX_BUNDLE`, `Info.plist`, `.icns`, `MacOpenFiles()`, fonts in `Contents/Resources/fonts/`)
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). ✅ Step ① done 2026-11-20 (macOS presets, `ML_BUILD_GUI=OFF`, Jenkinsfile builds macOS Core + CLI; Jenkins #6 green on both platforms, Mac 5/5 smoke tests). ✅ Step ② done 2026-11-20 (Noto Sans KR bundled in `third_party/fonts/NotoSansKR/` for both platforms, `getExecutablePath()` fixed on macOS; Jenkins #7 green, Mac PDFs with regular and bold). ✅ Step ③ built 2026-11-21 (`MissionLedger.app`: `Info.plist`, `.icns`, `MacOpenFiles()`, fonts in `Contents/Resources/fonts/`, plus a basic unsigned `.dmg` moved up from roadmap 9; Jenkins #9 green on both). The app has not been run yet: the GUI is checked by hand at the end of roadmap 7 on a Jenkins build (decided 2026-11-21). **Next: step ④** (Universal: `CMAKE_OSX_ARCHITECTURES="arm64;x86_64"`; the build is arm64 only until then)
 6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
 **Next Steps** (features):
