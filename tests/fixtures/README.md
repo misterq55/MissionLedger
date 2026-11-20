@@ -28,11 +28,11 @@ Defined in [`tests/CMakeLists.txt`](../CMakeLists.txt), run by [`tests/cli_smoke
 |---|---|---|
 | `cli_list_totals` | `list sample.ml` | exit 0; output has 10 transactions and the totals above |
 | `cli_budget_totals` | `budget list sample.ml` | exit 0; output has income budget 5,000,000원, expense budget 4,800,000원 |
-| `cli_export_settlement` | `export-settlement sample.ml <out>` | exit 0; the PDF exists, is not empty and starts with `%PDF` |
+| `cli_export_settlement` | `export-settlement sample.ml <out>` | exit 0; the PDF exists, is not empty, starts with `%PDF` and embeds the bundled fonts `NotoSansKR-Regular` and `NotoSansKR-Bold` |
 | `cli_export_transactions` | `export-transactions sample.ml <out>` | same |
 | `cli_missing_file` | `list <path that does not exist>` | exit code is not 0 and no file is created there |
 
-PDFs go to `build/windows/tests/out/<Config>/`. PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
+PDFs go to `build/windows/tests/out/<Config>/`. Apart from the embedded font names, PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
 
 ### Regenerating
 
