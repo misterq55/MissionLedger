@@ -13,10 +13,10 @@
     {
       "name": "macos",
       "displayName": "macOS (Xcode)",
-      "description": "Core + CLI only until the macOS GUI is done (docs/CI_PLAN.md §6, step ③ turns ML_BUILD_GUI on)",
+      "description": "MissionLedger.app + CLI. Minimum macOS 11.0 (Big Sur); without it the minimum is the build Mac's SDK version",
       "generator": "Xcode",
       "binaryDir": "${sourceDir}/build/macos",
-      "cacheVariables": { "ML_BUILD_GUI": "OFF" },
+      "cacheVariables": { "ML_BUILD_GUI": "ON", "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0" },
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
     }
   ],
@@ -25,7 +25,8 @@
     { "name": "windows-release",   "configurePreset": "windows", "configuration": "Release" },
     { "name": "windows-installer", "configurePreset": "windows", "configuration": "Release", "targets": [ "installer" ] },
     { "name": "macos-debug",       "configurePreset": "macos",   "configuration": "Debug" },
-    { "name": "macos-release",     "configurePreset": "macos",   "configuration": "Release" }
+    { "name": "macos-release",     "configurePreset": "macos",   "configuration": "Release" },
+    { "name": "macos-installer",   "configurePreset": "macos",   "configuration": "Release", "targets": [ "installer" ] }
   ],
   "testPresets": [
     { "name": "windows-debug",   "configurePreset": "windows", "configuration": "Debug",   "output": { "outputOnFailure": true } },
@@ -42,6 +43,16 @@
         { "type": "build",     "name": "windows-release" },
         { "type": "test",      "name": "windows-release" },
         { "type": "build",     "name": "windows-installer" }
+      ]
+    },
+    {
+      "name": "macos-release",
+      "displayName": "Configure, Release build, smoke test, disk image",
+      "steps": [
+        { "type": "configure", "name": "macos" },
+        { "type": "build",     "name": "macos-release" },
+        { "type": "test",      "name": "macos-release" },
+        { "type": "build",     "name": "macos-installer" }
       ]
     }
   ]

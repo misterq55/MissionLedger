@@ -3,7 +3,7 @@
 # The source folders and these CMakeLists.txt files are the source of truth.
 # IDE projects (Visual Studio .sln, Xcode) are generated into build/ and never committed.
 #   Windows: GenerateProjectFiles.bat  (= cmake --preset windows)
-#   macOS:   cmake --preset macos      (Xcode; Core + CLI only for now, docs/CI_PLAN.md §6)
+#   macOS:   cmake --preset macos      (Xcode; MissionLedger.app + CLI, docs/CI_PLAN.md §6)
 # Details: docs/CI_PLAN.md §3
 
 cmake_minimum_required(VERSION 3.25)   # workflow presets need 3.25; PDF-Writer needs 3.19
@@ -24,7 +24,7 @@ project(MissionLedger VERSION ${ML_VERSION} LANGUAGES C CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # GUI app (wxWidgets). OFF builds only Core + CLI (+ smoke tests) and does not configure wxWidgets at all.
-# The macos preset sets it OFF until the macOS GUI is done (docs/CI_PLAN.md §6, step ③).
+# Both presets build it; OFF is for a quick Core + CLI build (cmake --preset macos -DML_BUILD_GUI=OFF).
 option(ML_BUILD_GUI "Build the GUI application (wxWidgets)" ON)
 
 # Executables go to build/<preset>/bin/<Config>/ (multi-config generators append the config)
@@ -94,7 +94,7 @@ set_target_properties(fonts PROPERTIES FOLDER "Packaging")
 enable_testing()
 add_subdirectory(tests)
 
-# ----- Installer (Inno Setup): cmake --build --preset windows-installer -----
+# ----- Installer: Windows Inno Setup (windows-installer preset), macOS .dmg (macos-installer preset) -----
 # Not part of ALL: build it explicitly. Release only (checked in installer/package.cmake).
 if(WIN32 AND ML_BUILD_GUI)
     find_program(ML_ISCC ISCC
@@ -108,6 +108,19 @@ if(WIN32 AND ML_BUILD_GUI)
             -DISS=${CMAKE_CURRENT_SOURCE_DIR}/installer/MissionLedger.iss
             -P ${CMAKE_CURRENT_SOURCE_DIR}/installer/package.cmake
         COMMENT "Building installer (installer/output/MissionLedger-${ML_VERSION}-Setup.exe)"
+        VERBATIM)
+    add_dependencies(installer MissionLedger)
+    set_target_properties(installer PROPERTIES FOLDER "Packaging")
+elseif(APPLE AND ML_BUILD_GUI)
+    # macOS: disk image with the app bundle. cmake --build --preset macos-installer
+    add_custom_target(installer
+        COMMAND ${CMAKE_COMMAND}
+            -DCONFIG=$<CONFIG>
+            -DAPP=$<TARGET_BUNDLE_DIR:MissionLedger>
+            -DOUT=${CMAKE_CURRENT_SOURCE_DIR}/installer/output/MissionLedger-${ML_VERSION}.dmg
+            -DWORK=${CMAKE_CURRENT_BINARY_DIR}/installer
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/installer/package_macos.cmake
+        COMMENT "Building disk image (installer/output/MissionLedger-${ML_VERSION}.dmg)"
         VERBATIM)
     add_dependencies(installer MissionLedger)
     set_target_properties(installer PROPERTIES FOLDER "Packaging")

@@ -14,11 +14,11 @@ import groovy.transform.Field
 @Field final Map PLATFORMS = [WindowsMini: 'windows', MacMini: 'macos']
 
 // Platforms that build. The others only run the node check (preflight) until their build exists.
-// macOS builds Core + CLI and runs the smoke tests (roadmap 7, docs/CI_PLAN.md §6); no package yet
+// macOS: MissionLedger.app + CLI, smoke tests, unsigned .dmg (roadmap 7, docs/CI_PLAN.md §6)
 @Field final List IMPLEMENTED = ['windows', 'macos']
 
-// Platforms with a <platform>-installer build preset (macOS .dmg: roadmap 9)
-@Field final List PACKAGED = ['windows']
+// Platforms with a <platform>-installer build preset (Windows: Inno Setup .exe, macOS: .dmg)
+@Field final List PACKAGED = ['windows', 'macos']
 
 String platformOf(String node) { return PLATFORMS[node] }
 boolean isImplemented(String node) { return IMPLEMENTED.contains(platformOf(node)) }
@@ -66,9 +66,9 @@ pipeline {
 
     parameters {
         choice(name: 'PLATFORM', choices: ['both', 'windows', 'macos'],
-               description: 'Platform to build. macOS: Core + CLI and smoke tests only, for now (roadmap 7)')
+               description: 'Platform to build. macOS: app + CLI, smoke tests, unsigned .dmg (roadmap 7)')
         choice(name: 'CONFIGURATION', choices: ['Release', 'Debug'],
-               description: 'Release also builds the installer (Windows only). Debug: build and smoke test only')
+               description: 'Release also builds the installer (Windows .exe, macOS .dmg). Debug: build and smoke test only')
         booleanParam(name: 'CLEAN_BUILD', defaultValue: false,
                description: 'Delete build/ first (rebuilds wxWidgets and PDF-Writer, a few minutes longer)')
         booleanParam(name: 'DEPLOY', defaultValue: true,
@@ -161,7 +161,10 @@ pipeline {
                                 def c = params.CONFIGURATION
                                 def files = ["build/${p}/tests/out/${c}/*.pdf"]       // smoke test PDFs
                                 if (c == 'Release' && isPackaged(env.NODE)) {
-                                    files += ['installer/output/*', "build/${p}/bin/Release/*.pdb"]   // installer + PDBs for crash analysis
+                                    files += ['installer/output/*']                     // installer (.exe / .dmg)
+                                    if (p == 'windows') {
+                                        files += ["build/${p}/bin/Release/*.pdb"]    // PDBs for crash analysis
+                                    }
                                 }
                                 archiveArtifacts artifacts: files.join(', '), allowEmptyArchive: true, fingerprint: true
                             }
