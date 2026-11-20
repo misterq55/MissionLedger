@@ -12,6 +12,9 @@
 # Mac the first start needs System Settings > Privacy & Security > "Open Anyway".
 # Release only, like the Windows installer (package.cmake).
 
+# Script mode (-P) starts with old policy defaults: without this, if(... IN_LIST ...) is an error (CMP0057)
+cmake_minimum_required(VERSION 3.25)
+
 if(NOT CONFIG STREQUAL "Release")
     message(FATAL_ERROR "The disk image is built from Release only (current configuration: '${CONFIG}'). "
                         "Use: cmake --build --preset macos-installer")
