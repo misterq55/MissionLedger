@@ -2,3 +2,7 @@
 *.otf binary
 *.ttf binary
 *.ttc binary
+
+# Shell scripts must keep LF (a CRLF "#!/bin/sh" line fails on macOS); batch files keep CRLF
+*.sh text eol=lf
+*.bat text eol=crlf
