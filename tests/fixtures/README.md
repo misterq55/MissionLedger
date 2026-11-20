@@ -31,8 +31,9 @@ Defined in [`tests/CMakeLists.txt`](../CMakeLists.txt), run by [`tests/cli_smoke
 | `cli_export_settlement` | `export-settlement sample.ml <out>` | exit 0; the PDF exists, is not empty, starts with `%PDF` and embeds the bundled fonts `NotoSansKR-Regular` and `NotoSansKR-Bold` |
 | `cli_export_transactions` | `export-transactions sample.ml <out>` | same |
 | `cli_missing_file` | `list <path that does not exist>` | exit code is not 0 and no file is created there |
+| `cli_*_x86_64` (macOS only) | the five above, run as `arch -x86_64 MissionLedgerCLI ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
 
-PDFs go to `build/windows/tests/out/<Config>/`. Apart from the embedded font names, PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
+PDFs go to `build/<windows|macos>/tests/out/<Config>/`. Apart from the embedded font names, PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
 
 ### Regenerating
 

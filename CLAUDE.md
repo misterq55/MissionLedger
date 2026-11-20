@@ -16,7 +16,7 @@ The build is defined by `CMakeLists.txt` files; the Visual Studio solution is **
 
 ```bash
 cmake --preset windows                    # generate build/windows/MissionLedger.sln (= GenerateProjectFiles.bat)
-cmake --preset macos                      # macOS (Xcode), build/macos: MissionLedger.app + CLI (arm64, macOS 11.0+)
+cmake --preset macos                      # macOS (Xcode), build/macos: MissionLedger.app + CLI (Universal, macOS 11.0+)
 cmake --build --preset windows-debug      # Debug build
 cmake --build --preset windows-release    # Release build
 ctest --preset windows-release            # CLI smoke tests on tests/fixtures/sample.ml (or windows-debug)
@@ -32,7 +32,7 @@ build_installer.bat                       # local double-click wrapper for the w
 - CI build number: `cmake --preset windows -DML_BUILD_NUMBER=N` (4th field of the exe version)
 - CI (Jenkins) calls the presets one per stage (configure / build / test / installer) so each result shows separately; the workflow preset and `build_installer.bat` are for people
 - Jenkins: one Pipeline job, Script Path `jenkins/Build.Jenkinsfile`, parameters `PLATFORM` (both/windows/macos), `CONFIGURATION`, `CLEAN_BUILD`, `DEPLOY` (stub). Node check on any PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake`
-- Smoke tests check exit codes, the totals in `tests/fixtures/README.md`, that both PDFs are created (not PDF contents) and that opening a missing file fails without creating it. Output goes to `build/windows/tests/out/<Config>/`
+- Smoke tests check exit codes, the totals in `tests/fixtures/README.md`, that both PDFs are created (not PDF contents) and that opening a missing file fails without creating it; on macOS the same five also run on the x86_64 half (Rosetta). Output goes to `build/windows/tests/out/<Config>/`
 - The `installer` target finds `ISCC.exe` in the default Inno Setup 6 folder; elsewhere configure with `-DML_ISCC=<path>`
 
 ### Working in the IDE
@@ -53,7 +53,7 @@ All libraries come from the repository; nothing is installed or configured on th
 - **SQLite**: Embedded via amalgamation (third_party/sqlite/), compiled into Core
 - **PDF-Writer**: PDF generation library (third_party/pdfwriter/), `add_subdirectory` (OpenSSL off)
 - **Noto Sans KR 2.004** (OFL): PDF export font, `third_party/fonts/NotoSansKR/` (see its `VERSION.txt`); the `fonts` target copies it next to the executables, the installer to `{app}\fonts\`
-- **Platform**: Windows x64 (macOS planned, [docs/CI_PLAN.md](docs/CI_PLAN.md))
+- **Platform**: Windows x64 (released); macOS Universal (arm64 + x86_64, 11.0+) built and smoke-tested by Jenkins, GUI not checked by hand yet, not released ([docs/CI_PLAN.md](docs/CI_PLAN.md) §6)
 
 ### Code Structure
 
@@ -152,7 +152,7 @@ Clone, then run `GenerateProjectFiles.bat` (or `cmake --preset windows`). No oth
 2. ✅ CMake migration (2026-11-18)
 3. ✅ CTest smoke test, test presets, `installer` target, workflow preset (2026-11-18)
 4. ✅ Jenkins pipeline (`jenkins/Build.Jenkinsfile`, [docs/CI_PLAN.md](docs/CI_PLAN.md) §4–§5); first successful build 2026-11-19
-5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). ✅ Step ① done 2026-11-20 (macOS presets, `ML_BUILD_GUI=OFF`, Jenkinsfile builds macOS Core + CLI; Jenkins #6 green on both platforms, Mac 5/5 smoke tests). ✅ Step ② done 2026-11-20 (Noto Sans KR bundled in `third_party/fonts/NotoSansKR/` for both platforms, `getExecutablePath()` fixed on macOS; Jenkins #7 green, Mac PDFs with regular and bold). ✅ Step ③ built 2026-11-21 (`MissionLedger.app`: `Info.plist`, `.icns`, `MacOpenFiles()`, fonts in `Contents/Resources/fonts/`, plus a basic unsigned `.dmg` moved up from roadmap 9; Jenkins #9 green on both). The app has not been run yet: the GUI is checked by hand at the end of roadmap 7 on a Jenkins build (decided 2026-11-21). **Next: step ④** (Universal: `CMAKE_OSX_ARCHITECTURES="arm64;x86_64"`; the build is arm64 only until then)
+5. 📋 macOS build (`MacOpenFiles`, fonts, bundle, Universal); signing deferred. Developed through CI: edit on Windows, push to `main`, run Jenkins with `PLATFORM=macos`, fix from the log; GUI checked by hand at the end. Steps ①–⑤ in [docs/CI_PLAN.md](docs/CI_PLAN.md) §6 "How the macOS work is done". No advance approval for commits/pushes (decided 2026-11-20): the per-turn rule applies. Claude can start Jenkins builds and read logs via the REST API when the PC has `JENKINS_URL`/`JENKINS_USER`/`JENKINS_TOKEN` user environment variables (setup in §6; starting a build needs approval). ✅ Step ① done 2026-11-20 (macOS presets, `ML_BUILD_GUI=OFF`, Jenkinsfile builds macOS Core + CLI; Jenkins #6 green on both platforms, Mac 5/5 smoke tests). ✅ Step ② done 2026-11-20 (Noto Sans KR bundled in `third_party/fonts/NotoSansKR/` for both platforms, `getExecutablePath()` fixed on macOS; Jenkins #7 green, Mac PDFs with regular and bold). ✅ Step ③ built 2026-11-21 (`MissionLedger.app`: `Info.plist`, `.icns`, `MacOpenFiles()`, fonts in `Contents/Resources/fonts/`, plus a basic unsigned `.dmg` moved up from roadmap 9; Jenkins #9 green on both). The app has not been run yet: the GUI is checked by hand at the end of roadmap 7 on a Jenkins build (decided 2026-11-21). ✅ Steps ④–⑤ done 2026-11-21 (Universal arm64 + x86_64, smoke tests also on x86_64 through Rosetta, `lipo`/`otool` checks before the `.dmg`; Jenkins #12 green on both). **Next: GUI check by hand** on the `.dmg` from Jenkins (the last open item of roadmap 7; checklist: install, "Open Anyway", window/Korean text, `.ml` double-click with the app closed and running, menus/⌘ shortcuts, CRUD, budget, filter, save/reopen, PDF export)
 6. 📋 Deployment (`DEPLOY` stage is a stub): Google Drive under consideration
 
 **Next Steps** (features):
