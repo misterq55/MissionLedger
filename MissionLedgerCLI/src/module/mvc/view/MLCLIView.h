@@ -88,7 +88,6 @@ private:
     void printSeparator();
     std::string getTypeString(E_MLTransactionType type);
     std::string getBudgetTypeString(E_MLTransactionType type);
-    std::string formatAmount(int64_t amount);
 
     // 상태
     bool SilentMode = false;  // 명령어 모드에서 이벤트 출력 억제

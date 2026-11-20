@@ -2,6 +2,7 @@
 #include "MLPDFRow.h"
 #include "MLPDFDocument.h"
 #include "PDFWriter/PageContentContext.h"
+#include "module/common/format/MLFormat.h"
 #include <sstream>
 #include <iomanip>
 #include <vector>
@@ -18,15 +19,6 @@ static std::string extractFilename(const std::string& filePath)
     if (lastDot != std::string::npos)
         filename = filename.substr(0, lastDot);
     return filename;
-}
-
-// 금액 포맷 헬퍼 (천 단위 콤마)
-static std::string formatAmountHelper(int64_t amount)
-{
-    std::stringstream ss;
-    ss.imbue(std::locale(""));
-    ss << std::fixed << amount;
-    return ss.str();
 }
 
 // UTF-8 문자열을 지정된 너비에 맞게 여러 줄로 분할
@@ -215,12 +207,12 @@ static void drawCategoryGroup(
             ctx->S();
             ctx->Q();
 
-            std::string amountStr = formatAmountHelper(transaction.Amount) + "원";
+            std::string amountStr = FMLFormat::FormatAmount(transaction.Amount) + "원";
             if (transaction.UseExchangeRate && transaction.Currency != "KRW") {
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(1);
                 oss << " (" << transaction.Currency << " "
-                    << formatAmountHelper(static_cast<int64_t>(transaction.OriginalAmount))
+                    << FMLFormat::FormatAmount(static_cast<int64_t>(transaction.OriginalAmount))
                     << " @ " << transaction.ExchangeRate << ")";
                 amountStr += oss.str();
             }
@@ -353,21 +345,21 @@ bool FMLPDFExporter::ExportSettlement(
 
         // === 1. 요약 - 총 수입 / 총 지출 (예산) ===
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 수입 (예산)", tableWidth * 0.6).AddCell(formatAmount(data.TotalIncome) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 수입 (예산)", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalIncome) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
 
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 지출 (예산)", tableWidth * 0.6).AddCell(formatAmount(data.TotalExpense) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 지출 (예산)", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalExpense) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
         doc.MoveDown(sectionSpacing);
 
         // === 1. 요약 - 총 실수입 / 총 실지출 / 잔액 (실적) ===
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 실수입", tableWidth * 0.6).AddCell(formatAmount(data.TotalActualIncome) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 실수입", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalActualIncome) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
 
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 실지출", tableWidth * 0.6).AddCell(formatAmount(data.TotalActualExpense) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 실지출", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalActualExpense) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
 
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("잔액", tableWidth * 0.6).AddCell(formatAmount(data.TotalBalance) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("잔액", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalBalance) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
         doc.MoveDown(sectionSpacing);
 
         // === 2. 환율 정보 ===
@@ -415,11 +407,11 @@ bool FMLPDFExporter::ExportSettlement(
             if (budgetIt != data.BudgetIncomeCategories.end()) budgetAmount = budgetIt->second;
             auto actualIt = data.ActualIncomeCategories.find(category);
             if (actualIt != data.ActualIncomeCategories.end()) actualAmount = actualIt->second;
-            doc.DrawRow(FMLPDFRow(rowHeight).AddCell(category, tableWidth * 0.5).AddCell(formatAmount(budgetAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(formatAmount(actualAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 10);
+            doc.DrawRow(FMLPDFRow(rowHeight).AddCell(category, tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(budgetAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(actualAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 10);
         }
 
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("합계", tableWidth * 0.5).AddCell(formatAmount(data.TotalIncome) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(formatAmount(data.TotalActualIncome) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 9, true);
+        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("합계", tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(data.TotalIncome) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(data.TotalActualIncome) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 9, true);
         doc.MoveDown(sectionSpacing);
 
         // === 4. 지출 비교 (예산 vs 실적) ===
@@ -458,11 +450,11 @@ bool FMLPDFExporter::ExportSettlement(
             if (budgetIt != budgetExpenseCategories.end()) budgetAmount = budgetIt->second;
             auto actualIt = actualExpenseCategories.find(category);
             if (actualIt != actualExpenseCategories.end()) actualAmount = actualIt->second;
-            doc.DrawRow(FMLPDFRow(rowHeight).AddCell(category, tableWidth * 0.5).AddCell(formatAmount(budgetAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(formatAmount(actualAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 10);
+            doc.DrawRow(FMLPDFRow(rowHeight).AddCell(category, tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(budgetAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(actualAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 10);
         }
 
         doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("합계", tableWidth * 0.5).AddCell(formatAmount(data.TotalExpense) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(formatAmount(data.TotalActualExpense) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 9, true);
+        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("합계", tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(data.TotalExpense) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(data.TotalActualExpense) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 9, true);
 
         doc.Close();
         return true;
@@ -531,9 +523,9 @@ bool FMLPDFExporter::ExportTransactionList(
         doc.MoveDown(30.0);
 
         const double summaryWidth = 300.0;
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("총 수입", summaryWidth * 0.6).AddCell(formatAmount(totalIncome) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("총 지출", summaryWidth * 0.6).AddCell(formatAmount(totalExpense) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("남은 금액", summaryWidth * 0.6).AddCell(formatAmount(balance) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("총 수입", summaryWidth * 0.6).AddCell(FMLFormat::FormatAmount(totalIncome) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("총 지출", summaryWidth * 0.6).AddCell(FMLFormat::FormatAmount(totalExpense) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
+        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("남은 금액", summaryWidth * 0.6).AddCell(FMLFormat::FormatAmount(balance) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
         doc.MoveDown(sectionSpacing);
 
         // === 카테고리별 합계 ===
@@ -592,7 +584,7 @@ bool FMLPDFExporter::ExportTransactionList(
                     ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
                     ctx->re(currentX, doc.GetY(), incomeColWidth, categoryRowHeight);
                     ctx->S(); ctx->Q();
-                    std::string amountStr = formatAmount(incomeCatList[i].second);
+                    std::string amountStr = FMLFormat::FormatAmount(incomeCatList[i].second);
                     double estimatedWidth = amountStr.length() * 8 * 0.45;
                     ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(doc.GetFontRegular(), 8);
                     ctx->Tm(1, 0, 0, 1, currentX + incomeColWidth - estimatedWidth - 8, doc.GetY() + 4);
@@ -603,7 +595,7 @@ bool FMLPDFExporter::ExportTransactionList(
                 ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
                 ctx->re(currentX, doc.GetY(), incomeColWidth, categoryRowHeight);
                 ctx->S(); ctx->Q();
-                std::string totalStr = formatAmount(incomeDisplayTotal);
+                std::string totalStr = FMLFormat::FormatAmount(incomeDisplayTotal);
                 double estimatedWidth = totalStr.length() * 8 * 0.45;
                 ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(fontBold, 8);
                 ctx->Tm(1, 0, 0, 1, currentX + incomeColWidth - estimatedWidth - 8, doc.GetY() + 4);
@@ -664,7 +656,7 @@ bool FMLPDFExporter::ExportTransactionList(
                     ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
                     ctx->re(currentX, doc.GetY(), expenseColWidth, categoryRowHeight);
                     ctx->S(); ctx->Q();
-                    std::string amountStr = formatAmount(expenseCatList[i].second);
+                    std::string amountStr = FMLFormat::FormatAmount(expenseCatList[i].second);
                     double estimatedWidth = amountStr.length() * 8 * 0.45;
                     ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(doc.GetFontRegular(), 8);
                     ctx->Tm(1, 0, 0, 1, currentX + expenseColWidth - estimatedWidth - 8, doc.GetY() + 4);
@@ -675,7 +667,7 @@ bool FMLPDFExporter::ExportTransactionList(
                 ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
                 ctx->re(currentX, doc.GetY(), expenseColWidth, categoryRowHeight);
                 ctx->S(); ctx->Q();
-                std::string totalStr = formatAmount(expenseDisplayTotal);
+                std::string totalStr = FMLFormat::FormatAmount(expenseDisplayTotal);
                 double estimatedWidth = totalStr.length() * 8 * 0.45;
                 ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(fontBold, 8);
                 ctx->Tm(1, 0, 0, 1, currentX + expenseColWidth - estimatedWidth - 8, doc.GetY() + 4);
@@ -736,15 +728,6 @@ bool FMLPDFExporter::ExportTransactionList(
     catch (...) {
         return false;
     }
-}
-
-// 공통 헬퍼: 금액 포맷 (천 단위 콤마)
-std::string FMLPDFExporter::formatAmount(int64_t amount)
-{
-    std::stringstream ss;
-    ss.imbue(std::locale(""));
-    ss << std::fixed << amount;
-    return ss.str();
 }
 
 void FMLPDFExporter::drawHeader(void* pdfWriter, const std::string& title)

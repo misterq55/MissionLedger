@@ -19,5 +19,4 @@ private:
     // 공통 헬퍼 메서드
     static void drawHeader(void* pdfWriter, const std::string& title);
     static void drawFooter(void* pdfWriter);
-    static std::string formatAmount(int64_t amount);
 };

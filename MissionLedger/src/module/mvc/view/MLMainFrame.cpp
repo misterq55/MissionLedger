@@ -12,6 +12,7 @@
 #include "MLDefine.h"
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
+#include "module/common/format/MLFormat.h"
 
 // 메뉴 ID 정의
 enum
@@ -301,7 +302,7 @@ void wxMLMainFrame::DisplayTransaction(const FMLTransactionData& data)
     // 추가든 수정이든 공통: 나머지 컬럼 데이터 설정
     listCtrl->SetItem(index, 1, wxString::FromUTF8(data.Category.c_str()));
     listCtrl->SetItem(index, 2, wxString::FromUTF8(data.Item.c_str()));
-    listCtrl->SetItem(index, 3, formatAmountWithComma(data.Amount));
+    listCtrl->SetItem(index, 3, wxString::FromUTF8(FMLFormat::FormatAmount(data.Amount)));
     listCtrl->SetItem(index, 4, wxString::FromUTF8(data.ReceiptNumber.c_str()));
     listCtrl->SetItem(index, 5, wxString::FromUTF8(data.DateTime.c_str()));
 }
@@ -1254,10 +1255,10 @@ void wxMLMainFrame::updateSummaryPanel()
 // Summary 데이터 UI에 표시
 void wxMLMainFrame::displaySummary(const FMLTransactionSummary& summary)
 {
-    summaryIncomeText->SetLabel(formatAmountWithComma(summary.TotalIncome));
-    summaryExpenseText->SetLabel(formatAmountWithComma(summary.TotalExpense));
+    summaryIncomeText->SetLabel(wxString::FromUTF8(FMLFormat::FormatAmount(summary.TotalIncome)));
+    summaryExpenseText->SetLabel(wxString::FromUTF8(FMLFormat::FormatAmount(summary.TotalExpense)));
 
-    wxString balanceText = formatAmountWithComma(summary.Balance);
+    wxString balanceText = wxString::FromUTF8(FMLFormat::FormatAmount(summary.Balance));
     summaryBalanceText->SetLabel(balanceText);
 
     // 잔액 색상 설정 (양수: 파랑, 음수: 빨강)
@@ -1272,32 +1273,6 @@ void wxMLMainFrame::displaySummary(const FMLTransactionSummary& summary)
 }
 
 // 천 단위 구분 포맷팅
-wxString wxMLMainFrame::formatAmountWithComma(int64_t amount)
-{
-    bool negative = (amount < 0);
-    int64_t absAmount = negative ? -amount : amount;
-
-    std::string numStr = std::to_string(absAmount);
-    std::string result;
-
-    int count = 0;
-    for (auto it = numStr.rbegin(); it != numStr.rend(); ++it)
-    {
-        if (count > 0 && count % 3 == 0)
-        {
-            result = ',' + result;
-        }
-        result = *it + result;
-        count++;
-    }
-
-    if (negative)
-    {
-        result = "-" + result;
-    }
-
-    return wxString::FromUTF8(result.c_str());
-}
 
 // 현재 필터 조건 생성
 FMLFilterCriteria wxMLMainFrame::buildCurrentFilterCriteria()
@@ -1440,7 +1415,7 @@ void wxMLMainFrame::updateConvertedAmount()
     }
 
     int64_t convertedAmount = static_cast<int64_t>(originalAmount * exchangeRate);
-    wxString amountStr = formatAmountWithComma(convertedAmount);
+    wxString amountStr = wxString::FromUTF8(FMLFormat::FormatAmount(convertedAmount));
     convertedAmountLabel->SetLabel(wxString::FromUTF8("= 원화 환산: ") + amountStr + wxString::FromUTF8("원"));
 
     // 금액 필드에 자동 설정 (참고용, 실제 저장 시에는 계산된 값 사용)
@@ -1762,7 +1737,7 @@ void wxMLMainFrame::updateBudgetItemList()
             long index = budgetItemListCtrl->InsertItem(budgetItemListCtrl->GetItemCount(),
                                                          wxString::FromUTF8(budget.Item.c_str()));
 
-            budgetItemListCtrl->SetItem(index, 1, formatAmountWithComma(budget.BudgetAmount));
+            budgetItemListCtrl->SetItem(index, 1, wxString::FromUTF8(FMLFormat::FormatAmount(budget.BudgetAmount)));
 
             // BudgetId를 ItemData로 저장
             budgetItemListCtrl->SetItemData(index, budget.BudgetId);
@@ -1775,7 +1750,7 @@ void wxMLMainFrame::updateBudgetItemList()
 // 예산 요약 표시 (재구현)
 void wxMLMainFrame::displayBudgetSummary(const FMLBudgetSummary& summary)
 {
-    wxString totalBudget = formatAmountWithComma(summary.TotalBudget);
+    wxString totalBudget = wxString::FromUTF8(FMLFormat::FormatAmount(summary.TotalBudget));
     budgetSummaryTotalBudgetText->SetLabel(totalBudget);
 }
 

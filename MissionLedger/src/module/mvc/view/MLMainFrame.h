@@ -101,7 +101,6 @@ private:
     void createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer);
     void updateSummaryPanel();
     void displaySummary(const FMLTransactionSummary& summary);
-    wxString formatAmountWithComma(int64_t amount);
     FMLFilterCriteria buildCurrentFilterCriteria();
 
     // 예산 헬퍼 메서드

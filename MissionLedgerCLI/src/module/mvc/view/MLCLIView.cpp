@@ -2,6 +2,7 @@
 #include "MLDefine.h"
 #include "module/common/holder/MLMVCHolder.h"
 #include "interface/IMLController.h"
+#include "module/common/format/MLFormat.h"
 #include <iomanip>
 #include <sstream>
 #include <limits>
@@ -1127,9 +1128,9 @@ void FMLCLIView::DisplayTransactions(const std::vector<FMLTransactionData>& data
         }
     }
 
-    std::cout << "총 수입: " << formatAmount(totalIncome) << std::endl;
-    std::cout << "총 지출: " << formatAmount(totalExpense) << std::endl;
-    std::cout << "잔액: " << formatAmount(totalIncome - totalExpense) << std::endl;
+    std::cout << "총 수입: " << FMLFormat::FormatAmount(totalIncome) + "원" << std::endl;
+    std::cout << "총 지출: " << FMLFormat::FormatAmount(totalExpense) + "원" << std::endl;
+    std::cout << "잔액: " << FMLFormat::FormatAmount(totalIncome - totalExpense) + "원" << std::endl;
     printSeparator();
 }
 
@@ -1229,7 +1230,7 @@ void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeade
         std::cout << "카테고리: " << data.Category << std::endl;
         std::cout << "항목: " << data.Item << std::endl;
         std::cout << "설명: " << data.Description << std::endl;
-        std::cout << "금액: " << formatAmount(data.Amount) << std::endl;
+        std::cout << "금액: " << FMLFormat::FormatAmount(data.Amount) + "원" << std::endl;
 
         // 환율 정보 표시
         if (data.UseExchangeRate)
@@ -1248,7 +1249,7 @@ void FMLCLIView::printTransaction(const FMLTransactionData& data, bool showHeade
             << std::setw(8) << getTypeString(data.Type)
             << std::setw(15) << safeSub(data.Category, 14)
             << std::setw(20) << safeSub(data.Item, 19)
-            << std::setw(15) << formatAmount(data.Amount)
+            << std::setw(15) << FMLFormat::FormatAmount(data.Amount) + "원"
             << std::setw(20) << safeSub(data.DateTime, 19)
             << std::endl;
     }
@@ -1270,21 +1271,6 @@ std::string FMLCLIView::getTypeString(E_MLTransactionType type)
     default:
         return "알 수 없음";
     }
-}
-
-std::string FMLCLIView::formatAmount(int64_t amount)
-{
-    std::stringstream ss;
-    try
-    {
-        ss.imbue(std::locale(""));
-    }
-    catch (const std::runtime_error&)
-    {
-        // 시스템 로케일을 사용할 수 없으면 기본 로케일 사용
-    }
-    ss << std::fixed << amount << "원";
-    return ss.str();
 }
 
 std::string FMLCLIView::getBudgetTypeString(E_MLTransactionType type)
@@ -1313,7 +1299,7 @@ void FMLCLIView::printBudget(const FMLBudgetData& data, bool showHeader)
         std::cout << "유형: " << getBudgetTypeString(data.Type) << std::endl;
         std::cout << "카테고리: " << data.Category << std::endl;
         std::cout << "항목: " << data.Item << std::endl;
-        std::cout << "예산 금액: " << formatAmount(data.BudgetAmount) << std::endl;
+        std::cout << "예산 금액: " << FMLFormat::FormatAmount(data.BudgetAmount) + "원" << std::endl;
     }
     else
     {
@@ -1322,7 +1308,7 @@ void FMLCLIView::printBudget(const FMLBudgetData& data, bool showHeader)
             << std::setw(8) << getBudgetTypeString(data.Type)
             << std::setw(15) << safeSub(data.Category, 14)
             << std::setw(20) << safeSub(data.Item, 19)
-            << std::setw(15) << formatAmount(data.BudgetAmount)
+            << std::setw(15) << FMLFormat::FormatAmount(data.BudgetAmount) + "원"
             << std::endl;
     }
 }
@@ -1389,7 +1375,7 @@ void FMLCLIView::DisplayBudgets(const std::vector<FMLBudgetData>& data)
         }
     }
 
-    std::cout << "수입 예산: " << formatAmount(totalIncomeBudget) << std::endl;
-    std::cout << "지출 예산: " << formatAmount(totalExpenseBudget) << std::endl;
+    std::cout << "수입 예산: " << FMLFormat::FormatAmount(totalIncomeBudget) + "원" << std::endl;
+    std::cout << "지출 예산: " << FMLFormat::FormatAmount(totalExpenseBudget) + "원" << std::endl;
     printSeparator();
 }
