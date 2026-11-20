@@ -9,7 +9,7 @@
 
 class MissionLedger : public wxApp {
 public:
-  virtual bool OnInit() {
+  bool OnInit() override {
 #ifdef _DEBUG
     // Debug 빌드에서만 로그 파일 설정
     wxString logPath = wxStandardPaths::Get().GetUserDataDir() + wxFILE_SEP_PATH + "MissionLedger_debug.log";
@@ -79,7 +79,7 @@ public:
   }
 #endif
 
-  virtual int OnExit() {
+  int OnExit() override {
 #ifdef _DEBUG
     std::cout << "=== Application Exit ===" << std::endl;
     std::cout << std::flush;
