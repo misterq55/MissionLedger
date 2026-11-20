@@ -88,6 +88,15 @@ if(pdf)
         if(size EQUAL 0 OR NOT header STREQUAL "25504446")   # "%PDF"
             list(APPEND errors "not a PDF or empty (${size} bytes): ${pdf}")
         endif()
+        # The bundled fonts (third_party/fonts/NotoSansKR, copied to bin/<Config>/fonts/) must be the ones
+        # embedded: catches a missing copy step or a broken font lookup (e.g. the executable path on macOS)
+        file(STRINGS "${pdf}" font_lines REGEX "/BaseFont")
+        foreach(face NotoSansKR-Regular NotoSansKR-Bold)
+            string(FIND "${font_lines}" "${face}" pos)
+            if(pos EQUAL -1)
+                list(APPEND errors "font ${face} not embedded (found: ${font_lines})")
+            endif()
+        endforeach()
     endif()
 endif()
 
