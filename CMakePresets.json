@@ -9,16 +9,29 @@
       "architecture": "x64",
       "binaryDir": "${sourceDir}/build/windows",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "macos",
+      "displayName": "macOS (Xcode)",
+      "description": "Core + CLI only until the macOS GUI is done (docs/CI_PLAN.md §6, step ③ turns ML_BUILD_GUI on)",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/macos",
+      "cacheVariables": { "ML_BUILD_GUI": "OFF" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
     }
   ],
   "buildPresets": [
     { "name": "windows-debug",     "configurePreset": "windows", "configuration": "Debug" },
     { "name": "windows-release",   "configurePreset": "windows", "configuration": "Release" },
-    { "name": "windows-installer", "configurePreset": "windows", "configuration": "Release", "targets": [ "installer" ] }
+    { "name": "windows-installer", "configurePreset": "windows", "configuration": "Release", "targets": [ "installer" ] },
+    { "name": "macos-debug",       "configurePreset": "macos",   "configuration": "Debug" },
+    { "name": "macos-release",     "configurePreset": "macos",   "configuration": "Release" }
   ],
   "testPresets": [
     { "name": "windows-debug",   "configurePreset": "windows", "configuration": "Debug",   "output": { "outputOnFailure": true } },
-    { "name": "windows-release", "configurePreset": "windows", "configuration": "Release", "output": { "outputOnFailure": true } }
+    { "name": "windows-release", "configurePreset": "windows", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "macos-debug",     "configurePreset": "macos",   "configuration": "Debug",   "output": { "outputOnFailure": true } },
+    { "name": "macos-release",   "configurePreset": "macos",   "configuration": "Release", "output": { "outputOnFailure": true } }
   ],
   "workflowPresets": [
     {

@@ -3,6 +3,7 @@
 # The source folders and these CMakeLists.txt files are the source of truth.
 # IDE projects (Visual Studio .sln, Xcode) are generated into build/ and never committed.
 #   Windows: GenerateProjectFiles.bat  (= cmake --preset windows)
+#   macOS:   cmake --preset macos      (Xcode; Core + CLI only for now, docs/CI_PLAN.md §6)
 # Details: docs/CI_PLAN.md §3
 
 cmake_minimum_required(VERSION 3.25)   # workflow presets need 3.25; PDF-Writer needs 3.19
@@ -22,6 +23,10 @@ project(MissionLedger VERSION ${ML_VERSION} LANGUAGES C CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# GUI app (wxWidgets). OFF builds only Core + CLI (+ smoke tests) and does not configure wxWidgets at all.
+# The macos preset sets it OFF until the macOS GUI is done (docs/CI_PLAN.md §6, step ③).
+option(ML_BUILD_GUI "Build the GUI application (wxWidgets)" ON)
+
 # Executables go to build/<preset>/bin/<Config>/ (multi-config generators append the config)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
@@ -38,15 +43,17 @@ foreach(t PDFWriter FreeType LibAesgm LibJpeg LibPng LibTiff Zlib)
 endforeach()
 
 # wxWidgets 3.2.8 (vendored, see third_party/wxWidgets/VERSION.txt). Static, base + core only.
-set(wxBUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(wxBUILD_MONOLITHIC OFF CACHE BOOL "" FORCE)
-set(wxBUILD_INSTALL OFF CACHE BOOL "" FORCE)       # install needs files that are not vendored
-set(wxBUILD_LOCALES OFF CACHE STRING "" FORCE)     # locale/ is not vendored
-# XRC must stay OFF (wxrc lives in utils/, not vendored). HTML OFF also needs WXHTML_HELP OFF.
-foreach(opt XRC HTML WXHTML_HELP AUI STC WEBVIEW PROPGRID RIBBON RICHTEXT MEDIACTRL OPENGL)
-    set(wxUSE_${opt} OFF CACHE BOOL "" FORCE)
-endforeach()
-add_subdirectory(third_party/wxWidgets EXCLUDE_FROM_ALL)
+if(ML_BUILD_GUI)
+    set(wxBUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_MONOLITHIC OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_INSTALL OFF CACHE BOOL "" FORCE)       # install needs files that are not vendored
+    set(wxBUILD_LOCALES OFF CACHE STRING "" FORCE)     # locale/ is not vendored
+    # XRC must stay OFF (wxrc lives in utils/, not vendored). HTML OFF also needs WXHTML_HELP OFF.
+    foreach(opt XRC HTML WXHTML_HELP AUI STC WEBVIEW PROPGRID RIBBON RICHTEXT MEDIACTRL OPENGL)
+        set(wxUSE_${opt} OFF CACHE BOOL "" FORCE)
+    endforeach()
+    add_subdirectory(third_party/wxWidgets EXCLUDE_FROM_ALL)
+endif()
 
 # ----- Common settings for our own targets -----
 function(ml_set_target_defaults target)
@@ -67,7 +74,9 @@ endfunction()
 
 # ----- Projects (one project = one folder; each collects the sources under its own folder) -----
 add_subdirectory(MissionLedgerCore)
-add_subdirectory(MissionLedger)
+if(ML_BUILD_GUI)
+    add_subdirectory(MissionLedger)
+endif()
 add_subdirectory(MissionLedgerCLI)
 
 # ----- Smoke tests (CTest): ctest --preset windows-release -----
@@ -76,7 +85,7 @@ add_subdirectory(tests)
 
 # ----- Installer (Inno Setup): cmake --build --preset windows-installer -----
 # Not part of ALL: build it explicitly. Release only (checked in installer/package.cmake).
-if(WIN32)
+if(WIN32 AND ML_BUILD_GUI)
     find_program(ML_ISCC ISCC
         HINTS "$ENV{ProgramFiles\(x86\)}/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6"
         DOC "Inno Setup compiler (ISCC.exe) used by the installer target")
@@ -93,4 +102,6 @@ if(WIN32)
     set_target_properties(installer PROPERTIES FOLDER "Packaging")
 endif()
 
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MissionLedger)
+if(ML_BUILD_GUI)
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MissionLedger)
+endif()

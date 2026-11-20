@@ -14,11 +14,15 @@ import groovy.transform.Field
 @Field final Map PLATFORMS = [WindowsMini: 'windows', MacMini: 'macos']
 
 // Platforms that build. The others only run the node check (preflight) until their build exists.
-// macOS: roadmap steps 7–8 (docs/CI_PLAN.md §10)
-@Field final List IMPLEMENTED = ['windows']
+// macOS builds Core + CLI and runs the smoke tests (roadmap 7, docs/CI_PLAN.md §6); no package yet
+@Field final List IMPLEMENTED = ['windows', 'macos']
+
+// Platforms with a <platform>-installer build preset (macOS .dmg: roadmap 9)
+@Field final List PACKAGED = ['windows']
 
 String platformOf(String node) { return PLATFORMS[node] }
 boolean isImplemented(String node) { return IMPLEMENTED.contains(platformOf(node)) }
+boolean isPackaged(String node) { return PACKAGED.contains(platformOf(node)) }
 
 // bat on Windows, sh on macOS
 void runCmd(String command) {
@@ -62,9 +66,9 @@ pipeline {
 
     parameters {
         choice(name: 'PLATFORM', choices: ['both', 'windows', 'macos'],
-               description: 'Platform to build. macOS runs only the node check until its build exists (roadmap 7-8)')
+               description: 'Platform to build. macOS: Core + CLI and smoke tests only, for now (roadmap 7)')
         choice(name: 'CONFIGURATION', choices: ['Release', 'Debug'],
-               description: 'Release also builds the installer. Debug: build and smoke test only')
+               description: 'Release also builds the installer (Windows only). Debug: build and smoke test only')
         booleanParam(name: 'CLEAN_BUILD', defaultValue: false,
                description: 'Delete build/ first (rebuilds wxWidgets and PDF-Writer, a few minutes longer)')
         booleanParam(name: 'DEPLOY', defaultValue: true,
@@ -143,7 +147,7 @@ pipeline {
                         }
                     }
                     stage('Package') {
-                        when { expression { isImplemented(env.NODE) && params.CONFIGURATION == 'Release' } }
+                        when { expression { isPackaged(env.NODE) && params.CONFIGURATION == 'Release' } }
                         steps {
                             dir('installer/output') { deleteDir() }   // installers of older versions must not be archived again
                             runCmd "cmake --build --preset ${platformOf(env.NODE)}-installer"
@@ -156,7 +160,7 @@ pipeline {
                                 def p = platformOf(env.NODE)
                                 def c = params.CONFIGURATION
                                 def files = ["build/${p}/tests/out/${c}/*.pdf"]       // smoke test PDFs
-                                if (c == 'Release') {
+                                if (c == 'Release' && isPackaged(env.NODE)) {
                                     files += ['installer/output/*', "build/${p}/bin/Release/*.pdb"]   // installer + PDBs for crash analysis
                                 }
                                 archiveArtifacts artifacts: files.join(', '), allowEmptyArchive: true, fingerprint: true
