@@ -192,6 +192,13 @@
 - `help` 출력과 `CLI.md`가 어긋나지 않게 명령/옵션 표를 코드 한곳에서 관리하고, 도움말은 그 표로 만든다
 - 사용자 `ReadMe.txt` (짧은 안내, CLAUDE.md Next Steps)에서 `CLI.md`를 가리킴
 
+구현 (6단계, 2026-11-22):
+- `CLI.md`는 저장소 루트. 옵션 전체 표는 넣지 않고 개념과 예만 (옵션 목록이 두 곳에 있으면 어긋나므로 `mledger help <명령>`이 기준). 예의 출력은 `sample.ml` 사본에서 실행해 확인. "AI가 지킬 규칙" 절: 항상 `--json`, ID는 `list`로 확인, 쓰기는 `--dry-run`으로 보여주고 확인 뒤 실행, 삭제의 `--yes`는 사람이 허락했을 때만, 대화형 모드 쓰지 않음, 실수하면 `.bak` 안내. 나중에 Agent Skill(9단계 a)의 `SKILL.md`로 옮길 수 있음
+- 스모크 테스트 `cli_doc_commands`: `mledger help`의 모든 명령이 `CLI.md`에 `mledger <명령>`으로 나오는지 (새 명령에 문서를 빠뜨리면 실패)
+- `installer/ReadMe.txt`: 필요 환경, 설치(SmartScreen, macOS "확인 없이 열기"), 제거, 데이터와 백업, `CLI.md` 안내, 문의(메일), 라이선스. 메모장용 UTF-8 BOM + CRLF. 버전 번호는 쓰지 않음 (`VERSION`이 유일한 곳)
+- `THIRD_PARTY_NOTICES.txt` (루트): 실제로 링크되는 라이브러리와 글꼴의 라이선스 원문. Apache 2.0(PDF-Writer), MIT(nlohmann/json), BSD(PCRE2, AES)는 바이너리 배포에 고지를, FreeType(FTL)과 libjpeg(IJG)은 문서의 출처 표기를 요구함
+- 위치: Windows `{app}\ReadMe.txt`(설치 끝 "읽어보기"), `CLI.md`, `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt`. macOS: `.dmg`에 네 개, 앱 안 `Contents/Resources/`에 `CLI.md`, `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt`
+
 ## 8. 단계
 
 | # | 내용 | 상태 |
@@ -201,7 +208,7 @@
 | 3 | `--json`, `--yes`, `--dry-run`, `--no-subtitle`(GUI 부제 토글과 같은 옵션 구조체), 백업. 스모크 테스트 `cli_json_list`, `cli_json_error`, `cli_dry_run`, `cli_backup` | ✅ 2026-11-21 |
 | 4 | 대화형 다시 만들기 (§5) | ✅ 2026-11-22 (`MLCLIViewShell.cpp`, 스모크 테스트 `cli_shell_add`, `cli_shell_cancel`) |
 | 5 | `mledger` 이름, 설치 파일 포함, PATH (§2). **7단계 이후에** (AI가 GUI 옆에서 쓰기 시작하기 전에 충돌 감지가 있어야 함) | ✅ 2026-11-22 (macOS 번들은 Jenkins로 확인, Windows PATH는 실제 설치로 확인 필요) |
-| 6 | `CLI.md`, 사용자 `ReadMe.txt` (§7) | 📋 |
+| 6 | `CLI.md`, 사용자 `ReadMe.txt` (§7) | ✅ 2026-11-22 (+ `THIRD_PARTY_NOTICES.txt`, 스모크 테스트 `cli_doc_commands`) |
 | 7 | GUI 외부 변경 감지 + 다시 불러오기, `busy_timeout`, 원자적 저장/읽기 (§6) | ✅ 2026-11-22 (Windows 확인, macOS는 손 확인) |
 | 8 | 잠금 표시 (§6, 선택) | 📋 |
 | 9 | (나중) AI 연결. (a) Agent Skill: `CLI.md`를 `SKILL.md`로 묶은 폴더 (Claude Code, Claude Desktop). 가장 가벼움, 6단계와 함께 가능. (b) MCP 서버: `mledger mcp` 하위 명령으로 CLI 안에 stdio JSON-RPC 서버를 넣음 (선교팀 PC에 Python/Node가 없어도 됨, 도구 하나 = 명령 하나의 `--json` 결과, JSON 라이브러리는 `third_party/`). Claude Desktop은 Desktop Extension(`.mcpb`)으로 한 번에 연결, Claude Code는 `claude mcp add mledger -- mledger mcp`. 공식 SDK는 Python/TypeScript 등이며 C++ 공식 SDK는 없는 것으로 앎 (2026-11-21 기준 기억, 만들 때 최신 문서 확인) | 💡 |

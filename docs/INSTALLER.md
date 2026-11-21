@@ -65,7 +65,7 @@ Inno Setup GUI에서 `.iss`를 열고 Compile을 눌러도 됩니다.
 |---|---|
 | 설치 위치 | `C:\Program Files\MissionLedger\` |
 | 권한 | **관리자만** (모든 사용자 설치). Visual C++ 런타임 설치에 관리자 권한이 필요해서 "현재 사용자만 설치"는 허용하지 않습니다 |
-| 설치되는 파일 | `MissionLedger.exe`, `README.md`, `LICENSE.txt` |
+| 설치되는 파일 | `MissionLedger.exe`, `mledger.exe`, `fonts\`, `ReadMe.txt`(설치 끝에 열림), `CLI.md`, `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt` (2026-11-22부터. 이전: `README.md`, `LICENSE.txt`) |
 | Visual C++ 런타임 | 런타임이 없거나 포함된 버전보다 낮은 PC에서만 화면 표시 없이 설치합니다. 이미 있으면 건너뜁니다 (아래 참고) |
 | 바로가기 | 시작 메뉴 "미션레저" 폴더 (프로그램 + 제거). 바탕화면 바로가기는 선택 사항입니다 |
 | 요구 사항 | Windows 10 1809 이상, x64 |
