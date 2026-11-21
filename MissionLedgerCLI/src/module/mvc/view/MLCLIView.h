@@ -20,9 +20,9 @@
  *
  * 실행 모드:
  * - 대화형 모드: 인수 없이 실행하거나 shell <파일>
- * - 명령어 모드: MissionLedgerCLI <명령> <파일.ml> [옵션] (docs/CLI_DESIGN.md §3)
- *   예: MissionLedgerCLI list data.ml --type expense
- *       MissionLedgerCLI add data.ml --type income --category "후원금" --amount 1000
+ * - 명령어 모드: mledger <명령> <파일.ml> [옵션] (docs/CLI_DESIGN.md §3)
+ *   예: mledger list data.ml --type expense
+ *       mledger add data.ml --type income --category "후원금" --amount 1000
  */
 class FMLCLIView : public IMLView, public IMLModelObserver
 {

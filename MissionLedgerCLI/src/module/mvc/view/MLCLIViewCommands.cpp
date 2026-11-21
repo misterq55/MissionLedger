@@ -1,4 +1,4 @@
-// 명령어 모드: MissionLedgerCLI <명령> <파일.ml> [옵션]
+// 명령어 모드: mledger <명령> <파일.ml> [옵션]
 // 명령과 옵션은 commandSpecs() 표 한곳에서 정의하고, 파싱/검증/도움말이 모두 이 표를 쓴다
 // 설계: docs/CLI_DESIGN.md §3
 
@@ -35,7 +35,7 @@ using namespace MLCLIUtil;
 namespace
 {
     // 도움말과 오류 메시지에 쓰는 프로그램 이름 (CLI_DESIGN.md §2: 실행 파일 이름을 mledger로 바꿀 때 함께 변경)
-    const char* const kProgram = "MissionLedgerCLI";
+    const char* const kProgram = "mledger";
 
 
     bool stdinIsTerminal()

@@ -1,6 +1,6 @@
 # CLI smoke test runner (called by CTest, see tests/CMakeLists.txt)
 #
-#   cmake -DCASE=<case> -DCLI=<MissionLedgerCLI.exe> -DFIXTURE=<sample.ml> -DOUT_DIR=<dir> [-DARCH=x86_64] -P cli_smoke.cmake
+#   cmake -DCASE=<case> -DCLI=<mledger(.exe)> -DFIXTURE=<sample.ml> -DOUT_DIR=<dir> [-DARCH=x86_64] -P cli_smoke.cmake
 #
 # ARCH (macOS only): run that architecture of a Universal binary with "arch -<ARCH>" (x86_64 on an
 # Apple Silicon Mac goes through Rosetta 2). If the Mac cannot run it, print SMOKE_SKIPPED: CTest

@@ -1,4 +1,4 @@
-# MissionLedgerCLI: command-line interface (no wxWidgets).
+# MissionLedgerCLI: command-line interface (no wxWidgets). The executable is named mledger (docs/CLI_DESIGN.md §2).
 # Every source under src/ is part of this project: add a file by creating it in the folder.
 
 file(GLOB_RECURSE CLI_SOURCES CONFIGURE_DEPENDS
@@ -7,6 +7,8 @@ file(GLOB_RECURSE CLI_SOURCES CONFIGURE_DEPENDS
 
 add_executable(MissionLedgerCLI main_cli.cpp ${CLI_SOURCES})
 ml_set_target_defaults(MissionLedgerCLI)
+# Target name stays MissionLedgerCLI (IDE, tests); the file is mledger(.exe) / mledger.pdb
+set_target_properties(MissionLedgerCLI PROPERTIES OUTPUT_NAME mledger PDB_NAME mledger)
 
 target_include_directories(MissionLedgerCLI PRIVATE src)
 # nlohmann/json (header only, third_party/nlohmann_json/VERSION.txt): --json output

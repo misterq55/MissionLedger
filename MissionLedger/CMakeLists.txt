@@ -44,6 +44,18 @@ elseif(APPLE)
         # Unsigned for now (docs/CI_PLAN.md §0): ad-hoc signature, which Apple Silicon needs to run at all
         XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-")
     source_group("Resources" FILES ${GUI_RESOURCES})
+
+    # CLI inside the bundle: MissionLedger.app/Contents/MacOS/mledger (docs/CLI_DESIGN.md §2). It finds the
+    # PDF fonts in ../Resources/fonts/ like the app. Copying it changes the bundle after Xcode may have signed it,
+    # so sign inside-out again (ad-hoc "-", like the app): mledger first, then the whole app. With a real
+    # certificate later, the same two commands take its name instead of "-"
+    add_dependencies(MissionLedger MissionLedgerCLI)
+    add_custom_command(TARGET MissionLedger POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:MissionLedgerCLI>" "$<TARGET_BUNDLE_CONTENT_DIR:MissionLedger>/MacOS/mledger"
+        COMMAND codesign --force --sign - "$<TARGET_BUNDLE_CONTENT_DIR:MissionLedger>/MacOS/mledger"
+        COMMAND codesign --force --sign - "$<TARGET_BUNDLE_DIR:MissionLedger>"
+        COMMENT "Copying mledger into MissionLedger.app and signing (ad-hoc)"
+        VERBATIM)
 endif()
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${GUI_SOURCES})

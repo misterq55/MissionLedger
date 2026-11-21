@@ -3,7 +3,8 @@
 #   cmake -DCONFIG=<Release> -DAPP=<path to MissionLedger.app> -DOUT=<.dmg path> -DWORK=<scratch dir>
 #         [-DARCHS=arm64,x86_64] -P package_macos.cmake
 #
-# Before packaging, the app's executable is checked (docs/CI_PLAN.md §7) and the build fails if
+# Before packaging, the app's executables (the app and mledger) are checked (docs/CI_PLAN.md §7) and the build fails if
+#   - one is missing from the bundle or the signature does not match the bundle (codesign --verify), or
 #   - it lacks one of ARCHS (lipo -archs; ARCHS = CMAKE_OSX_ARCHITECTURES, comma separated), or
 #   - it links a library outside /usr/lib and /System (otool -L), e.g. from Homebrew, that other Macs lack.
 #
@@ -35,45 +36,59 @@ if(NOT rc EQUAL 0)
 endif()
 execute_process(COMMAND plutil -p "${APP}/Contents/Info.plist")
 
-# Architectures (Universal build: arm64 = Apple Silicon, x86_64 = Intel)
+# Executables in the bundle: the app and the CLI (Contents/MacOS/mledger, copied in by MissionLedger/CMakeLists.txt)
 get_filename_component(exe_name "${APP}" NAME_WLE)
-set(exe "${APP}/Contents/MacOS/${exe_name}")
-execute_process(COMMAND lipo -archs "${exe}" OUTPUT_VARIABLE archs OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE rc)
-if(NOT rc EQUAL 0)
-    message(FATAL_ERROR "lipo -archs failed on ${exe}")
-endif()
-message(STATUS "Architectures: ${archs}")
-if(ARCHS)
-    string(REPLACE "," ";" wanted "${ARCHS}")
-    string(REPLACE " " ";" found "${archs}")
-    foreach(a IN LISTS wanted)
-        if(NOT a IN_LIST found)
-            message(FATAL_ERROR "${exe} has no ${a} code (found: ${archs}, expected: ${ARCHS})")
+set(exes "${APP}/Contents/MacOS/${exe_name}" "${APP}/Contents/MacOS/mledger")
+foreach(exe IN LISTS exes)
+    if(NOT EXISTS "${exe}")
+        message(FATAL_ERROR "Missing in the app bundle: ${exe}")
+    endif()
+
+    # Architectures (Universal build: arm64 = Apple Silicon, x86_64 = Intel)
+    execute_process(COMMAND lipo -archs "${exe}" OUTPUT_VARIABLE archs OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE rc)
+    if(NOT rc EQUAL 0)
+        message(FATAL_ERROR "lipo -archs failed on ${exe}")
+    endif()
+    message(STATUS "Architectures of ${exe}: ${archs}")
+    if(ARCHS)
+        string(REPLACE "," ";" wanted "${ARCHS}")
+        string(REPLACE " " ";" found "${archs}")
+        foreach(a IN LISTS wanted)
+            if(NOT a IN_LIST found)
+                message(FATAL_ERROR "${exe} has no ${a} code (found: ${archs}, expected: ${ARCHS})")
+            endif()
+        endforeach()
+    endif()
+
+    # Linked libraries: only the system's (all of ours are static). -arch all: every half of a Universal file
+    # (without it otool prints only the build Mac's architecture)
+    execute_process(COMMAND otool -arch all -L "${exe}" OUTPUT_VARIABLE libs RESULT_VARIABLE rc)
+    if(NOT rc EQUAL 0)
+        message(FATAL_ERROR "otool -arch all -L failed on ${exe}")
+    endif()
+    message(STATUS "Linked libraries:\n${libs}")
+    string(REPLACE "\n" ";" lib_lines "${libs}")
+    set(foreign "")
+    foreach(line IN LISTS lib_lines)
+        # "<tab>/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version ...)"
+        if(line MATCHES "^[ \t]+([^ \t].*) \\(compatibility version")
+            set(lib "${CMAKE_MATCH_1}")
+            if(NOT lib MATCHES "^/usr/lib/" AND NOT lib MATCHES "^/System/")
+                list(APPEND foreign "${lib}")
+            endif()
         endif()
     endforeach()
-endif()
-
-# Linked libraries: only the system's (all of ours are static). -arch all: every half of a Universal file
-# (without it otool prints only the build Mac's architecture)
-execute_process(COMMAND otool -arch all -L "${exe}" OUTPUT_VARIABLE libs RESULT_VARIABLE rc)
-if(NOT rc EQUAL 0)
-    message(FATAL_ERROR "otool -arch all -L failed on ${exe}")
-endif()
-message(STATUS "Linked libraries:\n${libs}")
-string(REPLACE "\n" ";" lib_lines "${libs}")
-set(foreign "")
-foreach(line IN LISTS lib_lines)
-    # "<tab>/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version ...)"
-    if(line MATCHES "^[ \t]+([^ \t].*) \\(compatibility version")
-        set(lib "${CMAKE_MATCH_1}")
-        if(NOT lib MATCHES "^/usr/lib/" AND NOT lib MATCHES "^/System/")
-            list(APPEND foreign "${lib}")
-        endif()
+    if(foreign)
+        list(REMOVE_DUPLICATES foreign)
+        message(FATAL_ERROR "${exe} links libraries that other Macs may not have: ${foreign}")
     endif()
 endforeach()
-if(foreign)
-    list(REMOVE_DUPLICATES foreign)
-    message(FATAL_ERROR "The app links libraries that other Macs may not have: ${foreign}")
+
+# Signature (ad-hoc): the seal must match the bundle's contents, including mledger copied in after the build.
+# A broken seal makes macOS call a downloaded app "damaged" instead of offering "Open Anyway"
+execute_process(COMMAND codesign --verify --deep --strict --verbose=2 "${APP}" RESULT_VARIABLE rc)
+if(NOT rc EQUAL 0)
+    message(FATAL_ERROR "codesign --verify failed on ${APP}: the signature does not match the bundle")
 endif()
 
 # Staging folder: the app (ditto keeps permissions, symlinks and the signature) + Applications link

@@ -35,6 +35,12 @@
 #if !FileExists(MyAppExePath)
   #error MissionLedger.exe 가 없습니다. Release 빌드를 먼저 실행하세요. (ExeDir 확인)
 #endif
+; 명령줄 도구 mledger.exe (MissionLedgerCLI 프로젝트, docs/CLI_DESIGN.md §2)
+#define MyCLIExeName "mledger.exe"
+#define MyCLIExePath AddBackslash(ExeDir) + MyCLIExeName
+#if !FileExists(MyCLIExePath)
+  #error mledger.exe 가 없습니다. Release 빌드를 먼저 실행하세요. (ExeDir 확인)
+#endif
 #define ExeVersion GetStringFileInfo(MyAppExePath, "ProductVersion")
 #if ExeVersion != MyAppVersion
   #error MissionLedger.exe 버전이 VERSION 파일과 다릅니다. Release 빌드를 다시 실행하세요.
@@ -95,6 +101,8 @@ UninstallDisplayName={#MyAppName}
 
 ; 파일 연결 변경 시 설치/제거 후 탐색기에 알림 (아이콘 갱신)
 ChangesAssociations=yes
+; PATH 변경(작업 "addtopath") 후 새로 여는 터미널에 바로 반영되도록 알림
+ChangesEnvironment=yes
 
 ; 압축 설정
 Compression=lzma2/max
@@ -119,10 +127,13 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "바탕화면 바로가기 만들기(&D)"; GroupDescription: "추가 아이콘:"; Flags: unchecked
+; 기본으로 켜짐 (VS Code, Git과 같은 방식). 시스템 PATH에 {app}을 추가하고, 제거하면 그 항목만 뺌
+Name: "addtopath"; Description: "명령줄에서 mledger 사용 (PATH에 추가)(&P)"; GroupDescription: "명령줄 도구:"
 
 [Files]
 ; 실행 파일 및 라이브러리
 Source: "{#MyAppExePath}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyCLIExePath}"; DestDir: "{app}"; Flags: ignoreversion
 ; PDF 내보내기 폰트 (Noto Sans KR, OFL 라이선스 파일 포함). 실행 파일 옆 fonts\ 에서 찾음
 ; 폰트가 없으면 설치 프로그램 빌드가 실패하도록 skipifsourcedoesntexist는 쓰지 않음
 Source: "..\third_party\fonts\NotoSansKR\*"; DestDir: "{app}\fonts"; Flags: ignoreversion
@@ -191,6 +202,65 @@ begin
     else
       Result := Bld < {#VCRedistBuild};
   end;
+end;
+
+// ===== PATH (작업 "addtopath") =====
+// 시스템 PATH (관리자 설치). 항목 비교는 대소문자 무시, 다른 항목은 건드리지 않음
+const
+  EnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
+
+// ';' + Paths + ';' 안에서 ';' + Dir + ';'의 위치 (없으면 0)
+function PathEntryPos(Paths, Dir: String): Integer;
+begin
+  Result := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Paths) + ';');
+end;
+
+procedure AddToPath(Dir: String);
+var
+  Paths: String;
+begin
+  if not RegQueryStringValue(HKLM, EnvironmentKey, 'Path', Paths) then
+    Paths := '';
+  if PathEntryPos(Paths, Dir) > 0 then
+    exit;
+  if (Paths <> '') and (Copy(Paths, Length(Paths), 1) <> ';') then
+    Paths := Paths + ';';
+  // REG_EXPAND_SZ 유지 (다른 항목의 %SystemRoot% 등)
+  RegWriteExpandStringValue(HKLM, EnvironmentKey, 'Path', Paths + Dir);
+end;
+
+procedure RemoveFromPath(Dir: String);
+var
+  Paths, Wrapped: String;
+  P: Integer;
+begin
+  if not RegQueryStringValue(HKLM, EnvironmentKey, 'Path', Paths) then
+    exit;
+  P := PathEntryPos(Paths, Dir);
+  if P = 0 then
+    exit;
+  // ';A;Dir;B;' -> ';A;B;' (';Dir' 삭제), 앞뒤에 붙인 ';'를 떼면 원래 모양
+  Wrapped := ';' + Paths + ';';
+  Delete(Wrapped, P, Length(Dir) + 1);
+  RegWriteExpandStringValue(HKLM, EnvironmentKey, 'Path', Copy(Wrapped, 2, Length(Wrapped) - 2));
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    // 다시 설치하면서 체크를 끄면 이전에 넣은 항목을 뺌
+    if WizardIsTaskSelected('addtopath') then
+      AddToPath(ExpandConstant('{app}'))
+    else
+      RemoveFromPath(ExpandConstant('{app}'));
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    RemoveFromPath(ExpandConstant('{app}'));
 end;
 
 // 설치 전 확인 사항
