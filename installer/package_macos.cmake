@@ -1,14 +1,15 @@
 # Builds the macOS disk image (.dmg) (called by the "installer" target on macOS, see the root CMakeLists.txt)
 #
 #   cmake -DCONFIG=<Release> -DAPP=<path to MissionLedger.app> -DOUT=<.dmg path> -DWORK=<scratch dir>
-#         [-DARCHS=arm64,x86_64] -P package_macos.cmake
+#         -DSOURCE_DIR=<repository root> [-DARCHS=arm64,x86_64] -P package_macos.cmake
 #
 # Before packaging, the app's executables (the app and mledger) are checked (docs/CI_PLAN.md §7) and the build fails if
 #   - one is missing from the bundle or the signature does not match the bundle (codesign --verify), or
 #   - it lacks one of ARCHS (lipo -archs; ARCHS = CMAKE_OSX_ARCHITECTURES, comma separated), or
 #   - it links a library outside /usr/lib and /System (otool -L), e.g. from Homebrew, that other Macs lack.
 #
-# The image holds MissionLedger.app and a link to /Applications: the user drags the app onto the link.
+# The image holds MissionLedger.app, a link to /Applications (the user drags the app onto the link) and the
+# user documents ReadMe.txt, CLI.md, LICENSE.txt, THIRD_PARTY_NOTICES.txt (from SOURCE_DIR).
 # Only built-in tools are used (ditto, hdiutil, plutil). Unsigned for now (docs/CI_PLAN.md §0): on another
 # Mac the first start needs System Settings > Privacy & Security > "Open Anyway".
 # Release only, like the Windows installer (package.cmake).
@@ -20,7 +21,7 @@ if(NOT CONFIG STREQUAL "Release")
     message(FATAL_ERROR "The disk image is built from Release only (current configuration: '${CONFIG}'). "
                         "Use: cmake --build --preset macos-installer")
 endif()
-foreach(var APP OUT WORK)
+foreach(var APP OUT WORK SOURCE_DIR)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "package_macos.cmake: -D${var}=... is required")
     endif()
@@ -101,6 +102,12 @@ if(NOT rc EQUAL 0)
     message(FATAL_ERROR "ditto failed (exit code ${rc})")
 endif()
 file(CREATE_LINK /Applications "${stage}/Applications" SYMBOLIC)
+foreach(doc installer/ReadMe.txt CLI.md LICENSE.txt THIRD_PARTY_NOTICES.txt)
+    if(NOT EXISTS "${SOURCE_DIR}/${doc}")
+        message(FATAL_ERROR "Document for the disk image not found: ${SOURCE_DIR}/${doc}")
+    endif()
+    file(COPY "${SOURCE_DIR}/${doc}" DESTINATION "${stage}")
+endforeach()
 
 get_filename_component(out_dir "${OUT}" DIRECTORY)
 file(MAKE_DIRECTORY "${out_dir}")

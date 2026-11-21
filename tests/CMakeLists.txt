@@ -3,7 +3,8 @@
 
 set(SMOKE_FIXTURE "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/sample.ml")
 
-foreach(case list_totals budget_totals export_settlement export_transactions missing_file new_existing edit_cycle usage_error json_list json_error dry_run backup shell_add shell_cancel)
+# doc_commands: every command in "mledger help" appears in CLI.md (architecture-independent, so not repeated below)
+foreach(case list_totals budget_totals export_settlement export_transactions missing_file new_existing edit_cycle usage_error json_list json_error dry_run backup shell_add shell_cancel doc_commands)
     add_test(NAME cli_${case}
         COMMAND ${CMAKE_COMMAND}
             -DCASE=${case}

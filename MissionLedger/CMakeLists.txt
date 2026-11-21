@@ -32,6 +32,14 @@ elseif(APPLE)
     target_sources(MissionLedger PRIVATE resources/app.icns ${GUI_BUNDLE_FONTS})
     set_source_files_properties(resources/app.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_source_files_properties(${GUI_BUNDLE_FONTS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources/fonts)
+    # Documents in Contents/Resources/ (also next to the app in the .dmg, installer/package_macos.cmake):
+    # CLI guide and licenses, so they stay with the app after it is moved to /Applications
+    set(GUI_BUNDLE_DOCS
+        "${PROJECT_SOURCE_DIR}/CLI.md"
+        "${PROJECT_SOURCE_DIR}/LICENSE.txt"
+        "${PROJECT_SOURCE_DIR}/THIRD_PARTY_NOTICES.txt")
+    target_sources(MissionLedger PRIVATE ${GUI_BUNDLE_DOCS})
+    set_source_files_properties(${GUI_BUNDLE_DOCS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(MissionLedger PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist.in"
         MACOSX_BUNDLE_BUNDLE_NAME "MissionLedger"

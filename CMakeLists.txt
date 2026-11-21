@@ -121,6 +121,7 @@ elseif(APPLE AND ML_BUILD_GUI)
             -DOUT=${CMAKE_CURRENT_SOURCE_DIR}/installer/output/MissionLedger-${ML_VERSION}.dmg
             -DWORK=${CMAKE_CURRENT_BINARY_DIR}/installer
             -DARCHS=${ml_archs}
+            -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/installer/package_macos.cmake
         COMMENT "Building disk image (installer/output/MissionLedger-${ML_VERSION}.dmg)"
         VERBATIM)

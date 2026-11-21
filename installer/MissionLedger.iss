@@ -137,9 +137,11 @@ Source: "{#MyCLIExePath}"; DestDir: "{app}"; Flags: ignoreversion
 ; PDF 내보내기 폰트 (Noto Sans KR, OFL 라이선스 파일 포함). 실행 파일 옆 fonts\ 에서 찾음
 ; 폰트가 없으면 설치 프로그램 빌드가 실패하도록 skipifsourcedoesntexist는 쓰지 않음
 Source: "..\third_party\fonts\NotoSansKR\*"; DestDir: "{app}\fonts"; Flags: ignoreversion
-; 문서
-Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+; 문서: 사용자 안내(설치 끝에 "읽어보기"로 열림), CLI 안내, 라이선스 (개발자용 README.md는 넣지 않음)
+Source: "ReadMe.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\CLI.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 ; Visual C++ 런타임 설치 파일 - 필요한 PC에서만 임시 폴더에 풀고 설치 후 삭제
 Source: "{#VCRedistPath}"; DestDir: "{tmp}"; DestName: "vc_redist.x64.exe"; Flags: deleteafterinstall; Check: VCRedistNeedsInstall
 

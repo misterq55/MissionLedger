@@ -12,6 +12,7 @@
 #     usage_error: exactly 2 (usage error), and the file is unchanged;
 #     json_error: exactly 2, JSON error on stdout, file unchanged;
 #     dry_run: 0, file unchanged and no .bak; backup: 0, .bak equals the file before the write;
+#     doc_commands: every command in "mledger help" appears in CLI.md as "mledger <command>";
 #     edit_cycle: add/update/show/delete steps on a copy each succeed and print their line first),
 #   - every expected line appears in the output (totals from tests/fixtures/README.md),
 #   - the PDF (export cases) exists, is not empty and starts with "%PDF".
@@ -115,6 +116,10 @@ elseif(CASE STREQUAL "backup")
     set(args budget add "${work}" --type expense --category 테스트 --amount 1000 --json)
     set(expected [["backup":"]] [["budget":{"id":9,]])
     set(expect_backup TRUE)
+elseif(CASE STREQUAL "doc_commands")
+    # Every command listed by "mledger help" is described in CLI.md as "mledger <command>" (checked below)
+    set(args help)
+    set(doc_file "${CMAKE_CURRENT_LIST_DIR}/../CLI.md")
 elseif(CASE STREQUAL "shell_add")
     # Interactive mode on a copy: "add" asks every field in turn, previews, saves after "y"
     set(work "${OUT_DIR}/shell_add.ml")
@@ -255,6 +260,27 @@ if(pdf)
                 list(APPEND errors "font ${face} not embedded (found: ${font_lines})")
             endif()
         endforeach()
+    endif()
+endif()
+
+if(doc_file)
+    file(READ "${doc_file}" doc_text)
+    string(REPLACE "\n" ";" help_lines "${out}")
+    set(doc_commands "")
+    foreach(line IN LISTS help_lines)
+        # "  budget list <파일>            예산 목록" -> "budget list"
+        if(line MATCHES "^  ([a-z]+( [a-z]+)?)( [<[]|  )")
+            list(APPEND doc_commands "${CMAKE_MATCH_1}")
+            string(FIND "${doc_text}" "mledger ${CMAKE_MATCH_1}" pos)
+            if(pos EQUAL -1)
+                list(APPEND errors "command not described in CLI.md: mledger ${CMAKE_MATCH_1}")
+            endif()
+        endif()
+    endforeach()
+    list(LENGTH doc_commands count)
+    message("Commands checked against CLI.md (${count}): ${doc_commands}")
+    if(count LESS 10)
+        list(APPEND errors "could not read the command list from help (found ${count})")
     endif()
 endif()
 
