@@ -249,7 +249,6 @@ std::string GetDateTimeString() const
 
 **배경**: macOS 스모크 테스트 실패(천 단위 구분이 로케일에 따라 달라짐)를 계기로 숫자/문자열 포맷 코드를 전부 점검. 금액·소수 표시는 `FMLFormat`, 원화 환산은 `FMLCurrency`(둘 다 `MissionLedgerCore/src/module/common/`)로 모아 고쳤고, 아래는 기록만 해 둔 것
 
-- **PDF 오른쪽 정렬 폭 추정**: `MLPDFExporter`/`MLPDFRow`가 `문자열.length() × 글자 크기 × 계수`로 폭을 짐작함. 바이트 수 기준이라 한글(예: "원", 3바이트)이 실제보다 넓게 계산됨. 모든 행이 같이 어긋나 정렬이 깨져 보이지는 않음. 제대로 하려면 폰트로 실제 폭 측정 (CLAUDE.md "Known leftovers"의 PDF 레이아웃 항목과 같은 종류)
 - **GUI 숫자 입력 파싱의 로케일**: `wxString::ToDouble()`은 C 로케일을 따름. 현재 Windows에서는 소수점이 `.`라 문제 없음. macOS GUI(로드맵 7의 ③)에서 wxWidgets가 로케일을 바꾸는지 확인하고, 필요하면 `ToCDouble()`로 (편집 폼은 `FMLFormat::FormatDecimalPlain`이 항상 `.`로 씀). 추정, 확인 안 함
 - **결산서 "평균 환율"이 단순 평균**: `MLModel.cpp`의 `ExportSettlement`가 통화별 환율을 거래 수로 나눔 (금액 가중 평균 아님). 예: 12.5 USD @ 1,350.25와 1.15 USD @ 100 → 725.13원으로 표시. 의도한 것인지 확인 필요
 
