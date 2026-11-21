@@ -1,6 +1,6 @@
 # CLI 설계안 (`mledger`)
 
-작성 2026-11-21. 상태: **1~2단계 구현됨 (2026-11-21)**, 나머지는 설계안. 구현하면서 이 문서를 갱신한다.
+작성 2026-11-21. 상태: **1~3단계 구현됨 (2026-11-21)**, 나머지는 설계안. 구현하면서 이 문서를 갱신한다.
 
 ## 0. 목적과 원칙
 
@@ -45,7 +45,7 @@
 
 ## 3. 명령 체계
 
-**구현 (2단계, 2026-11-21)**: `MissionLedgerCLI/src/module/mvc/view/MLCLIViewCommands.cpp`의 `commandSpecs()` 표 하나에 명령, 위치 인수, 옵션, 처리 함수, 예를 적고 파싱(`MLCLIArgs`), 필수 옵션 검사, 도움말(`help`, `help <명령>`, `<명령> --help`)이 모두 이 표를 쓴다. 실행 파일 이름은 아직 `MissionLedgerCLI` (도움말의 이름은 `kProgram` 한곳). 아래 표에서 구현과 다른 점: `--item` 필터는 없음(`--search`가 항목/설명/영수증 번호를 찾음), `--no-subtitle`과 공통 옵션 `--json`/`--dry-run`/`--version`은 3단계. `--yes`는 `delete`, `budget delete`에만 있음. 외화 거래의 `--amount`는 생략 가능하고, 주면 계산값과 1원 이내여야 함 (옛 스크립트 호환: 옛 `add`는 `--amount`가 필수였고 외화 옵션이 있으면 계산값으로 덮어씀)
+**구현 (2단계, 2026-11-21)**: `MissionLedgerCLI/src/module/mvc/view/MLCLIViewCommands.cpp`의 `commandSpecs()` 표 하나에 명령, 위치 인수, 옵션, 처리 함수, 예를 적고 파싱(`MLCLIArgs`), 필수 옵션 검사, 도움말(`help`, `help <명령>`, `<명령> --help`)이 모두 이 표를 쓴다. 실행 파일 이름은 아직 `MissionLedgerCLI` (도움말의 이름은 `kProgram` 한곳). 아래 표에서 구현과 다른 점: `--item` 필터는 없음(`--search`가 항목/설명/영수증 번호를 찾음), `--version`은 아직 없음. 외화 거래의 `--amount`는 생략 가능하고, 주면 계산값과 1원 이내여야 함 (옛 스크립트 호환: 옛 `add`는 `--amount`가 필수였고 외화 옵션이 있으면 계산값으로 덮어씀)
 
 **문법**: `mledger <명령> [하위명령] <파일.ml> [옵션]`. 파일은 항상 명령 바로 뒤의 위치 인수 (`--file` 없앰)
 
@@ -73,11 +73,29 @@
 
 | 옵션 | 내용 |
 |---|---|
-| `--json` | 결과를 JSON으로 (목록, 추가된 ID, 오류 포함). 금액은 정수, 날짜는 ISO 문자열 |
+| `--json` | 결과를 JSON 한 줄로 (목록, 추가된 ID, 오류 포함). 금액은 정수, 날짜는 ISO 문자열. 형식은 아래 "JSON 형식" |
 | `--yes` | 확인 질문 생략 (삭제, 덮어쓰기) |
 | `--dry-run` | 쓰기 명령을 실제로 저장하지 않고 결과만 출력 |
 | `--help` | 해당 명령 도움말 |
 | `--version` | 버전 (`VERSION` 파일 값) |
+
+### JSON 형식 (3단계, 2026-11-21)
+
+`nlohmann::ordered_json` (third_party/nlohmann_json)으로 한 줄 출력, 키 순서는 아래와 같다. 성공도 오류도 stdout, 종료 코드는 그대로 (0/1/2)
+
+```json
+{"ok":true,"command":"add","dryRun":false,"backup":"data.ml.bak","transaction":{"id":10,"type":"expense","category":"숙식","item":"식비","description":"","amount":50000,"date":"2026-01-13","receipt":"","exchange":{"currency":"PHP","original":2000.0,"rate":25.0}}}
+{"ok":true,"command":"list","count":5,"summary":{"income":0,"expense":1779750,"balance":-1779750},"transactions":[...]}
+{"ok":false,"command":"add","error":{"code":"usage","message":"잘못된 금액입니다: 12abc ..."}}
+```
+
+- 거래: `id, type(income|expense), category, item, description, amount, date, receipt, exchange`(원화 거래는 `null`)
+- 예산: `id, type, category, item, amount, notes`
+- 쓰기 명령: `dryRun`, `backup`(경로 또는 `null`), 결과 `transaction`/`budget`/`deleted`
+- `info`: `file, transactions{count,income,expense}, summary{income,expense,balance}, period{from,to}|null, budgets{count,income,expense}, categories{income[],expense[]}`
+- `export`: `output`, `new`: `file`
+- 오류 `code`: `usage`(2) / `failed`(1). 명령을 못 찾은 오류는 `"command": null`
+- `--json`이면 삭제 확인 질문을 하지 않음: `--yes`가 없으면 사용법 오류. `help`는 `--json`이어도 글자 도움말
 
 ### 값 규칙
 
@@ -96,7 +114,7 @@
 ## 4. 안전장치
 
 - `new`: 기존 파일이면 거부 (✅ 2026-11-21 수정, 스모크 테스트 `cli_new_existing`)
-- 쓰기 전 백업: 쓰기 명령이 저장하기 전에 `<파일>.ml.bak` 하나를 남김 (직전 상태 1개). 위치와 개수는 구현 때 확정
+- 쓰기 전 백업 (✅ 3단계): 쓰기 명령이 저장하기 직전에 원본을 `<파일>.bak`(예: `data.ml.bak`, 같은 폴더)으로 복사. 직전 상태 1개, 다음 쓰기 때 덮어씀. 복사에 실패하면 저장하지 않고 1로 끝남. `--dry-run`과 `new`는 백업 없음. GUI 저장에는 아직 없음 (7단계에서 판단)
 - `--dry-run`으로 미리 보기
 - 삭제는 사람이 터미널에서 쓸 때 확인 질문, AI/스크립트는 `--yes` 필요 (터미널이 아니면 `--yes` 없이 오류)
 
@@ -156,7 +174,7 @@
 |---|---|---|
 | 1 | `new`가 기존 파일 데이터를 지우는 문제 수정 + 스모크 테스트 | ✅ 2026-11-21 |
 | 2 | 문법 통일(§3), 거래 `show`/`update`/`delete`, `info`, `list` 필터, 값 규칙, 종료 코드, 도움말 한 벌, 스모크 테스트 보강 (`cli_edit_cycle`, `cli_usage_error`) | ✅ 2026-11-21 (대화형은 아직 옛 명령) |
-| 3 | `--json`, `--yes`, `--dry-run`, `--no-subtitle`(GUI 부제 토글과 같은 옵션 구조체), 백업 | 📋 |
+| 3 | `--json`, `--yes`, `--dry-run`, `--no-subtitle`(GUI 부제 토글과 같은 옵션 구조체), 백업. 스모크 테스트 `cli_json_list`, `cli_json_error`, `cli_dry_run`, `cli_backup` | ✅ 2026-11-21 |
 | 4 | 대화형 다시 만들기 (§5) | 📋 |
 | 5 | `mledger` 이름, 설치 파일 포함, PATH (§2). **7단계 이후에** (AI가 GUI 옆에서 쓰기 시작하기 전에 충돌 감지가 있어야 함) | 📋 |
 | 6 | `CLI.md`, 사용자 `ReadMe.txt` (§7) | 📋 |

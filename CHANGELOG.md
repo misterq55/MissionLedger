@@ -8,6 +8,14 @@
 
 ## [미배포]
 
+### 추가
+
+- PDF 부제 선택: 파일 메뉴 "PDF에 파일 이름 부제 넣기"(기본 켜짐, 다음 실행에도 기억)를 끄면 PDF 제목 아래 `.ml` 파일 이름을 넣지 않습니다. CLI는 `export settlement|transactions`에 `--no-subtitle`
+- CLI `--json`: 모든 명령의 결과와 오류를 JSON 한 줄로 출력 (AI나 스크립트용). 키는 영어, 금액은 원 단위 정수, 날짜는 `YYYY-MM-DD`
+- CLI `--dry-run`: 쓰기 명령(`add`, `update`, `delete`, `budget add/update/delete`)의 결과만 보여주고 저장하지 않음
+- CLI 백업: 쓰기 명령은 저장하기 직전 상태를 `<파일>.bak`(예: `data.ml.bak`)으로 남깁니다 (직전 1개, 다음 쓰기 때 덮어씀). 백업을 못 만들면 저장하지 않습니다
+- CLI `--yes`를 모든 명령에서 받음 (확인 질문 생략. 지금은 삭제만 확인을 묻습니다)
+
 ### 변경
 
 - PDF 내보내기 글꼴을 프로그램에 포함된 **Noto Sans KR**(SIL Open Font License)로 바꿨습니다. 어느 PC에서나 같은 글꼴로 나옵니다 (이전: PC에 설치된 맑은 고딕). 일본어 신자체(예: 気駅広)와 번체 한자도 표시되며, 중국어 간체는 아직 표시되지 않습니다

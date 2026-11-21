@@ -34,7 +34,11 @@ Defined in [`tests/CMakeLists.txt`](../CMakeLists.txt), run by [`tests/cli_smoke
 | `cli_new_existing` | `new <copy of sample.ml>` | exit code is not 0 and the existing file is unchanged (SHA-256) |
 | `cli_edit_cycle` | on a copy: `add` → `update` → `show` → `delete --yes`, then `list` | each step exits 0 and prints its result line (new ID 10, updated amount, description); the final totals are the fixture's again |
 | `cli_usage_error` | `add <copy> ... --amount 12abc` | exit code exactly 2 (usage error) and the file is unchanged |
-| `cli_*_x86_64` (macOS only) | the eight above, run as `arch -x86_64 MissionLedgerCLI ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
+| `cli_json_list` | `list sample.ml --json` | exit 0; the JSON starts with `ok`, `command`, `count` 10 and the totals |
+| `cli_json_error` | `add <copy> ... --amount 12abc --json` | exit code exactly 2, a JSON error with `"code":"usage"` on stdout, the file is unchanged |
+| `cli_dry_run` | `add <copy> ... --dry-run` | exit 0, prints the preview line, the file is unchanged and no `.bak` is written |
+| `cli_backup` | `budget add <copy> ... --json` | exit 0; `<copy>.bak` equals the file before the write and the file itself changed |
+| `cli_*_x86_64` (macOS only) | the twelve above, run as `arch -x86_64 MissionLedgerCLI ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
 
 PDFs go to `build/<windows|macos>/tests/out/<Config>/`. Apart from the embedded font names, PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
 
