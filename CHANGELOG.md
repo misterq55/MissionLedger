@@ -10,6 +10,7 @@
 
 ### 추가
 
+- macOS 지원 (macOS 11 이상, Apple Silicon과 Intel): `.dmg`를 열어 앱을 응용 프로그램 폴더로 끌어 설치합니다. `.ml` 파일 더블클릭으로 열기, 라이트/다크 모드를 지원합니다. 서명하지 않은 앱이라 처음 실행할 때 시스템 설정 > 개인정보 보호 및 보안 > "확인 없이 열기"가 필요합니다
 - PDF 부제 선택: 파일 메뉴 "PDF에 파일 이름 부제 넣기"(기본 켜짐, 다음 실행에도 기억)를 끄면 PDF 제목 아래 `.ml` 파일 이름을 넣지 않습니다. CLI는 `export settlement|transactions`에 `--no-subtitle`
 - CLI `--json`: 모든 명령의 결과와 오류를 JSON 한 줄로 출력 (AI나 스크립트용). 키는 영어, 금액은 원 단위 정수, 날짜는 `YYYY-MM-DD`
 - CLI `--dry-run`: 쓰기 명령(`add`, `update`, `delete`, `budget add/update/delete`)의 결과만 보여주고 저장하지 않음
