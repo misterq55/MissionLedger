@@ -89,7 +89,6 @@ int main(int argc, char* argv[])
     else
     {
         // 대화형 모드: 인수가 없으면 명령어 루프 실행
-        std::cout << "MissionLedger CLI 시작..." << std::endl;
         view->Run();
         return 0;
     }

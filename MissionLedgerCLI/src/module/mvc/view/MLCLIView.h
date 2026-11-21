@@ -31,7 +31,7 @@ public:
     virtual ~FMLCLIView();
 
     // Main entry points
-    void Run();                                    // 대화형 모드
+    void Run();                                    // 대화형 모드 (ShellFile이 있으면 그 파일을 연 상태로)
     int RunWithArgs(int argc, char* argv[]);       // 명령어 모드 (반환: 0=성공, 1=실패)
 
     // IMLView implementation
@@ -111,15 +111,26 @@ private:
     bool DryRun = false;          // --dry-run
     std::string BackupPath;       // 이번 명령이 만든 백업 (없으면 빈 문자열)
 
-    // 대화형 모드 - 명령어 처리
-    void printHelp();
-    void handleNewFile();
-    void handleOpenFile();
-    void handleSaveFile();
-    void handleAddTransaction();
-    void handleListTransactions();
-    void handleAddBudget();
-    void handleListBudgets();
+    // === 명령 실행 (인수 모드, 대화형 공용) ===
+    int dispatch(const std::vector<std::string>& tokens);
+
+    // === 대화형 모드 (MLCLIViewShell.cpp) ===
+    void printShellHelp() const;
+    int promptForCommand(const FMLCLICommandSpec& spec, FMLCLIArgs& args, bool& confirmBeforeSave);
+    bool promptTransaction(FMLCLIArgs& args, const FMLTransactionData* current);
+    bool promptBudget(FMLCLIArgs& args, const FMLBudgetData* current);
+    bool promptId(FMLCLIArgs& args, const std::string& label);
+    // 한 줄 입력. EOF이거나 "취소"면 false
+    bool ask(const std::string& prompt, std::string& out);
+    // 번호 또는 새 이름. current가 있으면 Enter = 그대로
+    bool askName(const std::string& label, const std::vector<std::string>& choices, bool optional,
+                 const std::string* current, std::string& out);
+    bool askType(const E_MLTransactionType* current, E_MLTransactionType& out);
+    std::vector<std::string> knownNames(E_MLTransactionType type, const std::string& category) const;
+
+    bool Interactive = false;     // 대화형 모드에서 실행 중
+    bool InputEnded = false;      // 입력이 끝남 (EOF)
+    std::string ShellFile;        // 대화형에서 열린 파일
 
     // 출력 헬퍼
     void printTransaction(const FMLTransactionData& data, bool showHeader = false);

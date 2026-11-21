@@ -3,7 +3,7 @@
 
 set(SMOKE_FIXTURE "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/sample.ml")
 
-foreach(case list_totals budget_totals export_settlement export_transactions missing_file new_existing edit_cycle usage_error json_list json_error dry_run backup)
+foreach(case list_totals budget_totals export_settlement export_transactions missing_file new_existing edit_cycle usage_error json_list json_error dry_run backup shell_add shell_cancel)
     add_test(NAME cli_${case}
         COMMAND ${CMAKE_COMMAND}
             -DCASE=${case}
@@ -18,7 +18,7 @@ endforeach()
 # The normal tests above run the build Mac's own architecture (arm64 on the Jenkins Mac);
 # the x86_64 half runs through Rosetta 2. Without Rosetta the cases are reported as skipped.
 if(APPLE AND "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
-    foreach(case list_totals budget_totals export_settlement export_transactions missing_file new_existing edit_cycle usage_error json_list json_error dry_run backup)
+    foreach(case list_totals budget_totals export_settlement export_transactions missing_file new_existing edit_cycle usage_error json_list json_error dry_run backup shell_add shell_cancel)
         add_test(NAME cli_${case}_x86_64
             COMMAND ${CMAKE_COMMAND}
                 -DCASE=${case}

@@ -115,6 +115,24 @@ elseif(CASE STREQUAL "backup")
     set(args budget add "${work}" --type expense --category 테스트 --amount 1000 --json)
     set(expected [["backup":"]] [["budget":{"id":9,]])
     set(expect_backup TRUE)
+elseif(CASE STREQUAL "shell_add")
+    # Interactive mode on a copy: "add" asks every field in turn, previews, saves after "y"
+    set(work "${OUT_DIR}/shell_add.ml")
+    file(MAKE_DIRECTORY "${OUT_DIR}")
+    file(COPY_FILE "${FIXTURE}" "${work}")
+    set(args shell "${work}")
+    # type 2 (expense), category, item (none), foreign? n, amount, date, description, receipt, save? y
+    set(stdin_text "add\n2\n숙식\n\nn\n50000\n2026-02-01\n\n\ny\nlist\nexit\n")
+    set(expected "추가됨: ID 10 | 지출 | 숙식 | 50,000원 | 2026-02-01" "총 11개의 트랜잭션")
+elseif(CASE STREQUAL "shell_cancel")
+    # Interactive mode: "취소" at a question cancels the command and leaves the file untouched
+    set(existing "${OUT_DIR}/shell_cancel.ml")
+    file(MAKE_DIRECTORY "${OUT_DIR}")
+    file(COPY_FILE "${FIXTURE}" "${existing}")
+    file(SHA256 "${existing}" existing_hash)
+    set(args shell "${existing}")
+    set(stdin_text "add\n2\n취소\nexit\n")
+    set(expected "취소했습니다.")
 else()
     message(FATAL_ERROR "cli_smoke.cmake: unknown CASE '${CASE}'")
 endif()
@@ -138,6 +156,13 @@ endif()
 # Empty stdin: the CLI never waits for input, even if it falls into interactive mode
 set(empty_input "${OUT_DIR}/empty_stdin.txt")
 file(WRITE "${empty_input}" "")
+if(DEFINED stdin_text)
+    # Interactive cases: answers fed through stdin (the steps below keep the empty input)
+    set(case_input "${OUT_DIR}/${CASE}_stdin.txt")
+    file(WRITE "${case_input}" "${stdin_text}")
+else()
+    set(case_input "${empty_input}")
+endif()
 
 # Steps before the checked command (edit_cycle): each must succeed and print its expected line
 foreach(step IN LISTS steps)
@@ -161,7 +186,7 @@ endforeach()
 
 execute_process(
     COMMAND ${runner} "${CLI}" ${args}
-    INPUT_FILE "${empty_input}"
+    INPUT_FILE "${case_input}"
     OUTPUT_VARIABLE out
     ERROR_VARIABLE err
     RESULT_VARIABLE rc

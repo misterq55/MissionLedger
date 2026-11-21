@@ -7,6 +7,7 @@
 #include "interface/IMLController.h"
 #include "module/common/format/MLFormat.h"
 #include "module/common/currency/MLCurrency.h"
+#include "MLCLIUtil.h"
 
 #include <nlohmann/json.hpp>
 
@@ -29,79 +30,13 @@
     #include <unistd.h>
 #endif
 
+using namespace MLCLIUtil;
+
 namespace
 {
     // 도움말과 오류 메시지에 쓰는 프로그램 이름 (CLI_DESIGN.md §2: 실행 파일 이름을 mledger로 바꿀 때 함께 변경)
     const char* const kProgram = "MissionLedgerCLI";
 
-    constexpr int kExitOk    = 0;
-    constexpr int kExitFail  = 1;
-    constexpr int kExitUsage = 2;
-
-    // ===== 값 파싱 (문자열 전체가 맞아야 함) =====
-
-    // 정수 금액: 쉼표 허용 (50,000), 음수 불가
-    bool parseAmount(const std::string& text, int64_t& out)
-    {
-        std::string digits;
-        for (char c : text)
-            if (c != ',') digits += c;
-        if (digits.empty()) return false;
-        const auto result = std::from_chars(digits.data(), digits.data() + digits.size(), out);
-        return result.ec == std::errc() && result.ptr == digits.data() + digits.size() && out >= 0;
-    }
-
-    bool parseId(const std::string& text, int& out)
-    {
-        if (text.empty()) return false;
-        const auto result = std::from_chars(text.data(), text.data() + text.size(), out);
-        return result.ec == std::errc() && result.ptr == text.data() + text.size() && out >= 0;
-    }
-
-    // 소수 (외화 금액, 환율): 로케일과 무관하게 '.' 소수점, 양수만
-    bool parsePositiveDecimal(const std::string& text, double& out)
-    {
-        std::string digits;
-        for (char c : text)
-            if (c != ',') digits += c;
-        if (digits.empty()) return false;
-        std::istringstream stream(digits);
-        stream.imbue(std::locale::classic());
-        stream >> out;
-        return stream && stream.peek() == std::char_traits<char>::eof() && out > 0.0;
-    }
-
-    bool parseType(const std::string& text, E_MLTransactionType& out)
-    {
-        if (text == "income" || text == "i" || text == "수입") { out = E_MLTransactionType::Income; return true; }
-        if (text == "expense" || text == "e" || text == "지출") { out = E_MLTransactionType::Expense; return true; }
-        return false;
-    }
-
-    // YYYY-MM-DD
-    bool isValidDate(const std::string& text)
-    {
-        if (text.size() != 10 || text[4] != '-' || text[7] != '-') return false;
-        for (size_t i : {0, 1, 2, 3, 5, 6, 8, 9})
-            if (!std::isdigit(static_cast<unsigned char>(text[i]))) return false;
-        const int month = std::stoi(text.substr(5, 2));
-        const int day = std::stoi(text.substr(8, 2));
-        return month >= 1 && month <= 12 && day >= 1 && day <= 31;
-    }
-
-    std::string today()
-    {
-        const std::time_t now = std::time(nullptr);
-        std::tm local{};
-    #ifdef _WIN32
-        localtime_s(&local, &now);
-    #else
-        localtime_r(&now, &local);
-    #endif
-        char buffer[11];
-        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", &local);
-        return buffer;
-    }
 
     bool stdinIsTerminal()
     {
@@ -112,45 +47,6 @@ namespace
     #else
         return isatty(STDIN_FILENO) != 0;
     #endif
-    }
-
-    std::string typeName(E_MLTransactionType type)
-    {
-        return type == E_MLTransactionType::Income ? "수입" : "지출";
-    }
-
-    std::string won(int64_t amount)
-    {
-        return FMLFormat::FormatAmount(amount) + "원";
-    }
-
-    // 한 줄 요약: "ID 11 | 지출 | 숙식 / 식비 | 50,000원 (PHP 2,000 @ 25) | 2026-11-21"
-    std::string describeTransaction(const FMLTransactionData& data)
-    {
-        std::string text = "ID " + std::to_string(data.TransactionId) + " | " + typeName(data.Type) + " | " + data.Category;
-        if (!data.Item.empty()) text += " / " + data.Item;
-        text += " | " + won(data.Amount);
-        if (data.UseExchangeRate)
-            text += " (" + data.Currency + " " + FMLFormat::FormatDecimal(data.OriginalAmount, 2)
-                + " @ " + FMLFormat::FormatDecimal(data.ExchangeRate, 4) + ")";
-        text += " | " + data.DateTime;
-        return text;
-    }
-
-    std::string describeBudget(const FMLBudgetData& data)
-    {
-        std::string text = "ID " + std::to_string(data.BudgetId) + " | " + typeName(data.Type) + " | " + data.Category;
-        if (!data.Item.empty()) text += " / " + data.Item;
-        text += " | " + won(data.BudgetAmount);
-        return text;
-    }
-
-    // .ml 옆에 기본 PDF 이름: <폴더>/<파일이름><suffix>
-    std::string defaultOutputPath(const std::string& mlPath, const std::string& suffix)
-    {
-        const std::filesystem::path path = std::filesystem::u8path(mlPath);
-        const std::filesystem::path out = path.parent_path() / std::filesystem::u8path(path.stem().u8string() + suffix);
-        return out.u8string();
     }
 
     // ===== 공통 옵션 정의 =====
@@ -340,9 +236,7 @@ std::vector<FMLCLIOptionSpec> FMLCLIView::optionsFor(const FMLCLICommandSpec& sp
 int FMLCLIView::RunWithArgs(int argc, char* argv[])
 {
     SilentMode = true;
-    CurrentCommand = nullptr;
-    DryRun = false;
-    BackupPath.clear();
+    Interactive = false;
 
     const std::vector<std::string> tokens(argv + 1, argv + argc);
     // 명령을 찾기 전의 오류도 JSON으로 내도록 먼저 확인 ("--" 앞까지)
@@ -356,11 +250,19 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
         printGeneralHelp(std::cerr);
         return kExitUsage;
     }
-
     if (tokens[0] == "--help" || tokens[0] == "-h") {
         printGeneralHelp(std::cout);
         return kExitOk;
     }
+    return dispatch(tokens);
+}
+
+// 명령 하나 실행 (인수 모드와 대화형 공용). 대화형이면 열린 파일을 끼우고 빠진 값을 묻는다
+int FMLCLIView::dispatch(const std::vector<std::string>& tokens)
+{
+    CurrentCommand = nullptr;
+    DryRun = false;
+    BackupPath.clear();
 
     // 두 단어 명령(budget add, export settlement)을 먼저 찾는다
     const FMLCLICommandSpec* spec = nullptr;
@@ -400,6 +302,8 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
     if (!parseError.empty())
         return usageError(spec, parseError);
 
+    if (Interactive && args.Has("json"))
+        return usageError(spec, "대화형 모드에서는 --json을 쓸 수 없습니다");
     JsonMode = args.Has("json");
     DryRun = args.Has("dry-run");
 
@@ -408,15 +312,44 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
         return kExitOk;
     }
 
+    // 대화형: 열린 파일을 <파일> 자리에 끼운다
+    if (Interactive && spec->MinPositionals == 1 && args.Positionals.empty()) {
+        if (ShellFile.empty()) {
+            std::cerr << "먼저 파일을 여세요: open <파일>" << std::endl;
+            return kExitUsage;
+        }
+        args.Positionals.push_back(ShellFile);
+    }
+
     if (args.Positionals.size() < spec->MinPositionals)
         return usageError(spec, spec->MinPositionals == 1 ? ".ml 파일 경로가 필요합니다" : "인수가 부족합니다");
     if (args.Positionals.size() > spec->MaxPositionals)
         return usageError(spec, "인수가 너무 많습니다: " + args.Positionals.back()
             + " (값에 띄어쓰기가 있으면 따옴표로 묶으세요)");
 
+    // 대화형: 빠진 값을 묻고, 모두 물은 쓰기 명령은 미리 보기 후 확인
+    bool confirmBeforeSave = false;
+    if (Interactive) {
+        const int promptResult = promptForCommand(*spec, args, confirmBeforeSave);
+        if (promptResult != kExitOk) return promptResult;
+    }
+
     for (const auto& option : spec->Options)
         if (option.Required && !args.Has(option.Name))
             return usageError(spec, "--" + option.Name + " 옵션이 필요합니다");
+
+    if (confirmBeforeSave && spec->Writes && !DryRun) {
+        DryRun = true;
+        const int previewResult = (this->*(spec->Handler))(args);
+        DryRun = false;
+        if (previewResult != kExitOk) return previewResult;
+
+        std::string answer;
+        if (!ask("저장할까요? [Y/n]", answer) || answer == "n" || answer == "N" || answer == "no") {
+            if (!InputEnded) std::cout << "취소했습니다." << std::endl;
+            return kExitFail;
+        }
+    }
 
     return (this->*(spec->Handler))(args);
 }
@@ -475,11 +408,12 @@ int FMLCLIView::usageError(const FMLCLICommandSpec* spec, const std::string& mes
         return kExitUsage;
     }
     std::cerr << "오류: " << message << "\n";
+    const std::string helpCommand = Interactive ? std::string("help") : std::string(kProgram) + " help";
     if (spec) {
         std::cerr << "사용법: " << usageLine(*spec) << "\n";
-        std::cerr << "자세히: " << kProgram << " help " << spec->Name << "\n";
+        std::cerr << "자세히: " << helpCommand << " " << spec->Name << "\n";
     } else {
-        std::cerr << "명령 목록: " << kProgram << " help\n";
+        std::cerr << "명령 목록: " << helpCommand << "\n";
     }
     std::cerr.flush();
     return kExitUsage;
@@ -674,6 +608,13 @@ int FMLCLIView::applyBudgetOptions(const FMLCLIArgs& args, FMLBudgetData& data, 
 int FMLCLIView::confirmDelete(const FMLCLIArgs& args, const std::string& what)
 {
     if (args.Has("yes") || DryRun) return kExitOk;
+    if (Interactive) {
+        std::cout << what << std::endl;
+        std::string answer;
+        if (ask("삭제할까요? [y/N]", answer) && (answer == "y" || answer == "Y" || answer == "yes")) return kExitOk;
+        if (!InputEnded) std::cout << "취소했습니다." << std::endl;
+        return kExitFail;
+    }
     if (JsonMode || !stdinIsTerminal())
         return usageError(CurrentCommand, "삭제하려면 --yes가 필요합니다 (확인 질문을 할 수 없는 환경)");
 
@@ -689,12 +630,9 @@ int FMLCLIView::confirmDelete(const FMLCLIArgs& args, const std::string& what)
 
 int FMLCLIView::cmdShell(const FMLCLIArgs& args)
 {
-    if (!args.Positionals.empty()) {
-        if (!openFileForCommand(args.Positionals[0])) return kExitFail;
-        std::cout << "파일 열림: " << args.Positionals[0] << std::endl;
-    }
-    SilentMode = false;
-    JsonMode = false;
+    if (Interactive)
+        return usageError(CurrentCommand, "이미 대화형 모드입니다 (파일 열기: open <파일>)");
+    ShellFile = args.Positionals.empty() ? std::string() : args.Positionals[0];
     Run();
     return kExitOk;
 }
