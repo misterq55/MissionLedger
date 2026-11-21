@@ -8,7 +8,9 @@
 #
 # Each case runs the CLI once and fails unless
 #   - the exit code is 0 (missing_file: non-zero, and no file is created;
-#     new_existing: non-zero, and the existing file is unchanged),
+#     new_existing: non-zero, and the existing file is unchanged;
+#     usage_error: exactly 2 (usage error), and the file is unchanged;
+#     edit_cycle: add/update/show/delete steps on a copy each succeed and print their line first),
 #   - every expected line appears in the output (totals from tests/fixtures/README.md),
 #   - the PDF (export cases) exists, is not empty and starts with "%PDF".
 # PDF contents/layout are not checked: this only tells whether the build still works.
@@ -30,11 +32,11 @@ elseif(CASE STREQUAL "budget_totals")
     set(expected "수입 예산: 5,000,000원" "지출 예산: 4,800,000원")
 elseif(CASE STREQUAL "export_settlement")
     set(pdf "${OUT_DIR}/settlement.pdf")
-    set(args export-settlement "${FIXTURE}" "${pdf}")
+    set(args export settlement "${FIXTURE}" --out "${pdf}")
     set(expected "")
 elseif(CASE STREQUAL "export_transactions")
     set(pdf "${OUT_DIR}/transactions.pdf")
-    set(args export-transactions "${FIXTURE}" "${pdf}")
+    set(args export transactions "${FIXTURE}" --out "${pdf}")
     set(expected "")
 elseif(CASE STREQUAL "missing_file")
     # Opening a path that does not exist must fail and must not create an empty .ml there
@@ -52,6 +54,32 @@ elseif(CASE STREQUAL "new_existing")
     set(args new "${existing}")
     set(expected "")
     set(expect_fail TRUE)
+elseif(CASE STREQUAL "edit_cycle")
+    # add → update → delete on a copy (steps below), then the totals must be the fixture's again
+    set(work "${OUT_DIR}/edit_cycle.ml")
+    file(MAKE_DIRECTORY "${OUT_DIR}")
+    file(COPY_FILE "${FIXTURE}" "${work}")
+    set(steps add update show delete)
+    set(step_add_args add "${work}" --type expense --category 테스트 --item 항목 --amount 1000 --date 2026-02-01)
+    set(step_add_expected "추가됨: ID 10 | 지출 | 테스트 / 항목 | 1,000원 | 2026-02-01")
+    set(step_update_args update "${work}" --id 10 --amount 2,500 --desc 수정됨)
+    set(step_update_expected "수정됨: ID 10 | 지출 | 테스트 / 항목 | 2,500원 | 2026-02-01")
+    set(step_show_args show "${work}" --id 10)
+    set(step_show_expected "설명: 수정됨")
+    set(step_delete_args delete "${work}" --id 10 --yes)
+    set(step_delete_expected "삭제됨: ID 10")
+    set(args list "${work}")
+    set(expected "총 10개의 트랜잭션" "총 수입: 4,800,000원" "총 지출: 4,309,750원" "잔액: 490,250원")
+elseif(CASE STREQUAL "usage_error")
+    # A bad value must be a usage error (exit code 2) and must not touch the file
+    set(existing "${OUT_DIR}/usage_error.ml")
+    file(MAKE_DIRECTORY "${OUT_DIR}")
+    file(COPY_FILE "${FIXTURE}" "${existing}")
+    file(SHA256 "${existing}" existing_hash)
+    set(args add "${existing}" --type expense --category 테스트 --amount 12abc)
+    set(expected "")
+    set(expect_fail TRUE)
+    set(expect_rc 2)
 else()
     message(FATAL_ERROR "cli_smoke.cmake: unknown CASE '${CASE}'")
 endif()
@@ -76,6 +104,26 @@ endif()
 set(empty_input "${OUT_DIR}/empty_stdin.txt")
 file(WRITE "${empty_input}" "")
 
+# Steps before the checked command (edit_cycle): each must succeed and print its expected line
+foreach(step IN LISTS steps)
+    execute_process(
+        COMMAND ${runner} "${CLI}" ${step_${step}_args}
+        INPUT_FILE "${empty_input}"
+        OUTPUT_VARIABLE step_out
+        ERROR_VARIABLE step_err
+        RESULT_VARIABLE step_rc
+        ENCODING UTF8
+        TIMEOUT 30)
+    message("[${step}] ${step_out}${step_err}")
+    if(NOT step_rc EQUAL 0)
+        message(FATAL_ERROR "FAILED (${CASE}): step ${step} exit code ${step_rc}")
+    endif()
+    string(FIND "${step_out}" "${step_${step}_expected}" pos)
+    if(pos EQUAL -1)
+        message(FATAL_ERROR "FAILED (${CASE}): step ${step} missing in output: ${step_${step}_expected}")
+    endif()
+endforeach()
+
 execute_process(
     COMMAND ${runner} "${CLI}" ${args}
     INPUT_FILE "${empty_input}"
@@ -91,6 +139,8 @@ set(errors "")
 if(expect_fail)
     if(rc EQUAL 0)
         list(APPEND errors "exit code 0 (expected an error)")
+    elseif(DEFINED expect_rc AND NOT rc EQUAL expect_rc)
+        list(APPEND errors "exit code ${rc} (expected ${expect_rc})")
     endif()
     if(missing AND EXISTS "${missing}")
         list(APPEND errors "file was created: ${missing}")

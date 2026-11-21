@@ -2,6 +2,7 @@
 #include "interface/IMLView.h"
 #include "interface/IMLModelObserver.h"
 #include "MLDefine.h"
+#include "MLCLIArgs.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -17,11 +18,10 @@
  * 사용자 입력(명령어)을 처리하고 Controller를 통해 작업을 수행합니다.
  *
  * 실행 모드:
- * - 대화형 모드: 인수 없이 실행 시 명령어 루프 실행
- * - 명령어 모드: 명령줄 인수로 직접 명령 실행
- *   예: MissionLedgerCLI.exe list
- *       MissionLedgerCLI.exe add --type income --amount 1000 --category "급여"
- *       MissionLedgerCLI.exe open data.ml
+ * - 대화형 모드: 인수 없이 실행하거나 shell <파일>
+ * - 명령어 모드: MissionLedgerCLI <명령> <파일.ml> [옵션] (docs/CLI_DESIGN.md §3)
+ *   예: MissionLedgerCLI list data.ml --type expense
+ *       MissionLedgerCLI add data.ml --type income --category "후원금" --amount 1000
  */
 class FMLCLIView : public IMLView, public IMLModelObserver
 {
@@ -54,23 +54,54 @@ public:
     virtual void OnDataSaved() override;
 
 private:
-    // 명령어 모드 - 명령줄 인수 처리
-    int cmdHelp();
-    int cmdList(const std::string& filePath);
-    int cmdAdd(const std::map<std::string, std::string>& options);
-    int cmdOpen(const std::string& filePath);
-    int cmdNew(const std::string& filePath);
-    int cmdSave();
-    int cmdBudgetList(const std::string& filePath);
-    int cmdBudgetAdd(const std::map<std::string, std::string>& options);
-    int cmdBudgetUpdate(const std::map<std::string, std::string>& options);
-    int cmdBudgetDelete(const std::map<std::string, std::string>& options);
-    int cmdExportSettlement(const std::string& inputFilePath, const std::string& outputFilePath);
-    int cmdExportTransactions(const std::string& inputFilePath, const std::string& outputFilePath);
+    // === 명령어 모드 (MLCLIViewCommands.cpp) ===
+    // 명령 정의: 이름, 위치 인수, 옵션, 처리 함수. 파싱/검증/도움말이 모두 이 표에서 나온다
+    struct FMLCLICommandSpec {
+        std::string Name;            // "add", "budget add", "export settlement"
+        std::string Positionals;     // 도움말용 표기 ("<파일>")
+        size_t MinPositionals;
+        size_t MaxPositionals;
+        std::string Summary;
+        std::vector<FMLCLIOptionSpec> Options;
+        int (FMLCLIView::*Handler)(const FMLCLIArgs&);
+        std::vector<std::string> Examples;
+    };
+    static const std::vector<FMLCLICommandSpec>& commandSpecs();
+    static const FMLCLICommandSpec* findCommand(const std::string& name);
 
-    // 명령줄 인수 파싱 헬퍼
-    std::map<std::string, std::string> parseOptions(int argc, char* argv[], int startIndex);
-    void printUsage();
+    // 도움말
+    void printGeneralHelp(std::ostream& os) const;
+    void printCommandHelp(std::ostream& os, const FMLCLICommandSpec& spec) const;
+    static std::string usageLine(const FMLCLICommandSpec& spec);
+    int usageError(const FMLCLICommandSpec* spec, const std::string& message) const;
+
+    // 명령 처리 (반환: 0 성공, 1 실행 실패, 2 사용법 오류)
+    int cmdHelp(const FMLCLIArgs& args);
+    int cmdShell(const FMLCLIArgs& args);
+    int cmdNew(const FMLCLIArgs& args);
+    int cmdInfo(const FMLCLIArgs& args);
+    int cmdList(const FMLCLIArgs& args);
+    int cmdShow(const FMLCLIArgs& args);
+    int cmdAdd(const FMLCLIArgs& args);
+    int cmdUpdate(const FMLCLIArgs& args);
+    int cmdDelete(const FMLCLIArgs& args);
+    int cmdBudgetList(const FMLCLIArgs& args);
+    int cmdBudgetAdd(const FMLCLIArgs& args);
+    int cmdBudgetUpdate(const FMLCLIArgs& args);
+    int cmdBudgetDelete(const FMLCLIArgs& args);
+    int cmdExportSettlement(const FMLCLIArgs& args);
+    int cmdExportTransactions(const FMLCLIArgs& args);
+
+    // 명령 공통 헬퍼
+    bool openFileForCommand(const std::string& filePath);
+    int saveForCommand();
+    int applyTransactionOptions(const FMLCLIArgs& args, FMLTransactionData& data, bool isAdd, std::string& error);
+    int applyBudgetOptions(const FMLCLIArgs& args, FMLBudgetData& data, std::string& error);
+    int confirmDelete(const FMLCLIArgs& args, const std::string& what);
+
+    const FMLCLICommandSpec* CurrentCommand = nullptr;  // 사용법 오류 메시지용
+    int LastAddedTransactionId = -1;
+    int LastAddedBudgetId = -1;
 
     // 대화형 모드 - 명령어 처리
     void printHelp();
