@@ -193,6 +193,18 @@ std::string FMLController::GetCurrentFilePath() const
     return "";
 }
 
+bool FMLController::HasExternalChanges() const
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    return model ? model->HasExternalChanges() : false;
+}
+
+bool FMLController::ReloadFile()
+{
+    auto model = FMLMVCHolder::GetInstance().GetModel();
+    return model ? model->ReloadFile() : false;
+}
+
 bool FMLController::HasUnsavedChanges() const
 {
     auto model = FMLMVCHolder::GetInstance().GetModel();

@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <ctime>
 #include <iostream>
+#include <filesystem>
+#include <system_error>
 
 FMLSQLiteStorage::FMLSQLiteStorage()
 {
@@ -31,6 +33,9 @@ bool FMLSQLiteStorage::Initialize(const std::string& filePath)
         Database = nullptr;
         return false;
     }
+
+    // 다른 프로그램(GUI/CLI)이 쓰는 중이면 바로 실패하지 않고 잠시 기다린다
+    sqlite3_busy_timeout(Database, 5000);
 
     if (!createTable())
     {
@@ -395,6 +400,81 @@ bool FMLSQLiteStorage::DeleteBudget(const int budgetId)
     sqlite3_finalize(stmt);
 
     return result == SQLITE_DONE;
+}
+
+bool FMLSQLiteStorage::exec(const char* sql)
+{
+    char* errorMsg = nullptr;
+    const int result = sqlite3_exec(Database, sql, nullptr, nullptr, &errorMsg);
+    sqlite3_free(errorMsg);
+    return result == SQLITE_OK;
+}
+
+void FMLSQLiteStorage::rollback()
+{
+    sqlite3_exec(Database, "ROLLBACK;", nullptr, nullptr, nullptr);
+}
+
+bool FMLSQLiteStorage::SaveAll(const std::vector<FMLTransactionData>& transactions, const std::vector<FMLBudgetData>& budgets)
+{
+    if (!IsInitialized) return false;
+
+    // IMMEDIATE: 시작할 때 쓰기 잠금을 잡는다 (다른 쓰기가 끝나기를 busy_timeout만큼 기다림)
+    if (!exec("BEGIN IMMEDIATE;")) return false;
+
+    bool ok = exec("DELETE FROM transactions;");
+    for (size_t i = 0; ok && i < transactions.size(); ++i)
+        ok = SaveTransaction(transactions[i]);
+    ok = ok && exec("DELETE FROM budgets;");
+    for (size_t i = 0; ok && i < budgets.size(); ++i)
+        ok = SaveBudget(budgets[i]);
+
+    if (!ok || !exec("COMMIT;"))
+    {
+        rollback();
+        return false;
+    }
+    return true;
+}
+
+bool FMLSQLiteStorage::LoadAll(std::vector<FMLTransactionData>& outTransactions, std::vector<FMLBudgetData>& outBudgets)
+{
+    if (!IsInitialized) return false;
+
+    // 읽기 트랜잭션: 두 테이블을 같은 시점의 내용으로 읽는다
+    if (!exec("BEGIN;")) return false;
+    const bool ok = LoadAllTransactions(outTransactions) && LoadAllBudgets(outBudgets);
+    if (!exec("COMMIT;"))
+    {
+        rollback();
+        return false;
+    }
+    return ok;
+}
+
+std::string FMLSQLiteStorage::GetChangeToken()
+{
+    if (!IsInitialized) return std::string();
+
+    // PRAGMA data_version: 이 연결이 아닌 다른 연결/프로세스가 커밋하면 바뀐다 (같은 연결 안에서만 비교 가능)
+    long long dataVersion = -1;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(Database, "PRAGMA data_version;", -1, &stmt, nullptr) == SQLITE_OK)
+    {
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+            dataVersion = sqlite3_column_int64(stmt, 0);
+        sqlite3_finalize(stmt);
+    }
+
+    // 파일이 통째로 바뀌는 경우 (클라우드 동기화 폴더 등): 연결은 옛 파일을 보고 있을 수 있어 경로의 시각/크기도 본다
+    std::error_code ec;
+    const std::filesystem::path path = std::filesystem::u8path(FilePath);
+    const auto size = std::filesystem::file_size(path, ec);
+    if (ec) return std::to_string(dataVersion) + "|missing";
+    const auto time = std::filesystem::last_write_time(path, ec);
+    if (ec) return std::to_string(dataVersion) + "|missing";
+
+    return std::to_string(dataVersion) + "|" + std::to_string(time.time_since_epoch().count()) + "|" + std::to_string(size);
 }
 
 bool FMLSQLiteStorage::DeleteAllBudgets()

@@ -62,4 +62,7 @@ public:
     virtual void NewFile() = 0;
     virtual const std::string& GetCurrentFilePath() const = 0;
     virtual bool HasUnsavedChanges() const = 0;
+    // 외부 변경 감지: 파일을 연(또는 저장한) 뒤 다른 프로그램(CLI 등)이 파일을 바꿨는지, 그리고 다시 불러오기
+    virtual bool HasExternalChanges() const = 0;
+    virtual bool ReloadFile() = 0;
 };

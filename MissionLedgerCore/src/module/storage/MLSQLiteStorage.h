@@ -32,11 +32,19 @@ public:
     bool DeleteBudget(const int budgetId) override;
     bool DeleteAllBudgets() override;
 
+    // 파일 전체 단위
+    bool SaveAll(const std::vector<FMLTransactionData>& transactions, const std::vector<FMLBudgetData>& budgets) override;
+    bool LoadAll(std::vector<FMLTransactionData>& outTransactions, std::vector<FMLBudgetData>& outBudgets) override;
+    std::string GetChangeToken() override;
+
 private:
     /// <summary>
     /// 트랜잭션 테이블 생성
     /// </summary>
     bool createTable();
+
+    bool exec(const char* sql);
+    void rollback();
 
 private:
     sqlite3* Database = nullptr;

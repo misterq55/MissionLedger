@@ -44,6 +44,8 @@ public:
     virtual bool SaveFileAs(const std::string& filePath) override;
     virtual std::string GetCurrentFilePath() const override;
     virtual bool HasUnsavedChanges() const override;
+    virtual bool HasExternalChanges() const override;
+    virtual bool ReloadFile() override;
 
     // Budget operations
     virtual bool AddBudget(const FMLBudgetData& budgetData) override;

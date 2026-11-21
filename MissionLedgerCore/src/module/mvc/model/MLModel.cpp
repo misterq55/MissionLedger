@@ -295,16 +295,17 @@ bool FMLModel::OpenFile(const std::string& filePath)
         return false;
     }
 
-    // 기존 데이터 정리
-    clearAllTransactions();
-
-    // 파일에서 거래 로드 (DTO)
+    // 파일에서 거래와 예산을 같은 시점의 내용으로 로드 (DTO)
     std::vector<FMLTransactionData> loadedData;
-    if (!StorageProvider->LoadAllTransactions(loadedData))
+    std::vector<FMLBudgetData> loadedBudgets;
+    if (!StorageProvider->LoadAll(loadedData, loadedBudgets))
     {
         StorageProvider->Close();
         return false;
     }
+
+    // 기존 데이터 정리
+    clearAllTransactions();
 
     // DTO → Entity 변환 후 메모리에 로드
     for (const auto& data : loadedData)
@@ -320,8 +321,6 @@ bool FMLModel::OpenFile(const std::string& filePath)
 
     // 예산 로드
     Budgets.clear();
-    std::vector<FMLBudgetData> loadedBudgets;
-    if (StorageProvider->LoadAllBudgets(loadedBudgets))
     {
         for (const auto& budgetData : loadedBudgets)
         {
@@ -351,6 +350,7 @@ bool FMLModel::OpenFile(const std::string& filePath)
 
     CurrentFilePath = filePath;
     UnsavedChanges = false;
+    LoadedChangeToken = StorageProvider->GetChangeToken();
 
     // Observer에게 데이터 로드 알림
     if (ModelObserver)
@@ -384,26 +384,21 @@ bool FMLModel::SaveFile()
         transactionDataList.push_back(pair.second->GetData());
     }
 
-    if (!StorageProvider->SaveAllTransactions(transactionDataList))
-    {
-        return false;
-    }
-
-    // 예산 저장 (기존 예산을 모두 삭제하고 현재 메모리의 예산만 저장)
-    if (!StorageProvider->DeleteAllBudgets())
-    {
-        return false;
-    }
-
+    std::vector<FMLBudgetData> budgetDataList;
+    budgetDataList.reserve(Budgets.size());
     for (const auto& pair : Budgets)
     {
-        if (!StorageProvider->SaveBudget(pair.second->GetData()))
-        {
-            return false;
-        }
+        budgetDataList.push_back(pair.second->GetData());
+    }
+
+    // 거래와 예산을 한 번에 (전체 삭제 후 다시 쓰기, 실패하면 파일은 그대로)
+    if (!StorageProvider->SaveAll(transactionDataList, budgetDataList))
+    {
+        return false;
     }
 
     UnsavedChanges = false;
+    LoadedChangeToken = StorageProvider->GetChangeToken();
 
     // Observer에게 저장 완료 알림
     if (ModelObserver)
@@ -431,6 +426,22 @@ bool FMLModel::SaveFileAs(const std::string& filePath)
     return SaveFile();
 }
 
+bool FMLModel::HasExternalChanges() const
+{
+    if (CurrentFilePath.empty() || !StorageProvider || !StorageProvider->IsReady() || LoadedChangeToken.empty())
+    {
+        return false;
+    }
+    return StorageProvider->GetChangeToken() != LoadedChangeToken;
+}
+
+bool FMLModel::ReloadFile()
+{
+    if (CurrentFilePath.empty()) return false;
+    const std::string filePath = CurrentFilePath;  // OpenFile이 CurrentFilePath를 바꾸므로 복사
+    return OpenFile(filePath);
+}
+
 void FMLModel::NewFile()
 {
     // 기존 데이터 정리
@@ -444,6 +455,7 @@ void FMLModel::NewFile()
     }
 
     CurrentFilePath.clear();
+    LoadedChangeToken.clear();
     TransactionIdIndex = 0;
     BudgetIdIndex = 0;
     UnsavedChanges = false;

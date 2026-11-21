@@ -119,4 +119,23 @@ public:
     /// </summary>
     /// <returns>성공 여부</returns>
     virtual bool DeleteAllBudgets() = 0;
+
+    // ========== 파일 전체 단위 (원자적) ==========
+
+    /// <summary>
+    /// 거래와 예산 전체를 한 번에 저장 (기존 내용을 모두 바꿈). 중간에 실패하면 아무것도 바뀌지 않는다.
+    /// 다른 프로그램(GUI/CLI)이 저장 도중의 반쯤 쓴 상태를 읽지 않게 한다
+    /// </summary>
+    virtual bool SaveAll(const std::vector<FMLTransactionData>& transactions, const std::vector<FMLBudgetData>& budgets) = 0;
+
+    /// <summary>
+    /// 거래와 예산 전체를 같은 시점의 내용으로 읽기
+    /// </summary>
+    virtual bool LoadAll(std::vector<FMLTransactionData>& outTransactions, std::vector<FMLBudgetData>& outBudgets) = 0;
+
+    /// <summary>
+    /// 외부 변경 감지용 표식. 다른 연결/프로그램이 파일을 바꾸면 값이 달라진다 (자기 쓰기로도 달라질 수 있으므로
+    /// 불러오기/저장 직후의 값과 비교). 준비되지 않았으면 빈 문자열
+    /// </summary>
+    virtual std::string GetChangeToken() = 0;
 };

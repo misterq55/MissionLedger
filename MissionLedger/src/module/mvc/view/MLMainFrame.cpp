@@ -7,6 +7,7 @@
 #include <wx/filedlg.h>
 #include <wx/filename.h>
 #include <wx/config.h>
+#include <wx/modalhook.h>
 #include <set>
 #include <algorithm>
 #include <cctype>
@@ -31,6 +32,23 @@ enum
 
 namespace
 {
+    // 열려 있는 모달 창 수 (wxMessageBox, 파일 대화상자 등 OS 기본 창 포함). 외부 변경 처리는 모달이 없을 때만
+    class FMLModalCounter : public wxModalDialogHook
+    {
+    public:
+        int Count = 0;
+    protected:
+        int Enter(wxDialog*) override { ++Count; return wxID_NONE; }
+        void Exit(wxDialog*) override { --Count; }
+    };
+    FMLModalCounter& modalCounter()
+    {
+        static FMLModalCounter counter;
+        return counter;
+    }
+
+    constexpr int kExternalChangeCheckMs = 2000;
+
     // 사용자 설정 (Windows: 레지스트리 HKCU\Software\MissionLedger, macOS: ~/Library/Preferences/MissionLedger Preferences)
     const wxString kConfigAppName = wxS("MissionLedger");
     const wxString kConfigPdfSubtitle = wxS("PDF/IncludeSubtitle");
@@ -314,6 +332,13 @@ wxMLMainFrame::wxMLMainFrame()
     Bind(wxEVT_SYS_COLOUR_CHANGED, &wxMLMainFrame::onSysColourChanged, this);
     applyThemeColours();
 
+    // 외부 변경 감지: 주기적으로, 그리고 창이 활성화될 때
+    modalCounter().Register();
+    ExternalChangeTimer.SetOwner(this);
+    Bind(wxEVT_TIMER, &wxMLMainFrame::onExternalChangeTimer, this, ExternalChangeTimer.GetId());
+    Bind(wxEVT_ACTIVATE, &wxMLMainFrame::onActivate, this);
+    ExternalChangeTimer.Start(kExternalChangeCheckMs);
+
     // 제목 초기화
     updateTitle();
 }
@@ -465,6 +490,7 @@ void wxMLMainFrame::OnTransactionsCleared()
 
 void wxMLMainFrame::OnDataLoaded()
 {
+    ExternalChangeNotified = false;
     // 데이터 로드 시 전체 재로드 (FilterActive 상태 유지)
     updateTitle();  // 파일명으로 타이틀 갱신
     updateCategoryFilter();
@@ -475,6 +501,7 @@ void wxMLMainFrame::OnDataLoaded()
 
 void wxMLMainFrame::OnDataSaved()
 {
+    ExternalChangeNotified = false;
     // 저장 완료 메시지 (선택사항)
     // wxMessageBox("데이터가 저장되었습니다.", "저장 완료", wxOK | wxICON_INFORMATION);
 }
@@ -724,6 +751,11 @@ void wxMLMainFrame::OnSaveFile(wxCommandEvent& event)
     if (controller->GetCurrentFilePath().empty())
     {
         OnSaveFileAs(event);
+        return;
+    }
+
+    if (!confirmSaveOverExternalChanges())
+    {
         return;
     }
 
@@ -1381,6 +1413,101 @@ void wxMLMainFrame::applyThemeColours()
 }
 
 // OS 라이트/다크 전환 시
+// === 외부 변경 감지 ===
+
+void wxMLMainFrame::onExternalChangeTimer(wxTimerEvent& event)
+{
+    checkExternalChanges();
+}
+
+void wxMLMainFrame::onActivate(wxActivateEvent& event)
+{
+    event.Skip();
+    if (event.GetActive())
+    {
+        // 활성화 처리가 끝난 뒤에 확인 (활성화 도중 질문 창을 띄우지 않게)
+        CallAfter([this] { checkExternalChanges(); });
+    }
+}
+
+void wxMLMainFrame::checkExternalChanges()
+{
+    if (HandlingExternalChange || modalCounter().Count > 0) return;
+
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller || !controller->HasExternalChanges()) return;
+
+    // 이 창에 저장 안 한 변경이 없으면 묻지 않고 다시 불러온다 (CLI/AI가 고친 내용이 바로 보이게)
+    if (!controller->HasUnsavedChanges())
+    {
+        reloadFromDisk();
+        return;
+    }
+
+    // 저장 안 한 변경이 있으면 한 번만 묻는다. 창이 뒤에 있으면 앞으로 올 때 묻는다
+    if (ExternalChangeNotified || !IsActive()) return;
+    ExternalChangeNotified = true;
+    HandlingExternalChange = true;
+
+    wxMessageDialog dialog(this,
+        wxString::FromUTF8("열려 있는 파일이 다른 프로그램(CLI 등)에서 변경되었습니다.\n\n"
+                           "다시 불러오면 이 창에서 저장하지 않은 변경은 사라집니다.\n"
+                           "나중에를 고르면, 저장할 때 다시 확인합니다."),
+        wxString::FromUTF8("파일이 변경됨"), wxYES_NO | wxICON_WARNING);
+    dialog.SetYesNoLabels(wxString::FromUTF8("다시 불러오기"), wxString::FromUTF8("나중에"));
+    const int result = dialog.ShowModal();
+    HandlingExternalChange = false;
+
+    if (result == wxID_YES)
+    {
+        reloadFromDisk();
+    }
+}
+
+bool wxMLMainFrame::confirmSaveOverExternalChanges()
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller || !controller->HasExternalChanges()) return true;
+
+    HandlingExternalChange = true;
+    wxMessageDialog dialog(this,
+        wxString::FromUTF8("열려 있는 파일이 다른 프로그램(CLI 등)에서 변경되었습니다.\n\n"
+                           "덮어쓰기: 이 창의 내용으로 저장합니다. 다른 프로그램의 변경은 사라집니다.\n"
+                           "다시 불러오기: 파일의 내용을 불러옵니다. 이 창에서 저장하지 않은 변경은 사라집니다."),
+        wxString::FromUTF8("파일이 변경됨"), wxYES_NO | wxCANCEL | wxICON_WARNING);
+    dialog.SetYesNoCancelLabels(wxString::FromUTF8("덮어쓰기"), wxString::FromUTF8("다시 불러오기"), wxString::FromUTF8("취소"));
+    const int result = dialog.ShowModal();
+    HandlingExternalChange = false;
+
+    if (result == wxID_YES) return true;
+    if (result == wxID_NO) reloadFromDisk();
+    return false;
+}
+
+void wxMLMainFrame::reloadFromDisk()
+{
+    auto controller = FMLMVCHolder::GetInstance().GetController();
+    if (!controller) return;
+
+    if (!controller->ReloadFile())
+    {
+        // 파일이 지워졌거나 열 수 없음: 화면의 내용은 그대로 두고, 저장하면 다시 쓴다
+        ExternalChangeNotified = true;
+        HandlingExternalChange = true;
+        wxMessageBox(wxString::FromUTF8("변경된 파일을 다시 불러올 수 없습니다.\n화면의 내용은 그대로이며, 저장하면 이 내용으로 파일을 다시 씁니다."),
+            wxString::FromUTF8("오류"), wxOK | wxICON_ERROR, this);
+        HandlingExternalChange = false;
+        return;
+    }
+
+    // 선택했던 거래가 없어졌으면 선택 해제
+    if (SelectedTransactionId >= 0 && controller->GetTransactionData(SelectedTransactionId).TransactionId < 0)
+    {
+        SelectedTransactionId = -1;
+    }
+    updateButtonStates();
+}
+
 void wxMLMainFrame::onSysColourChanged(wxSysColourChangedEvent& event)
 {
     event.Skip(); // wx 기본 처리(자식 창 전파)도 그대로 진행

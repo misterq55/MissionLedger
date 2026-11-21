@@ -49,6 +49,8 @@ public:
     virtual void NewFile() override;
     virtual const std::string& GetCurrentFilePath() const override;
     virtual bool HasUnsavedChanges() const override;
+    virtual bool HasExternalChanges() const override;
+    virtual bool ReloadFile() override;
 
     // Budget CRUD operations
     virtual bool AddBudget(const FMLBudgetData& budgetData) override;
@@ -84,6 +86,7 @@ private:
     int TransactionIdIndex = 0;
     int BudgetIdIndex = 0;
     bool UnsavedChanges = false;
+    std::string LoadedChangeToken;   // 불러오기/저장 직후의 저장소 표식 (HasExternalChanges 비교용)
 
     // 카테고리 캐시 (Lazy 업데이트)
     mutable std::set<std::string> CachedCategories;

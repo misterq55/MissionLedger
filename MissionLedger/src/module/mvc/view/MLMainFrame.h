@@ -5,6 +5,7 @@
 #include <wx/datectrl.h>
 #include <wx/valtext.h>
 #include <wx/notebook.h>
+#include <wx/timer.h>
 #include <set>
 #include <map>
 #include "interface/IMLView.h"
@@ -129,6 +130,16 @@ private:
     // 리스트 헬퍼
     long findListItemByTransactionId(int transactionId);
     void removeListItemByTransactionId(int transactionId);
+
+    // 외부 변경 감지 (CLI 등 다른 프로그램이 열린 파일을 바꾼 경우, docs/CLI_DESIGN.md §6)
+    void checkExternalChanges();             // 타이머, 창 활성화 때
+    bool confirmSaveOverExternalChanges();   // 저장 직전: 계속 저장하면 true
+    void reloadFromDisk();
+    void onExternalChangeTimer(wxTimerEvent& event);
+    void onActivate(wxActivateEvent& event);
+    wxTimer ExternalChangeTimer;
+    bool ExternalChangeNotified = false;     // 이번 외부 변경을 이미 물어봄 (불러오기/저장하면 초기화)
+    bool HandlingExternalChange = false;     // 질문 창이 떠 있는 동안 중복 방지
 
 private:
     void createMenuBar();
