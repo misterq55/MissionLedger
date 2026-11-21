@@ -41,11 +41,16 @@
 - 설치 파일에 포함
   - Windows: `{app}\mledger.exe`. 설치 화면 체크박스 "명령줄에서 사용 (PATH에 추가)", 제거 시 PATH에서도 제거
   - macOS: 앱 번들 안 (`MissionLedger.app/Contents/MacOS/mledger`, 글꼴은 `Contents/Resources/fonts/`를 이미 찾음). PATH는 문서로 안내: `sudo ln -s /Applications/MissionLedger.app/Contents/MacOS/mledger /usr/local/bin/mledger`. 앱 메뉴 "명령줄 도구 설치..."는 나중 선택
-- 이름 변경 시 고칠 곳: `MissionLedgerCLI/CMakeLists.txt`, 루트 `CMakeLists.txt`(fonts 복사), `tests/CMakeLists.txt`, `tests/cli_smoke.cmake` 주석, `README.md`, `docs/CI_PLAN.md`, `docs/INSTALLER.md`, `tests/fixtures/README.md`. Jenkinsfile은 CLI 이름을 직접 쓰지 않음 (2026-11-21 확인)
+- **구현 (5단계, 2026-11-22)**
+  - CMake 타깃 이름은 `MissionLedgerCLI` 그대로, `OUTPUT_NAME`/`PDB_NAME` `mledger`
+  - Windows: `.iss`에 `mledger.exe`, 작업 `addtopath`(기본 켜짐: VS Code, Git과 같은 방식. Python은 기본 꺼짐이지만 여러 버전 충돌 때문이고 `mledger`는 겹칠 이름이 없음). 시스템 PATH(HKLM, `REG_EXPAND_SZ` 유지)에 `{app}`, 이미 있으면 그대로, 다시 설치하며 끄거나 제거하면 그 항목만 뺌. `ChangesEnvironment=yes`로 새 터미널에 반영
+  - macOS: GUI 빌드 뒤(POST_BUILD) `mledger`를 `Contents/MacOS/`에 복사하고 임시 서명을 안쪽부터 다시 한다 (`mledger` → 앱). Xcode가 서명한 뒤에 번들 내용이 바뀌면 봉인이 맞지 않아, 내려받은 Mac에서 "손상됨"으로 막힐 수 있기 때문. 인증서는 하나 (나중에 정식 서명 때도 같은 두 명령에 인증서 이름만). `package_macos.cmake`가 두 실행 파일의 `lipo`/`otool`과 `codesign --verify --deep --strict`를 확인
+  - Apple 권장대로 실행 파일은 `Contents/MacOS/` (`Resources/`는 코드가 아닌 파일용). 다른 앱도 CLI를 번들 안에 넣고 PATH는 메뉴나 문서로 안내 (VS Code `code`, Sublime `subl`, Docker)
+- 이름 변경 시 고칠 곳 (5단계 때 목록): `MissionLedgerCLI/CMakeLists.txt`, 루트 `CMakeLists.txt`(fonts 복사), `tests/CMakeLists.txt`, `tests/cli_smoke.cmake` 주석, `README.md`, `docs/CI_PLAN.md`, `docs/INSTALLER.md`, `tests/fixtures/README.md`. Jenkinsfile은 CLI 이름을 직접 쓰지 않음 (2026-11-21 확인)
 
 ## 3. 명령 체계
 
-**구현 (2단계, 2026-11-21)**: `MissionLedgerCLI/src/module/mvc/view/MLCLIViewCommands.cpp`의 `commandSpecs()` 표 하나에 명령, 위치 인수, 옵션, 처리 함수, 예를 적고 파싱(`MLCLIArgs`), 필수 옵션 검사, 도움말(`help`, `help <명령>`, `<명령> --help`)이 모두 이 표를 쓴다. 실행 파일 이름은 아직 `MissionLedgerCLI` (도움말의 이름은 `kProgram` 한곳). 아래 표에서 구현과 다른 점: `--item` 필터는 없음(`--search`가 항목/설명/영수증 번호를 찾음), `--version`은 아직 없음. 외화 거래의 `--amount`는 생략 가능하고, 주면 계산값과 1원 이내여야 함 (옛 스크립트 호환: 옛 `add`는 `--amount`가 필수였고 외화 옵션이 있으면 계산값으로 덮어씀)
+**구현 (2단계, 2026-11-21)**: `MissionLedgerCLI/src/module/mvc/view/MLCLIViewCommands.cpp`의 `commandSpecs()` 표 하나에 명령, 위치 인수, 옵션, 처리 함수, 예를 적고 파싱(`MLCLIArgs`), 필수 옵션 검사, 도움말(`help`, `help <명령>`, `<명령> --help`)이 모두 이 표를 쓴다. 실행 파일 이름은 5단계에서 `mledger` (도움말의 이름은 `kProgram` 한곳). 아래 표에서 구현과 다른 점: `--item` 필터는 없음(`--search`가 항목/설명/영수증 번호를 찾음), `--version`은 아직 없음. 외화 거래의 `--amount`는 생략 가능하고, 주면 계산값과 1원 이내여야 함 (옛 스크립트 호환: 옛 `add`는 `--amount`가 필수였고 외화 옵션이 있으면 계산값으로 덮어씀)
 
 **문법**: `mledger <명령> [하위명령] <파일.ml> [옵션]`. 파일은 항상 명령 바로 뒤의 위치 인수 (`--file` 없앰)
 
@@ -195,7 +200,7 @@
 | 2 | 문법 통일(§3), 거래 `show`/`update`/`delete`, `info`, `list` 필터, 값 규칙, 종료 코드, 도움말 한 벌, 스모크 테스트 보강 (`cli_edit_cycle`, `cli_usage_error`) | ✅ 2026-11-21 (대화형은 아직 옛 명령) |
 | 3 | `--json`, `--yes`, `--dry-run`, `--no-subtitle`(GUI 부제 토글과 같은 옵션 구조체), 백업. 스모크 테스트 `cli_json_list`, `cli_json_error`, `cli_dry_run`, `cli_backup` | ✅ 2026-11-21 |
 | 4 | 대화형 다시 만들기 (§5) | ✅ 2026-11-22 (`MLCLIViewShell.cpp`, 스모크 테스트 `cli_shell_add`, `cli_shell_cancel`) |
-| 5 | `mledger` 이름, 설치 파일 포함, PATH (§2). **7단계 이후에** (AI가 GUI 옆에서 쓰기 시작하기 전에 충돌 감지가 있어야 함) | 📋 |
+| 5 | `mledger` 이름, 설치 파일 포함, PATH (§2). **7단계 이후에** (AI가 GUI 옆에서 쓰기 시작하기 전에 충돌 감지가 있어야 함) | ✅ 2026-11-22 (macOS 번들은 Jenkins로 확인, Windows PATH는 실제 설치로 확인 필요) |
 | 6 | `CLI.md`, 사용자 `ReadMe.txt` (§7) | 📋 |
 | 7 | GUI 외부 변경 감지 + 다시 불러오기, `busy_timeout`, 원자적 저장/읽기 (§6) | ✅ 2026-11-22 (Windows 확인, macOS는 손 확인) |
 | 8 | 잠금 표시 (§6, 선택) | 📋 |

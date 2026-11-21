@@ -40,7 +40,7 @@ Defined in [`tests/CMakeLists.txt`](../CMakeLists.txt), run by [`tests/cli_smoke
 | `cli_backup` | `budget add <copy> ... --json` | exit 0; `<copy>.bak` equals the file before the write and the file itself changed |
 | `cli_shell_add` | `shell <copy>` with answers on stdin (`add`, every field, `y`, then `list`) | exit 0; prints the added transaction (ID 10, 50,000원) and 11 transactions |
 | `cli_shell_cancel` | `shell <copy>` with `add`, `2`, `취소` on stdin | exit 0; prints "취소했습니다." and the file is unchanged |
-| `cli_*_x86_64` (macOS only) | the fourteen above, run as `arch -x86_64 MissionLedgerCLI ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
+| `cli_*_x86_64` (macOS only) | the fourteen above, run as `arch -x86_64 mledger ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
 
 PDFs go to `build/<windows|macos>/tests/out/<Config>/`. Apart from the embedded font names, PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
 
@@ -49,7 +49,7 @@ PDFs go to `build/<windows|macos>/tests/out/<Config>/`. Apart from the embedded 
 The file is committed as is. To rebuild it from scratch (for example after a schema change), run from the repository root with a built CLI:
 
 ```bash
-CLI=./build/windows/bin/Release/MissionLedgerCLI.exe   # CMake windows preset output
+CLI=./build/windows/bin/Release/mledger.exe   # CMake windows preset output
 F=tests/fixtures/sample.ml
 rm -f $F && $CLI new $F
 

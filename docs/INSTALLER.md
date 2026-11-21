@@ -142,7 +142,7 @@ exe가 동적 런타임(`/MD`)으로 빌드되어 `MSVCP140.dll`, `VCRUNTIME140.
 |---|---|---|
 | 정적 런타임(`/MT`) 전환 검토 | 현재는 `vc_redist.x64.exe`를 동봉해 해결했습니다 (3절). `/MT`로 바꾸면 설치 파일이 약 4MB로 줄고, 관리자 권한 없이 설치하거나 exe만 복사해 쓸 수 있습니다. wxWidgets와 PDF-Writer를 `/MT`로 다시 빌드해야 하므로 wxWidgets 재빌드 때 함께 검토합니다 | 낮음 |
 | **개발 PC의 수동 등록과 충돌** | `register_ml_extension.reg`를 실행한 적이 있는 PC에는 `HKCU\Software\Classes\.ml` → `MissionLedger.Document`(Debug exe 경로)가 남아 있습니다. HKCU가 HKLM보다 우선하므로, 관리자 설치 후에도 더블클릭하면 Debug exe가 실행될 수 있습니다. 해당 키를 지우거나 `.reg` 파일을 삭제하는 것을 검토합니다 | 중간 |
-| CLI 미포함 | `MissionLedgerCLI.exe`는 설치되지 않습니다. 필요하면 `[Files]`에 추가합니다 | 낮음 |
+| CLI | ✅ 2026-11-22: `{app}\mledger.exe` 설치, 작업 "명령줄에서 mledger 사용 (PATH에 추가)"(기본 켜짐)이 시스템 PATH에 `{app}`을 넣고 제거 때 뺍니다 ([CLI_DESIGN.md](CLI_DESIGN.md) §2) | — |
 | 폰트 번들 미사용 | `[Files]`의 `fonts\*.ttf` 항목이 주석 처리돼 있습니다. PDF는 시스템의 맑은 고딕을 씁니다. 코드는 `{app}\fonts\`를 먼저 찾도록 준비돼 있습니다 | 낮음 |
 | 코드 서명 없음 | 서명하지 않은 설치 파일은 SmartScreen 경고가 뜹니다. 인증서 비용이 연 $100–300입니다 | 선택 |
 | CI 연동 | ✅ 준비 완료: CI는 bat 대신 프리셋을 단계별로 부릅니다 (`cmake --build --preset windows-installer` 등). Jenkins에서는 `jenkins/Build.Jenkinsfile`의 Package 스테이지가 이 명령을 부릅니다 ([CI_PLAN.md](CI_PLAN.md) §5) | CI 도입 시 |

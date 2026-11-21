@@ -110,7 +110,7 @@ CMakePresets.json               # windows configure; windows-debug/-release buil
 GenerateProjectFiles.bat        # = cmake --preset windows (generates build/windows/MissionLedger.sln)
 ├── MissionLedgerCore/          # Static library: src/** (model, controller, storage, export) + SQLite
 ├── MissionLedger/              # GUI app: src/** + main.cpp + .rc (Win: WIN32 exe / Mac: MACOSX_BUNDLE .app)
-├── MissionLedgerCLI/           # CLI: src/** + main_cli.cpp
+├── MissionLedgerCLI/           # CLI: src/** + main_cli.cpp (executable mledger)
 └── third_party/
     ├── sqlite/
     ├── pdfwriter/              # add_subdirectory
@@ -292,7 +292,7 @@ A macOS app cannot be run directly on Windows: it is a Mach-O binary, and Apple'
 | Check | Command on macOS | How to review on Windows |
 |---|---|---|
 | Architecture | `lipo -archs .../MacOS/MissionLedger` | Log (`arm64 x86_64`) |
-| CLI behavior | `MissionLedgerCLI export settlement sample.ml --out out.pdf` | **Download the PDF artifact and compare it side by side with the Windows build's PDF** |
+| CLI behavior | `mledger export settlement sample.ml --out out.pdf` | **Download the PDF artifact and compare it side by side with the Windows build's PDF** |
 | Missing dependencies | Use `otool -L` to look for external paths such as `/opt/homebrew` | Fail the build if any remain |
 | Signature (once signing is set up) | `codesign --verify --deep --strict` | Log |
 | Notarization / Gatekeeper (once signing is set up) | `spctl -a -vv MissionLedger.app` | Log (`accepted`) |

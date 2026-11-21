@@ -48,7 +48,7 @@ build_installer.bat               # = cmake --workflow --preset windows-release 
 
 - `MissionLedger/` - GUI 애플리케이션
 - `MissionLedgerCore/` - 코어 비즈니스 로직 라이브러리 (정적 라이브러리)
-- `MissionLedgerCLI/` - 명령줄 인터페이스
+- `MissionLedgerCLI/` - 명령줄 인터페이스 (실행 파일 `mledger`)
 - `third_party/` - 외부 라이브러리 (SQLite, PDF-Writer, wxWidgets)
 
 ## 추가 정보
