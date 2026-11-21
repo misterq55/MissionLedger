@@ -85,10 +85,12 @@ VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
    git push origin main v1.1.0
    ```
    (`release.bat 1.1.0 push`로 3–4를 한 번에 해도 됩니다.)
-5. **Jenkins 빌드** (`PLATFORM=both`, `Release`, 기본값 그대로): 이 커밋에 태그 `v<VERSION>`이 있으므로 릴리스로 판단하고, 클린 빌드 → 테스트 → 설치 파일(.exe, .dmg) → Google Drive 업로드까지 합니다 (`docs/CI_PLAN.md` §4–§5)
+5. **Jenkins 빌드** (`PLATFORM=both`, **`BUILD=shipping`**): 정식판은 빌드할 때 `shipping`을 **직접 골라야** 나옵니다. 태그는 그 전제 조건입니다. 클린 빌드 → 테스트 → 설치 파일(.exe, .dmg) → Google Drive 업로드까지 합니다 (`docs/CI_PLAN.md` §4–§5)
    - `MissionLedger/v1.1.0/`: 설치 파일 2개와 `릴리스노트.txt`(CHANGELOG의 해당 버전 부분)
    - `MissionLedger/latest/`: 같은 파일로 교체. 팀원에게는 이 폴더의 공유 링크를 보냅니다 (링크는 바뀌지 않음)
    - 같은 버전 폴더가 이미 있으면 업로드하지 않고 실패합니다 (덮어쓰지 않음)
+   - 빌드 전에 멈추는 경우: 원격에 태그 `v<VERSION>`이 없거나(push하지 않은 경우 포함) 다른 커밋을 가리킬 때, `PLATFORM=both`가 아닐 때. 메시지대로 `release.bat <버전> push`를 먼저 하면 됩니다
+   - 평소 개발 중인 빌드는 기본값 `BUILD=dev`로 돌립니다. 태그와 상관없이 `MissionLedger/dev/<빌드 번호>-<커밋>/`에 올라가고(최근 5개 보관), 앱 안의 버전 번호는 VERSION을 올리기 전이라 **이전 버전**으로 보입니다
 
 로컬에서 설치 파일만 만들 때는 `build_installer.bat`(= `cmake --workflow --preset windows-release`)을 씁니다. 결과물은 `installer\output\MissionLedger-<버전>-Setup.exe`입니다.
 
@@ -98,8 +100,8 @@ VERSION ("1.0.0")  ← 릴리스 때 이것만 수정
 - **annotated 태그**를 씁니다 (`git tag -a`). 작성자와 날짜가 기록됩니다.
 - 태그 메시지는 짧게 둡니다. 변경 내용은 `CHANGELOG.md`에만 적습니다.
 - 태그는 `VERSION`이 해당 버전으로 바뀐 커밋에 답니다. 릴리스 스크립트가 둘을 함께 만듭니다. 직접 태그를 달 일은 없습니다.
-- CI는 원격 태그 `v<VERSION>`이 빌드하는 커밋을 가리키면 릴리스로 보고 업로드합니다. 커밋에 다른 `v*` 태그가 있으면(태그와 `VERSION`이 다르면) 빌드를 실패시킵니다 (`jenkins/scripts/release_check.cmake`).
-- **태그를 push하는 것이 곧 배포 결정입니다.** 태그가 있는 커밋을 업로드 없이 빌드만 하려면 Jenkins에서 `DEPLOY`를 끄고 실행합니다.
+- CI는 원격 태그 `v<VERSION>`이 빌드하는 커밋을 가리키는지 확인합니다. 커밋에 다른 `v*` 태그가 있으면(태그와 `VERSION`이 다르면) 빌드를 실패시킵니다 (`jenkins/scripts/release_check.cmake`).
+- **태그 push는 "릴리스 준비 완료"이고, 배포 결정은 Jenkins에서 `BUILD=shipping`을 고르는 것입니다** (2026-11-21부터; 그 전에는 태그가 있으면 `DEPLOY` 기본값으로 저절로 릴리스가 됐습니다). 태그가 있는 커밋도 `dev`·`test`·`debug`로 빌드하면 릴리스가 아닙니다.
 
 ## 5. 변경 이력
 

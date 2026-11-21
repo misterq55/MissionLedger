@@ -27,6 +27,7 @@
 | Jenkins job | ✅ One **Pipeline** job ("Pipeline script from SCM", `main`), started by hand with parameters. No Multibranch, no webhook | Jenkinsfiles live in `jenkins/` (`jenkins/Build.Jenkinsfile`). Nodes: `WindowsMini`, `MacMini`. See §4–§5 |
 | PDF font | ✅ **Bundle Noto Sans KR** (Regular + Bold, OFL) in `third_party/fonts/NotoSansKR/` and use it on both platforms (decided and done 2026-11-20, roadmap 7 step ②) | Same PDF output on Windows and macOS (expected; Windows PDFs change from Malgun Gothic to Noto Sans KR). CMake copies the fonts next to the executable (`fonts/`; macOS app: `Contents/Resources/fonts/`); the installer and the macOS bundle take them from `third_party/fonts`. CJK coverage stays as now (Hangul, Korean Hanja; not Japanese shinjitai or Simplified Chinese), not needed yet. If it is needed later, swap in Noto Sans CJK KR (full pan-CJK set, about 16 MB per weight) in the same folder and change the file names in the code |
 | Deploy target | ✅ **Google Drive** (decided 2026-11-21, roadmap 10) | rclone on the deploy node (WindowsMini); `rclone.conf` (remote `gdrive`, OAuth user token of a personal account) is the Jenkins secret file `missionledger-rclone-conf`, never in the repository. Layout `MissionLedger/v<VERSION>/` (kept) + `MissionLedger/latest/` (replaced on each release; share that folder once, its link stays the same). No share links are made automatically |
+| Build kinds | ✅ **Jenkins parameter `BUILD` = `dev` / `shipping` / `test` / `debug`, chosen explicitly per build** (decided and written 2026-11-21, not run on Jenkins yet); replaced `CONFIGURATION` and `DEPLOY`, where a tag alone made a build a release (§4) | `dev` uploads to `dev/` for checking a work-in-progress build on another machine; `shipping` is the release. Both are the same Release build; shipping is the one deliberately named the final output. The tag stays as a precondition for shipping, it no longer decides by itself. No Development/Shipping split in the code (no `ML_DEV_TOOLS`, no app code changes); one install identity, so any install replaces the previous one |
 
 ---
 
@@ -163,21 +164,37 @@ cmake --workflow --preset windows-release # configure → Release build → smok
 Platforms (matrix, both run to the end) ──────────────────────────────────────────┐
   WindowsMini: Preflight → Clean? → Configure → Build → Test → Package* → Archive │→ Deploy** (on WindowsMini)
   MacMini:     Preflight → Clean? → Configure → Build → Test → Package* → Archive │
-* Release only. Windows: Inno Setup .exe; macOS: unsigned .dmg (since roadmap 7 step ③, §6)
-** Only for a release (tag v<VERSION> on this commit) with PLATFORM=both, Release, DEPLOY on; after both platforms succeeded
+* Release configuration only (BUILD = dev, shipping, test). Windows: Inno Setup .exe; macOS: unsigned .dmg (§6)
+** BUILD=dev or shipping, after the selected platforms succeeded. Also for PLATFORM=macos: rclone is only on WindowsMini
 ```
 
 | Parameter | Values (default first) | Effect |
 |---|---|---|
 | `PLATFORM` | `both`, `windows`, `macos` | A platform that is not selected is skipped without waiting for its node |
-| `CONFIGURATION` | `Release`, `Debug` | Preset `<platform>-release` / `-debug`. Debug skips Package and archives only the smoke test PDFs (a Debug exe needs the debug runtime, so it is not shipped) |
-| `CLEAN_BUILD` | off | Deletes `build/<platform>/` first. Normal builds keep the workspace so wxWidgets is not rebuilt |
-| `DEPLOY` | on | Upload when the commit is a release (tag `v<VERSION>`); an untagged commit never uploads, so on is safe as the default. A release also forces a clean build. Needs `PLATFORM=both` and `Release` (otherwise the build is UNSTABLE with a message and nothing is uploaded). Untick to rebuild a tagged commit without uploading |
-| `DEPLOY_DRY_RUN` | off | Runs the Deploy stage on any commit without writing: rclone, the secret file, the remote, the existing folders and the release notes are checked, uploads run with `rclone --dry-run`. Needs `PLATFORM=both`, `Release` |
+| `BUILD` | `dev`, `shipping`, `test`, `debug` | What this build is, chosen explicitly (table below). Replaced `CONFIGURATION` and `DEPLOY` on 2026-11-21 |
+| `CLEAN_BUILD` | off | Deletes `build/<platform>/` first. Normal builds keep the workspace so wxWidgets is not rebuilt. Always done for `shipping` (except a dry run) |
+| `DEPLOY_DRY_RUN` | off | Runs the upload of `shipping` (or `dev`) without writing: rclone, the secret file, the remote, the existing folders and the release notes are checked, uploads and deletions run with `rclone --dry-run`. With `shipping` the tag is not required, so the release path can be tried on any commit (still `PLATFORM=both`) |
+
+| `BUILD` | Configuration | Result |
+|---|---|---|
+| `dev` | Release | Installers of the selected platforms uploaded to `gdrive:MissionLedger/dev/<BUILD_NUMBER>-<short commit>/`; the newest **5** such folders are kept, older ones deleted (other folders under `dev/` are never touched). Any commit, tag or not, single platform allowed. An upload failure makes the build UNSTABLE, not FAILURE (the installers are still in the Jenkins artifacts) |
+| `shipping` | Release, clean | The release: `v<VERSION>/` + `latest/` + `릴리스노트.txt` (§5 `deploy.cmake`). Checked in Preflight **before building**, each failing the build with a message: the remote tag `v<VERSION>` points to this commit (an unpushed tag or a tag on an older commit fails; "run `release.bat <version> push` first"), no other `v*` tag on the commit (`release_check.cmake`), `PLATFORM=both`. The tag is checked again right before the upload |
+| `test` | Release | Installers only as Jenkins artifacts, no upload (test builds, Jenkinsfile experiments) |
+| `debug` | Debug | Build and smoke tests; archives only the smoke test PDFs (a Debug exe needs the debug runtime, so it is not packaged) |
 
 - If one platform fails the whole build is FAILURE, but the other platform still finishes (matrix `failFast` off), so both problems show up in one run
 - Started by hand ("Build with Parameters"). Polling or a webhook can be added later (`triggers { pollSCM(...) }`)
 - Failure notification is a stub (`notifyResult()` in the Jenkinsfile prints a line); replace its body with mail or a messenger webhook when needed
+- Build name: `#N v<VERSION> <BUILD>` (+ ` dry-run`)
+- The first run after the parameters changed may still show the old parameters (Jenkins learns new ones from that run); `BUILD` is then empty and is treated as `dev`
+
+### Why explicit build kinds (decided 2026-11-21)
+
+Before, `DEPLOY` (default on) made a build a release by itself whenever its commit had the tag, so there was no moment of choosing the final output, and a work-in-progress build could only reach another machine by downloading the Jenkins artifact. Now the kind is chosen per build, like Development/Shipping in an Unreal pipeline. One parameter instead of `CONFIGURATION` + a channel: Debug has no installer, so every Debug + upload combination was meaningless, and "Release" (CMake configuration) next to "release" (final output) read as the same thing; hence `shipping`. Use of `dev`: install a build on the MacMini from Google Drive and check it by hand (replaces most of §7 "GUI check automation").
+
+- dev and shipping are the same Release build of a commit (shipping is clean, dev usually incremental; tick `CLEAN_BUILD` for a dev build to be checked before a release). No Development/Shipping split in the code (no app code changes). Inside the app a dev build shows the **previous** version number (VERSION is only bumped by `release.bat`); the folder name (`<BUILD_NUMBER>-<commit>`) tells them apart. The Windows exe file version also has the build number as the 4th field. Whether the macOS app shows the build number anywhere is not checked
+- One install identity (one Inno Setup AppId, one bundle ID): any install replaces the previous one, dev or shipping; user `.ml` files are not touched. Side-by-side install (separate AppId/bundle ID) was considered and not done: there is no daily user on the test machine, and two apps would compete for `.ml` double-click
+- Not chosen now, possible later: **promotion** (build once, promote), i.e. shipping copies an already checked dev build to `v<VERSION>/` instead of rebuilding, so the file checked by hand is exactly the shipped file. It needs the dev build to carry the release version, so the order would be `release.bat` → dev build → check → promote. Until then, to ship exactly what was checked: `release.bat` → `BUILD=shipping` → check the file from `v<VERSION>/` on the MacMini → then send the team the `latest/` link (note `latest/` is already replaced before the check)
 
 ---
 
@@ -191,7 +208,7 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 |---|---|
 | `jenkins/Build.Jenkinsfile` | The pipeline (§4). Node names, the platforms that build and the platforms that package are at the top (`PLATFORMS`, `IMPLEMENTED`, `PACKAGED`) |
 | `jenkins/scripts/release_check.cmake` | Is this build a release? Writes `yes`/`no` (Preflight, and again in Deploy) |
-| `jenkins/scripts/deploy.cmake` | The upload (§4 `DEPLOY`): both installers + `릴리스노트.txt` (this version's CHANGELOG section, CRLF + BOM for Notepad) to `gdrive:MissionLedger/v<VERSION>/`; refuses if that folder exists; then `rclone sync` to `latest/` only if this is the highest version there (`sync` keeps the folder and its share link). Tested with a fake rclone on a local folder (2026-11-21) |
+| `jenkins/scripts/deploy.cmake` | The upload (§4 `BUILD`). `-DCHANNEL=shipping` (default): both installers + `릴리스노트.txt` (this version's CHANGELOG section, CRLF + BOM for Notepad) to `gdrive:MissionLedger/v<VERSION>/`; refuses if that folder exists; then `rclone sync` to `latest/` only if this is the highest version there (`sync` keeps the folder and its share link). `-DCHANNEL=dev -DBUILD=<n> [-DKEEP=5]`: the installers present (one or both) to `dev/<n>-<short commit>/`, then `rclone purge` of the `<number>-<commit>` folders beyond the `KEEP` highest build numbers (natural sort, so 100 comes after 99). Tested with a fake rclone on a local folder (shipping 2026-11-21; dev 2026-11-21: 9 uploads keep the 5 newest, one installer only, dry run writes and deletes nothing, other folders under `dev/` untouched, missing installers / `BUILD` / bad `CHANNEL` fail; shipping unchanged with a `dev/` folder on the remote) |
 | `scripts/release.cmake` + `release.bat` / `release.sh` | Release script (docs/VERSIONING.md §3) |
 | `jenkins/scripts/preflight.cmake` | Node check, first stage on every platform: CMake 3.25+ (warns on a release candidate), Git, VS 2022 with C++ x64 tools (`vswhere`) and `vc_redist.x64.exe`, Inno Setup, workspace path length (warns above 120 characters; the longest path below the workspace is about 132) / Xcode on macOS. Lists every problem, then fails. Also runs on a PC: `cmake -DPLATFORM=windows -P jenkins/scripts/preflight.cmake` |
 | `jenkins/scripts/node_check_windows.ps1`, `node_check_macos.sh` | Read-only inventory for setting up a node by hand: where CMake / VS / vc_redist / Inno Setup / Git (Windows) or CMake / Homebrew / Xcode / Git / Java (macOS) are, how the Jenkins agent runs and as which user, and the PATH entries. Needs no CMake, so it also works when Preflight cannot start. Run from the repository or the node's Jenkins workspace: `powershell -NoProfile -ExecutionPolicy Bypass -File jenkins\scripts\node_check_windows.ps1` / `sh jenkins/scripts/node_check_macos.sh` |
@@ -201,8 +218,8 @@ Written 2026-11-18; the commands were first run on Windows in a fresh clone with
 
 | Stage | Command | When |
 |---|---|---|
-| Preflight | Check that `cmake` is on the agent's PATH (clear message with the agent PATH if not), then `cmake -DPLATFORM=<p> -DWORKSPACE=<ws> -P jenkins/scripts/preflight.cmake`; also sets the build name `#N v1.0.0 Release` | Always |
-| Clean | delete `build/<p>/` | `CLEAN_BUILD`, or a release that is uploaded |
+| Preflight | Check that `cmake` is on the agent's PATH (clear message with the agent PATH if not), then `cmake -DPLATFORM=<p> -DWORKSPACE=<ws> -P jenkins/scripts/preflight.cmake`; also sets the build name `#N v1.0.0 dev`; for `BUILD=shipping` fails here without the tag or without `PLATFORM=both` | Always |
+| Clean | delete `build/<p>/` | `CLEAN_BUILD`, or `BUILD=shipping` (not in a dry run) |
 | Configure | `cmake --preset <p> -DML_BUILD_NUMBER=<BUILD_NUMBER>` | Implemented platforms |
 | Build | `cmake --build --preset <p>-<config> --parallel` | 〃 |
 | Test | `ctest --preset <p>-<config> --output-junit ctest-junit.xml` → JUnit report `build/<p>/ctest-junit.xml` | 〃 |
@@ -291,9 +308,11 @@ A macOS app cannot be run directly on Windows: it is a Mach-O binary, and Apple'
 - PDFs compared (Jenkins #15): the Windows and macOS PDFs of `sample.ml` are **byte-identical except the random `/ID`**; the macOS PDFs were also viewed (Korean, bold, amounts, merged cells, wrapping as on Windows). So Core (SQLite, settlement, formatting, currency) and PDF export behave the same on macOS. Not covered: the GUI, and the app bundle's font folder (`Contents/Resources/fonts/`; the CLI uses `bin/<Config>/fonts/`)
 - Claude Code can download artifacts (PDF, PNG) through the Jenkins REST API and view them with its Read tool, on any PC that has the `JENKINS_*` user environment variables (§6)
 
-### GUI check automation (decided 2026-11-21: systematize it; not started)
+### GUI check automation (decided 2026-11-21; ② deferred and ①③ optional, same day, see below)
 
-The GUI cannot be checked by Jenkins today: the MacMini agent runs over SSH, without access to the screen. There is no other Mac, so a manual check means Screen Sharing (VNC) to the MacMini. Decided to automate as much as possible instead, in three steps; the next session starts with ①.
+The GUI cannot be checked by Jenkins today: the MacMini agent runs over SSH, without access to the screen. There is no other Mac, so a manual check means Screen Sharing (VNC) to the MacMini. First decided to automate as much as possible, in the three steps below.
+
+**Changed later on 2026-11-21**: the GUI is checked by hand on the MacMini with a build installed from Google Drive (`BUILD=dev`, §4), which also checks the download and install a user goes through. So: ② (`--self-test`) is **deferred**: it needs app code, and with one developer who checks by hand before each release, what it adds (catching regressions on every build without a person) is small for its cost. ① and ③ need no app code (Jenkinsfile steps only) and stay **optional**. The table is kept as the plan if automation is wanted later.
 
 | Step | What | Who judges | Result |
 |---|---|---|---|
@@ -360,7 +379,7 @@ agent { label 'macos && xcode' }
 
 - **Code signing (Windows)**: unsigned installers trigger SmartScreen warnings ("More info → Run anyway"). Sign the exe and the Setup with `signtool sign /fd sha256 /tr <timestamp-url>` and store the certificate in Credentials. Optional for non-commercial distribution
 - **Keep PDBs**: archive the `.pdb` files for each release to analyze crash dumps
-- **Debug build**: ✅ `CONFIGURATION=Debug` parameter, to catch errors that occur only in Debug
+- **Debug build**: ✅ `BUILD=debug` (was `CONFIGURATION=Debug` until 2026-11-21), to catch errors that occur only in Debug
 - **Update checks**: a future in-app update check can use the download location's API (GitHub Releases or Google Drive)
 
 ---
@@ -373,7 +392,8 @@ agent { label 'macos && xcode' }
 4. [x] CMake migration: root `CMakeLists.txt`, `CMakePresets.json`, `GenerateProjectFiles.bat`, one `CMakeLists.txt` per project with automatic source collection, `add_subdirectory` for PDF-Writer and wxWidgets, `VERSION` → `project()` and `.rc`. Compared on Windows, then deleted the `.sln`/`.vcxproj`/`Version.props` and added `build/` to `.gitignore` (2026-11-18, see §3)
 5. [x] CTest smoke tests (`list`/`budget list` totals, 2 PDFs from `tests/fixtures/sample.ml`), test presets, `installer` target (ISCC, Release only) and the `windows-release` workflow preset; `build_installer.bat` became a wrapper for the workflow. Checked that a wrong expected value fails the test and stops the workflow before packaging, and that `installer` refuses Debug (2026-11-18)
 6. [x] `jenkins/Build.Jenkinsfile` (matrix WindowsMini/MacMini, parameters, macOS cell = preflight only) and `jenkins/scripts/preflight.cmake` written (2026-11-18). Checked on Windows: preflight passes on the dev PC and lists 3 problems on a simulated bare node; all Windows stages run in a fresh clone (Release + installer, Debug, JUnit file with 5 tests, exe version `1.0.0.<BUILD_NUMBER>`). Nodes prepared with `node_check_*` / `node_setup_*` and `PATH+CMAKE`; first successful Jenkins build 2026-11-19 (about 10 minutes, first build on the nodes)
-7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done". Steps ①–⑤ done 2026-11-21; open: the GUI check, to be automated first (§7 "GUI check automation", next session starts with its step ①)
+7. [ ] macOS build (`macos` presets, Core + CLI, fonts, bundle and `MacOpenFiles`, Universal), developed through Jenkins with `PLATFORM=macos`: steps ①–⑤ and the way of working in §6 "How the macOS work is done". Steps ①–⑤ done 2026-11-21; open: the GUI check, by hand on the MacMini with a `dev` build from Google Drive (roadmap 11 first; §7 "GUI check automation": ② deferred, ①③ optional)
 8. [x] (done within roadmap 7, steps ③–⑤, 2026-11-21) Turn on the macOS cell fully: the checks of §7 (`lipo -archs`, `otool -L`) and the GUI in the build. (`macos` is in `IMPLEMENTED` since roadmap 7 step ①, building Core + CLI)
 9. [ ] `.dmg` styling (the basic unsigned `.dmg` exists since roadmap 7 step ③); signing and notarization when distribution requires it (Windows signtool, macOS codesign/notarytool)
-10. [ ] Deployment (written 2026-11-21; tested locally with a fake rclone and on Jenkins: #14 untagged build skips Deploy, #15 `DEPLOY_DRY_RUN` passed: secret file, remote `gdrive`, both installers stashed to WindowsMini, release notes; `gdrive:MissionLedger` does not exist yet and is created by the first upload. rclone v1.76.0 is on WindowsMini (`C:\Tools\rclone`), not on MacMini (not needed). Still to do: the first real release (also the first real run of `release.bat`, the tag-triggered path, the forced clean build and the Drive writes); then share `MissionLedger/latest/` once): Google Drive with rclone, `DEPLOY` stage, release script, tag check, `latest/` (§0, §4, §5). The `DEPLOY` default stays on: the tag decides, not the checkbox (decided 2026-11-21)
+10. [ ] Deployment (written 2026-11-21; tested locally with a fake rclone and on Jenkins: #14 untagged build skips Deploy, #15 `DEPLOY_DRY_RUN` passed: secret file, remote `gdrive`, both installers stashed to WindowsMini, release notes; `gdrive:MissionLedger` does not exist yet and is created by the first upload. rclone v1.76.0 is on WindowsMini (`C:\Tools\rclone`), not on MacMini (not needed). Still to do: the first real release (also the first real run of `release.bat`, the tag-triggered path, the forced clean build and the Drive writes); then share `MissionLedger/latest/` once): Google Drive with rclone, `DEPLOY` stage, release script, tag check, `latest/` (§0, §4, §5). The `DEPLOY` default stays on: the tag decides, not the checkbox (decided 2026-11-21; **replaced the same day** by an explicit `BUILD` choice, roadmap 11); the first real release is now a `BUILD=shipping` build of the tagged commit
+11. [ ] Build kinds (decided and written 2026-11-21): Jenkins parameter `BUILD` = `dev` (default) / `shipping` / `test` / `debug` replaced `CONFIGURATION` and `DEPLOY` (§0, §4): `dev` uploads to `dev/<BUILD_NUMBER>-<commit>/` keeping 5, `shipping` = the release path, refused in Preflight without the tag or without `PLATFORM=both`. Changed: Jenkinsfile, `deploy.cmake` (`CHANNEL=dev`, pruning; tested with a fake rclone), docs. `release_check.cmake` unchanged (the Jenkinsfile turns its "no" into a failure for shipping). No app code changes. Still to do on Jenkins (each run needs approval): ① `BUILD=dev`, `PLATFORM=both` (the first run after the parameter change may still show the old parameters; `BUILD` empty = `dev`): first real Drive write, `dev/<n>-<commit>/` with both installers ② `BUILD=dev`, `PLATFORM=macos`: `.dmg` only, uploaded from WindowsMini ③ `BUILD=shipping` on this untagged commit: fails in Preflight with the "release.bat first" message ④ `BUILD=shipping` + `DEPLOY_DRY_RUN` ⑤ `BUILD=test` and `debug`: no Deploy stage. Then: the Mac GUI check by hand with a dev build, then the first real release (roadmap 10)
