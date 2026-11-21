@@ -1,0 +1,15 @@
+nlohmann/json 3.12.0 (JSON for Modern C++), single header
+
+Source:   https://github.com/nlohmann/json, release v3.12.0 (2025-04-11)
+          https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp
+          https://raw.githubusercontent.com/nlohmann/json/v3.12.0/LICENSE.MIT
+SHA-256:  aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63  include/nlohmann/json.hpp
+          46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603  LICENSE.MIT
+Licence:  MIT (LICENSE.MIT). Header only; when the CLI ships in the installers (docs/CLI_DESIGN.md
+          step 5) the licence text goes with the third-party notices
+Added:    2026-11-21
+
+Used by:  MissionLedgerCLI (--json output, MLCLIViewCommands.cpp); include as <nlohmann/json.hpp>,
+          include path set in MissionLedgerCLI/CMakeLists.txt. Later also the MCP server
+          (docs/CLI_DESIGN.md §8 step 9)
+Update:   replace json.hpp and LICENSE.MIT from a newer release, update this file
