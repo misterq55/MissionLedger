@@ -253,6 +253,15 @@ std::string GetDateTimeString() const
 - **GUI 숫자 입력 파싱의 로케일**: `wxString::ToDouble()`은 C 로케일을 따름. 현재 Windows에서는 소수점이 `.`라 문제 없음. macOS GUI(로드맵 7의 ③)에서 wxWidgets가 로케일을 바꾸는지 확인하고, 필요하면 `ToCDouble()`로 (편집 폼은 `FMLFormat::FormatDecimalPlain`이 항상 `.`로 씀). 추정, 확인 안 함
 - **결산서 "평균 환율"이 단순 평균**: `MLModel.cpp`의 `ExportSettlement`가 통화별 환율을 거래 수로 나눔 (금액 가중 평균 아님). 예: 12.5 USD @ 1,350.25와 1.15 USD @ 100 → 725.13원으로 표시. 의도한 것인지 확인 필요
 
+### Windows 다크 모드 (wxWidgets 3.3 이후, 보류)
+
+**배경** (2026-11-21): macOS GUI 첫 확인에서 다크 모드일 때 글자가 안 보이는 문제 발견 (패널 배경색을 밝은 회색으로 고정해 둔 탓). 배경색 고정을 없애고 글자색을 `MLMainFrame.cpp`의 `getUIColour()`(의미별 색, 라이트/다크 두 벌)로 모아 macOS만 대응. Windows는 wx 3.2가 OS 다크 모드와 무관하게 항상 라이트로 그리므로 지금 모습 유지
+
+**나중에 Windows 다크 모드를 켤 때** (wx 3.3의 `wxApp::MSWEnableDarkMode()`, 비공개 API 기반 실험 기능):
+- `OnInit()`에서 `MSWEnableDarkMode()` 호출
+- `MLMainFrame.cpp`의 `isDarkAppearance()` `#else` 쪽(`return false`)을 실제 화면 기준으로 변경. wx 3.2의 Windows `IsDark()`는 레지스트리 `AppsUseLightTheme`만 봐서 앱이 실제로 라이트여도 true를 돌려줌 (`third_party/wxWidgets/src/msw/settings.cpp:372`). 3.3에서 의미가 바뀌었는지 확인
+- 확인할 것 (추정, 3.3 소스로 확인 안 함): 실행 중 모드 전환이 바로 반영되는지(`wxEVT_SYS_COLOUR_CHANGED`), 날짜 선택·콤보박스·탭·리스트 헤더가 다크에서 제대로 그려지는지, 다크용 글자색 대비
+
 ---
 
 ## 📝 최근 완료된 작업
