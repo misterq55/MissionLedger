@@ -27,6 +27,49 @@ enum
     ID_EXIT = wxID_EXIT
 };
 
+namespace
+{
+    // 의미별 UI 글자색 (라이트/다크 두 벌)
+    enum class E_MLUIColour
+    {
+        Income,           // 수입 금액
+        Expense,          // 지출 금액, 음수 잔액
+        PositiveBalance,  // 0 이상 잔액
+        Accent            // 환산 금액 등 강조
+    };
+
+    // 앱이 실제로 어두운 배경으로 그려지는지. 판단 근거는 이 함수 한 곳에만 둔다.
+    bool isDarkAppearance()
+    {
+#ifdef __WXOSX__
+        // macOS: OS가 표준 컨트롤을 다크로 그리므로 OS 설정 = 실제 화면
+        return wxSystemSettings::GetAppearance().IsDark();
+#else
+        // Windows (wx 3.2): OS가 다크 모드여도 Win32 컨트롤은 항상 라이트로 그려진다.
+        // wxSystemAppearance::IsDark()는 레지스트리(AppsUseLightTheme)만 보므로 쓰지 않는다.
+        // wx 3.3으로 올려 MSWEnableDarkMode()를 켜면 여기를 실제 화면 기준으로 바꿀 것 (TODO.md)
+        return false;
+#endif
+    }
+
+    wxColour getUIColour(E_MLUIColour kind)
+    {
+        const bool dark = isDarkAppearance();
+        switch (kind)
+        {
+        case E_MLUIColour::Income:
+            return dark ? wxColour(90, 200, 120) : wxColour(0, 128, 0);
+        case E_MLUIColour::Expense:
+            return dark ? wxColour(255, 105, 97) : wxColour(200, 0, 0);
+        case E_MLUIColour::PositiveBalance:
+            return dark ? wxColour(110, 160, 255) : wxColour(0, 0, 200);
+        case E_MLUIColour::Accent:
+            return dark ? wxColour(100, 180, 255) : wxColour(0, 100, 200);
+        }
+        return wxNullColour;
+    }
+}
+
 wxMLMainFrame::wxMLMainFrame()
     : wxFrame(nullptr, wxID_ANY, wxString::FromUTF8("MissionLedger - 거래 관리"), wxDefaultPosition, wxSize(1200, 800))
 {
@@ -42,7 +85,6 @@ wxMLMainFrame::wxMLMainFrame()
 
     // === 왼쪽 입력 패널 ===
     wxPanel* inputPanel = new wxPanel(transactionTab);
-    inputPanel->SetBackgroundColour(wxColour(240, 240, 240));
     wxBoxSizer* inputSizer = new wxBoxSizer(wxVERTICAL);
 
     // 제목
@@ -104,7 +146,6 @@ wxMLMainFrame::wxMLMainFrame()
 
     // 환율 정보 패널 (체크박스 선택 시 활성화)
     exchangePanel = new wxPanel(inputPanel);
-    exchangePanel->SetBackgroundColour(wxColour(235, 235, 235));
     wxBoxSizer* exchangeSizer = new wxBoxSizer(wxVERTICAL);
 
     // 통화 선택
@@ -140,7 +181,6 @@ wxMLMainFrame::wxMLMainFrame()
     wxFont convertedFont = convertedAmountLabel->GetFont();
     convertedFont.SetWeight(wxFONTWEIGHT_BOLD);
     convertedAmountLabel->SetFont(convertedFont);
-    convertedAmountLabel->SetForegroundColour(wxColour(0, 100, 200));
     exchangeSizer->Add(convertedAmountLabel, 0, wxALL, 5);
 
     exchangePanel->SetSizer(exchangeSizer);
@@ -263,6 +303,10 @@ wxMLMainFrame::wxMLMainFrame()
 
     // 창 닫기 이벤트 바인딩
     Bind(wxEVT_CLOSE_WINDOW, &wxMLMainFrame::OnClose, this);
+
+    // 라이트/다크 전환 (macOS: 실행 중에도 OS 설정을 따라 바뀜)
+    Bind(wxEVT_SYS_COLOUR_CHANGED, &wxMLMainFrame::onSysColourChanged, this);
+    applyThemeColours();
 
     // 제목 초기화
     updateTitle();
@@ -876,7 +920,6 @@ bool wxMLMainFrame::checkUnsavedChanges()
 void wxMLMainFrame::createFilterPanel(wxPanel* parent, wxBoxSizer* sizer)
 {
     wxPanel* filterPanel = new wxPanel(parent);
-    filterPanel->SetBackgroundColour(wxColour(250, 250, 250));
     wxBoxSizer* filterSizer = new wxBoxSizer(wxVERTICAL);
 
     // 제목
@@ -1228,7 +1271,6 @@ int wxCALLBACK wxMLMainFrame::CompareTransactions(wxIntPtr item1, wxIntPtr item2
 void wxMLMainFrame::createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer)
 {
     summaryPanel = new wxPanel(parent);
-    summaryPanel->SetBackgroundColour(wxColour(245, 245, 245));
 
     wxBoxSizer* summarySizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -1240,7 +1282,6 @@ void wxMLMainFrame::createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer)
     summarySizer->Add(incomeLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
 
     summaryIncomeText = new wxStaticText(summaryPanel, wxID_ANY, "0");
-    summaryIncomeText->SetForegroundColour(wxColour(0, 128, 0)); // 녹색
     wxFont amountFont = summaryIncomeText->GetFont();
     amountFont.SetWeight(wxFONTWEIGHT_BOLD);
     summaryIncomeText->SetFont(amountFont);
@@ -1252,7 +1293,6 @@ void wxMLMainFrame::createSummaryPanel(wxPanel* parent, wxBoxSizer* sizer)
     summarySizer->Add(expenseLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 60);
 
     summaryExpenseText = new wxStaticText(summaryPanel, wxID_ANY, "0");
-    summaryExpenseText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
     summaryExpenseText->SetFont(amountFont);
     summarySizer->Add(summaryExpenseText, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 20);
 
@@ -1299,15 +1339,26 @@ void wxMLMainFrame::displaySummary(const FMLTransactionSummary& summary)
     wxString balanceText = wxString::FromUTF8(FMLFormat::FormatAmount(summary.Balance));
     summaryBalanceText->SetLabel(balanceText);
 
-    // 잔액 색상 설정 (양수: 파랑, 음수: 빨강)
-    if (summary.Balance >= 0)
-    {
-        summaryBalanceText->SetForegroundColour(wxColour(0, 0, 200)); // 파랑
-    }
-    else
-    {
-        summaryBalanceText->SetForegroundColour(wxColour(200, 0, 0)); // 빨강
-    }
+    // 잔액 색상 설정 (0 이상: 파랑, 음수: 빨강)
+    summaryBalanceText->SetForegroundColour(getUIColour(
+        summary.Balance >= 0 ? E_MLUIColour::PositiveBalance : E_MLUIColour::Expense));
+}
+
+// 라이트/다크에 따라 바뀌는 글자색 적용 (잔액은 displaySummary에서)
+void wxMLMainFrame::applyThemeColours()
+{
+    convertedAmountLabel->SetForegroundColour(getUIColour(E_MLUIColour::Accent));
+    summaryIncomeText->SetForegroundColour(getUIColour(E_MLUIColour::Income));
+    summaryExpenseText->SetForegroundColour(getUIColour(E_MLUIColour::Expense));
+}
+
+// OS 라이트/다크 전환 시
+void wxMLMainFrame::onSysColourChanged(wxSysColourChangedEvent& event)
+{
+    event.Skip(); // wx 기본 처리(자식 창 전파)도 그대로 진행
+    applyThemeColours();
+    updateSummaryPanel(); // 잔액 색 갱신
+    Refresh();
 }
 
 // 천 단위 구분 포맷팅
@@ -1628,7 +1679,6 @@ wxPanel* wxMLMainFrame::createBudgetTab()
 
     // ========== 요약 패널 ==========
     budgetSummaryPanel = new wxPanel(budgetTab);
-    budgetSummaryPanel->SetBackgroundColour(wxColour(245, 245, 245));
     wxBoxSizer* summarySizer = new wxBoxSizer(wxHORIZONTAL);
 
     wxStaticText* budgetLabel = new wxStaticText(budgetSummaryPanel, wxID_ANY, wxString::FromUTF8("총 예산: "));

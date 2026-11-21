@@ -108,6 +108,10 @@ private:
     void displaySummary(const FMLTransactionSummary& summary);
     FMLFilterCriteria buildCurrentFilterCriteria();
 
+    // 테마(라이트/다크) 색상
+    void applyThemeColours();
+    void onSysColourChanged(wxSysColourChangedEvent& event);
+
     // 예산 헬퍼 메서드
     wxPanel* createBudgetTab();
     void clearBudgetInputFields();
