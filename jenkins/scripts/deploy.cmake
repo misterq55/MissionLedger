@@ -1,13 +1,20 @@
-# Uploads a release to Google Drive with rclone (called by the Deploy stage of jenkins/Build.Jenkinsfile)
+# Uploads installers to Google Drive with rclone (called by the Deploy stage of jenkins/Build.Jenkinsfile)
 #
-#   cmake -DREMOTE=<rclone remote>:<folder> -DFILES=<dir with the installers> -DWORK=<scratch dir>
+#   cmake -DCHANNEL=shipping -DREMOTE=<rclone remote>:<folder> -DFILES=<dir with the installers> -DWORK=<scratch dir>
 #         [-DDRY_RUN=ON] [-DRCLONE=<rclone>] -P jenkins/scripts/deploy.cmake
+#   cmake -DCHANNEL=dev -DBUILD=<build number> [-DKEEP=5] -DREMOTE=... -DFILES=... -DWORK=... [-DDRY_RUN=ON] -P ...
 #
-# Result on the remote (REMOTE = e.g. gdrive:MissionLedger):
+# CHANNEL=dev (Jenkins BUILD=dev): any commit, one or both installers
+#   <REMOTE>/dev/<BUILD>-<short commit>/   the installers of this build (named after the current VERSION, which
+#                                          is the previous release until release.bat bumps it)
+#   Afterwards only the KEEP (default 5) highest build numbers under dev/ are kept; older folders are purged.
+#   Folders under dev/ that do not look like <number>-<commit> are never touched.
+#
+# CHANNEL=shipping (default; Jenkins BUILD=shipping), a release. Result on the remote (REMOTE = e.g. gdrive:MissionLedger):
 #   <REMOTE>/v<VERSION>/   MissionLedger-<VERSION>-Setup.exe, MissionLedger-<VERSION>.dmg, 릴리스노트.txt
 #   <REMOTE>/latest/       the same files, replaced on every release (share this folder: its link stays the same)
 #
-# Safety:
+# Safety (shipping):
 #   - both installers of VERSION must be in FILES, and CHANGELOG.md must have a "## [<VERSION>]" section
 #   - <REMOTE>/v<VERSION>/ must not exist yet: a release is never overwritten
 #   - latest/ is updated only after v<VERSION>/ is complete, and only if VERSION is the highest version
@@ -23,6 +30,23 @@ foreach(var REMOTE FILES WORK)
         message(FATAL_ERROR "deploy.cmake: -D${var}=... is required")
     endif()
 endforeach()
+if(NOT DEFINED CHANNEL)
+    set(CHANNEL shipping)
+endif()
+if(NOT CHANNEL MATCHES "^(dev|shipping)$")
+    message(FATAL_ERROR "deploy.cmake: CHANNEL must be dev or shipping, got '${CHANNEL}'")
+endif()
+if(CHANNEL STREQUAL "dev")
+    if(NOT BUILD MATCHES "^[0-9]+$")
+        message(FATAL_ERROR "deploy.cmake: CHANNEL=dev needs -DBUILD=<build number>, got '${BUILD}'")
+    endif()
+    if(NOT DEFINED KEEP)
+        set(KEEP 5)
+    endif()
+    if(NOT KEEP MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "deploy.cmake: KEEP must be a positive number, got '${KEEP}'")
+    endif()
+endif()
 if(NOT REMOTE MATCHES "^([^:]+):(.+)$")
     message(FATAL_ERROR "deploy.cmake: REMOTE must be <remote>:<folder>, got '${REMOTE}'")
 endif()
@@ -79,6 +103,75 @@ if(NOT "${remote_name}:" IN_LIST remotes)
     message(FATAL_ERROR "rclone has no remote '${remote_name}' (configured: ${remotes}). "
                         "Fix DRIVE_REMOTE in jenkins/Build.Jenkinsfile or the secret file")
 endif()
+
+# ===== CHANNEL=dev: this build's installers to dev/<BUILD>-<commit>/, then keep the newest KEEP =====
+if(CHANNEL STREQUAL "dev")
+    execute_process(COMMAND git rev-parse --short=7 HEAD WORKING_DIRECTORY "${root}"
+        OUTPUT_VARIABLE commit OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE rc)
+    if(NOT rc EQUAL 0 OR commit STREQUAL "")
+        message(FATAL_ERROR "git rev-parse --short HEAD failed")
+    endif()
+    set(stage "${WORK}/deploy")
+    file(REMOVE_RECURSE "${stage}")
+    file(MAKE_DIRECTORY "${stage}")
+    set(found "")
+    foreach(name "MissionLedger-${version}-Setup.exe" "MissionLedger-${version}.dmg")
+        if(EXISTS "${FILES}/${name}")
+            file(COPY "${FILES}/${name}" DESTINATION "${stage}")
+            list(APPEND found "${name}")
+        endif()
+    endforeach()
+    if(NOT found)
+        message(FATAL_ERROR "No installer of ${version} in ${FILES} (dev needs a Release build of a packaged platform)")
+    endif()
+    message(STATUS "To upload: ${found}")
+
+    set(folder "${BUILD}-${commit}")
+    set(dest "${REMOTE}/dev/${folder}")
+    message(STATUS "Uploading to ${dest}/")
+    run_rclone(out copy "${stage}" "${dest}" ${dry})
+    if(NOT DRY_RUN)
+        run_rclone(listing lsl "${dest}")
+        message(STATUS "${dest}:\n${listing}")
+    endif()
+    file(REMOVE_RECURSE "${stage}")
+
+    # Keep the KEEP highest build numbers (the folder just uploaded counts, also in a dry run)
+    run_rclone(dirs lsf --dirs-only "${REMOTE}/dev" ALLOW_FAIL RESULT rc)
+    if(rc EQUAL 3)          # dev/ does not exist (dry run of the first dev upload)
+        set(dirs "")
+    elseif(NOT rc EQUAL 0)
+        message(FATAL_ERROR "rclone lsf --dirs-only ${REMOTE}/dev failed (exit code ${rc})")
+    endif()
+    string(REPLACE "\n" ";" dirs "${dirs}")
+    set(builds "")
+    foreach(d IN LISTS dirs)
+        if(d MATCHES "^([0-9]+-[0-9a-f]+)/$")
+            list(APPEND builds "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+    list(APPEND builds "${folder}")
+    list(REMOVE_DUPLICATES builds)
+    list(SORT builds COMPARE NATURAL ORDER DESCENDING)   # 100-… after 99-…
+    list(LENGTH builds count)
+    if(count GREATER KEEP)
+        list(SUBLIST builds ${KEEP} -1 old)
+        foreach(o IN LISTS old)
+            message(STATUS "Removing old dev build ${REMOTE}/dev/${o}/")
+            run_rclone(out purge "${REMOTE}/dev/${o}" ${dry})
+        endforeach()
+    endif()
+    list(SUBLIST builds 0 ${KEEP} kept)
+    message(STATUS "dev builds kept: ${kept}")
+    if(DRY_RUN)
+        message(STATUS "Deploy dev ${folder}: dry run finished, nothing was written")
+    else()
+        message(STATUS "Deploy dev ${folder}: done")
+    endif()
+    return()
+endif()
+
+# ===== CHANNEL=shipping =====
 
 # ----- Files to upload: both installers + release notes from CHANGELOG.md -----
 set(stage "${WORK}/deploy")

@@ -20,27 +20,37 @@ import groovy.transform.Field
 // Platforms with a <platform>-installer build preset (Windows: Inno Setup .exe, macOS: .dmg)
 @Field final List PACKAGED = ['windows', 'macos']
 
-// Deploy (docs/CI_PLAN.md §5): a release is uploaded to <DRIVE_REMOTE>:<DRIVE_FOLDER>/v<VERSION>/ and latest/
-// with rclone. The rclone.conf is the Jenkins secret file RCLONE_CREDENTIAL (never in the repository).
-// The upload runs once, on DEPLOY_NODE, after both platforms succeeded (both installers are stashed there).
+// Deploy (docs/CI_PLAN.md §4–§5), with rclone; the rclone.conf is the Jenkins secret file RCLONE_CREDENTIAL
+// (never in the repository). The upload runs once, on DEPLOY_NODE, after the platforms succeeded (their
+// installers are stashed there):
+//   BUILD=dev      → <DRIVE_REMOTE>:<DRIVE_FOLDER>/dev/<BUILD_NUMBER>-<commit>/, newest DEV_KEEP folders kept
+//   BUILD=shipping → <DRIVE_REMOTE>:<DRIVE_FOLDER>/v<VERSION>/ and latest/ (a release)
 @Field final String DRIVE_REMOTE = 'gdrive'
 @Field final String DRIVE_FOLDER = 'MissionLedger'
 @Field final String RCLONE_CREDENTIAL = 'missionledger-rclone-conf'
 @Field final String DEPLOY_NODE = 'WindowsMini'     // also written in the Deploy stage's agent label below
+@Field final int DEV_KEEP = 5
 
 String platformOf(String node) { return PLATFORMS[node] }
 boolean isImplemented(String node) { return IMPLEMENTED.contains(platformOf(node)) }
 boolean isPackaged(String node) { return PACKAGED.contains(platformOf(node)) }
 
-// Release = the remote tag v<VERSION> points to this commit (jenkins/scripts/release_check.cmake)
-boolean isRelease() { return env.ML_RELEASE == 'yes' }
-// Upload in this build? A tagged commit deploys unless DEPLOY is off; DEPLOY_DRY_RUN tries it on any commit
-boolean deployWanted() {
-    return params.DEPLOY && (isRelease() || params.DEPLOY_DRY_RUN) &&
-           params.PLATFORM == 'both' && params.CONFIGURATION == 'Release'
+// What this build is (parameter BUILD). Empty on the first run after the parameters changed: Jenkins then
+// still shows the old parameters, so fall back to the default
+String buildKind() { return params.BUILD ?: 'dev' }
+// dev, shipping, test = Release build with installers; debug = Debug build, smoke tests only
+String configuration() { return buildKind() == 'debug' ? 'Debug' : 'Release' }
+boolean isShipping() { return buildKind() == 'shipping' }
+// Upload in this build? Only dev and shipping; a tag alone never uploads (it is a precondition of shipping)
+boolean uploadWanted() { return buildKind() == 'dev' || isShipping() }
+// Release tag = the remote tag v<VERSION> points to this commit (jenkins/scripts/release_check.cmake)
+boolean hasReleaseTag() { return env.ML_RELEASE == 'yes' }
+// Platforms selected by PLATFORM that make an installer
+List packagedSelected() {
+    return PACKAGED.findAll { params.PLATFORM == 'both' || params.PLATFORM == it }
 }
 // A real release always starts from a clean build/ (CLEAN_BUILD does not have to be ticked)
-boolean cleanWanted() { return params.CLEAN_BUILD || (deployWanted() && !params.DEPLOY_DRY_RUN) }
+boolean cleanWanted() { return params.CLEAN_BUILD || (isShipping() && !params.DEPLOY_DRY_RUN) }
 
 // bat on Windows, sh on macOS
 void runCmd(String command) {
@@ -85,14 +95,14 @@ pipeline {
     parameters {
         choice(name: 'PLATFORM', choices: ['both', 'windows', 'macos'],
                description: 'Platform to build. macOS: app + CLI, smoke tests, unsigned .dmg (roadmap 7)')
-        choice(name: 'CONFIGURATION', choices: ['Release', 'Debug'],
-               description: 'Release also builds the installer (Windows .exe, macOS .dmg). Debug: build and smoke test only')
+        choice(name: 'BUILD', choices: ['dev', 'shipping', 'test', 'debug'],
+               description: 'dev: Release build, installers uploaded to Google Drive MissionLedger/dev/<build>-<commit>/ (newest 5 kept), any commit. ' +
+                            'shipping: the release; needs the pushed tag v<VERSION> on this commit (release.bat / release.sh) and PLATFORM=both, clean build, uploads to v<VERSION>/ and latest/. ' +
+                            'test: Release build, installers only as Jenkins artifacts. debug: Debug build and smoke tests only')
         booleanParam(name: 'CLEAN_BUILD', defaultValue: false,
-               description: 'Delete build/ first (rebuilds wxWidgets and PDF-Writer, a few minutes longer)')
-        booleanParam(name: 'DEPLOY', defaultValue: true,
-               description: 'Upload to Google Drive when this commit is a release (tag v<VERSION>, made by release.bat / release.sh). Needs PLATFORM=both and Release; forces a clean build. Untagged commits never upload. Untick to build a tagged commit without uploading')
+               description: 'Delete build/ first (rebuilds wxWidgets and PDF-Writer, a few minutes longer). Always done for BUILD=shipping')
         booleanParam(name: 'DEPLOY_DRY_RUN', defaultValue: false,
-               description: 'Test the Deploy stage on any commit without writing: rclone, the secret file, the remote folder and the release notes are checked, the uploads run with --dry-run. Needs PLATFORM=both and Release')
+               description: 'Try the upload of BUILD=shipping (or dev) without writing: rclone, the secret file, the remote folders and the release notes are checked, the uploads run with --dry-run. With shipping, the tag is not required')
     }
 
     options {
@@ -130,12 +140,22 @@ pipeline {
                                 // Both cells compute the same answer (same commit); the Deploy stage checks again
                                 runCmd 'cmake -DOUT=build/release_check.txt -P jenkins/scripts/release_check.cmake'
                                 env.ML_RELEASE = readFile('build/release_check.txt').trim()
-                                def tag = isRelease() ? ' release' : ''
-                                currentBuild.displayName = "#${env.BUILD_NUMBER} v${env.APP_VERSION} ${params.CONFIGURATION}${tag}"
-                                if (isRelease() && params.DEPLOY && !deployWanted()) {
-                                    unstable("v${env.APP_VERSION} is a release, but it is not uploaded: that needs PLATFORM=both and CONFIGURATION=Release")
+                                def dry = params.DEPLOY_DRY_RUN && uploadWanted() ? ' dry-run' : ''
+                                currentBuild.displayName = "#${env.BUILD_NUMBER} v${env.APP_VERSION} ${buildKind()}${dry}"
+                                // shipping: stop before building when a precondition is missing
+                                if (isShipping()) {
+                                    if (params.PLATFORM != 'both') {
+                                        error("BUILD=shipping needs PLATFORM=both: a release has both installers")
+                                    }
+                                    if (!hasReleaseTag() && !params.DEPLOY_DRY_RUN) {
+                                        error("BUILD=shipping: this commit is not tagged v${env.APP_VERSION} on the remote (see the release check above). " +
+                                              "Make the release first: release.bat <version> push (macOS: ./release.sh <version> push), then build that commit")
+                                    }
+                                } else if (hasReleaseTag()) {
+                                    echo "This commit has the tag v${env.APP_VERSION}, but BUILD=${buildKind()}: not a release (choose BUILD=shipping for that)"
                                 }
-                                def rclone = (deployWanted() && env.NODE == DEPLOY_NODE) ? '-DREQUIRE_RCLONE=ON' : ''
+                                // A dev upload must not fail the build, so only shipping requires rclone here
+                                def rclone = (isShipping() && env.NODE == DEPLOY_NODE) ? '-DREQUIRE_RCLONE=ON' : ''
                                 runCmd "cmake -DPLATFORM=${platformOf(env.NODE)} \"-DWORKSPACE=${env.WORKSPACE}\" ${rclone} -P jenkins/scripts/preflight.cmake"
                             }
                         }
@@ -161,26 +181,26 @@ pipeline {
                     stage('Build') {
                         when { expression { isImplemented(env.NODE) } }
                         steps {
-                            runCmd "cmake --build --preset ${platformOf(env.NODE)}-${params.CONFIGURATION.toLowerCase()} --parallel"
+                            runCmd "cmake --build --preset ${platformOf(env.NODE)}-${configuration().toLowerCase()} --parallel"
                         }
                     }
                     stage('Test') {
                         when { expression { isImplemented(env.NODE) } }
                         steps {
                             // ctest writes the JUnit file relative to the build folder
-                            runCmd "ctest --preset ${platformOf(env.NODE)}-${params.CONFIGURATION.toLowerCase()} --output-junit ctest-junit.xml"
+                            runCmd "ctest --preset ${platformOf(env.NODE)}-${configuration().toLowerCase()} --output-junit ctest-junit.xml"
                         }
                         post {
                             always { junit testResults: "build/${platformOf(env.NODE)}/ctest-junit.xml", allowEmptyResults: true }
                         }
                     }
                     stage('Package') {
-                        when { expression { isPackaged(env.NODE) && params.CONFIGURATION == 'Release' } }
+                        when { expression { isPackaged(env.NODE) && configuration() == 'Release' } }
                         steps {
                             dir('installer/output') { deleteDir() }   // installers of older versions must not be archived again
                             runCmd "cmake --build --preset ${platformOf(env.NODE)}-installer"
                             script {
-                                if (deployWanted()) {
+                                if (uploadWanted()) {
                                     stash name: "installer-${platformOf(env.NODE)}", includes: 'installer/output/*'
                                 }
                             }
@@ -191,7 +211,7 @@ pipeline {
                         steps {
                             script {
                                 def p = platformOf(env.NODE)
-                                def c = params.CONFIGURATION
+                                def c = configuration()
                                 def files = ["build/${p}/tests/out/${c}/*.pdf"]       // smoke test PDFs
                                 if (c == 'Release' && isPackaged(env.NODE)) {
                                     files += ['installer/output/*']                     // installer (.exe / .dmg)
@@ -207,28 +227,44 @@ pipeline {
             }
         }
 
-        // Runs only when both platforms succeeded (a failed matrix stops the pipeline before this stage)
+        // Runs only when the selected platforms succeeded (a failed matrix stops the pipeline before this stage).
+        // The Windows node uploads also for PLATFORM=macos (rclone is only there), so it has to be online
         stage('Deploy') {
-            when { expression { deployWanted() } }
+            when { expression { uploadWanted() } }
             agent { label 'WindowsMini' }   // = DEPLOY_NODE (a field cannot be used in the agent label)
             steps {
                 script {
-                    if (!params.DEPLOY_DRY_RUN) {
-                        // The tag must still point to this commit when the upload starts
-                        runCmd 'cmake -DOUT=build/release_check.txt -P jenkins/scripts/release_check.cmake'
-                        if (readFile('build/release_check.txt').trim() != 'yes') {
-                            error("v${env.APP_VERSION}: the tag no longer points to this commit; nothing uploaded")
-                        }
-                    }
-                    dir('installer/output') { deleteDir() }
-                    unstash 'installer-windows'
-                    unstash 'installer-macos'
                     def dry = params.DEPLOY_DRY_RUN ? '-DDRY_RUN=ON' : ''
-                    withCredentials([file(credentialsId: RCLONE_CREDENTIAL, variable: 'RCLONE_CONFIG')]) {
-                        runCmd "cmake -DREMOTE=${DRIVE_REMOTE}:${DRIVE_FOLDER} -DFILES=installer/output -DWORK=build/deploy ${dry} -P jenkins/scripts/deploy.cmake"
-                    }
-                    if (!params.DEPLOY_DRY_RUN) {
-                        currentBuild.description = "Deployed v${env.APP_VERSION}: ${DRIVE_REMOTE}:${DRIVE_FOLDER}/v${env.APP_VERSION}/ and latest/"
+                    def remote = "${DRIVE_REMOTE}:${DRIVE_FOLDER}"
+                    if (isShipping()) {
+                        if (!params.DEPLOY_DRY_RUN) {
+                            // The tag must still point to this commit when the upload starts
+                            runCmd 'cmake -DOUT=build/release_check.txt -P jenkins/scripts/release_check.cmake'
+                            if (readFile('build/release_check.txt').trim() != 'yes') {
+                                error("v${env.APP_VERSION}: the tag no longer points to this commit; nothing uploaded")
+                            }
+                        }
+                        dir('installer/output') { deleteDir() }
+                        packagedSelected().each { unstash "installer-${it}" }
+                        withCredentials([file(credentialsId: RCLONE_CREDENTIAL, variable: 'RCLONE_CONFIG')]) {
+                            runCmd "cmake -DCHANNEL=shipping -DREMOTE=${remote} -DFILES=installer/output -DWORK=build/deploy ${dry} -P jenkins/scripts/deploy.cmake"
+                        }
+                        if (!params.DEPLOY_DRY_RUN) {
+                            currentBuild.description = "Shipped v${env.APP_VERSION}: ${remote}/v${env.APP_VERSION}/ and latest/"
+                        }
+                    } else {
+                        // dev: a failed upload marks the build UNSTABLE; the build and its artifacts are fine
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE',
+                                   message: 'dev upload failed; the build itself passed (installers are in the Jenkins artifacts)') {
+                            dir('installer/output') { deleteDir() }
+                            packagedSelected().each { unstash "installer-${it}" }
+                            withCredentials([file(credentialsId: RCLONE_CREDENTIAL, variable: 'RCLONE_CONFIG')]) {
+                                runCmd "cmake -DCHANNEL=dev -DBUILD=${env.BUILD_NUMBER} -DKEEP=${DEV_KEEP} -DREMOTE=${remote} -DFILES=installer/output -DWORK=build/deploy ${dry} -P jenkins/scripts/deploy.cmake"
+                            }
+                            if (!params.DEPLOY_DRY_RUN) {
+                                currentBuild.description = "dev: ${remote}/dev/${env.BUILD_NUMBER}-*/"
+                            }
+                        }
                     }
                 }
             }
