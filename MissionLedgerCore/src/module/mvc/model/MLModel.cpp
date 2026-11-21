@@ -165,13 +165,13 @@ void FMLModel::ExportToExcel()
     // TODO: Excel export 구현
 }
 
-bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
+bool FMLModel::ExportSettlementToPDF(const std::string& filePath, const FMLPDFExportOptions& options)
 {
     // 결산안 데이터
     FMLSettlmentData settlmentData;
 
     // 부제: 현재 .ml 파일 이름
-    settlmentData.Subtitle = getDocumentName();
+    settlmentData.Subtitle = options.IncludeSubtitle ? getDocumentName() : std::string();
 
     // 예산 데이터 집계
     for (const auto& budget : Budgets)
@@ -246,13 +246,13 @@ bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
     return FMLPDFExporter::ExportSettlement(settlmentData, filePath);
 }
 
-bool FMLModel::ExportTransactionListToPDF(const std::string& filePath)
+bool FMLModel::ExportTransactionListToPDF(const std::string& filePath, const FMLPDFExportOptions& options)
 {
     // 모든 거래 데이터 가져오기
     std::vector<FMLTransactionData> transactions = GetAllTransactionData();
 
     // PDF 생성 (부제: 현재 .ml 파일 이름)
-    return FMLPDFExporter::ExportTransactionList(transactions, getDocumentName(), filePath);
+    return FMLPDFExporter::ExportTransactionList(transactions, options.IncludeSubtitle ? getDocumentName() : std::string(), filePath);
 }
 
 // 현재 파일 이름 (경로와 확장자 제외). 저장 안 한 새 파일이면 빈 문자열

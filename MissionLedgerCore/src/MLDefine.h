@@ -82,6 +82,11 @@ struct FMLBudgetSummary {
 };
 
 // 결산안 데이터
+// PDF 내보내기 옵션 (GUI 메뉴 "PDF에 파일 이름 부제 넣기", CLI --no-subtitle)
+struct FMLPDFExportOptions {
+    bool IncludeSubtitle = true;   // 제목 아래 .ml 파일 이름 부제
+};
+
 struct FMLSettlmentData {
     // 제목과 부제 (부제: .ml 파일 이름, 비어 있으면 생략)
     std::string Title = "결산 보고서";

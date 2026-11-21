@@ -39,8 +39,8 @@ public:
     virtual bool Save() override;
     virtual bool Load() override;
     virtual void ExportToExcel() override;
-    virtual bool ExportSettlementToPDF(const std::string& filePath) override;
-    virtual bool ExportTransactionListToPDF(const std::string& filePath) override;
+    virtual bool ExportSettlementToPDF(const std::string& filePath, const FMLPDFExportOptions& options) override;
+    virtual bool ExportTransactionListToPDF(const std::string& filePath, const FMLPDFExportOptions& options) override;
 
     // File Operations
     virtual bool OpenFile(const std::string& filePath) override;

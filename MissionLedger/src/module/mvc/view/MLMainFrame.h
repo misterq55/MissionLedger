@@ -11,6 +11,7 @@
 #include "interface/IMLModelObserver.h"
 
 struct FMLBudgetSummary;
+struct FMLPDFExportOptions;
 
 /**
  * @brief MissionLedger 메인 윈도우 프레임
@@ -66,6 +67,8 @@ private:
     void OnSaveFileAs(wxCommandEvent& event);
     void OnExportSettlementPDF(wxCommandEvent& event);
     void OnExportTransactionsPDF(wxCommandEvent& event);
+    void OnTogglePdfSubtitle(wxCommandEvent& event);
+    FMLPDFExportOptions getPdfExportOptions() const;  // 메뉴 체크 상태에서 만든다
     void OnExit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
 

@@ -6,6 +6,7 @@
 #include <wx/calctrl.h>
 #include <wx/filedlg.h>
 #include <wx/filename.h>
+#include <wx/config.h>
 #include <set>
 #include <algorithm>
 #include <cctype>
@@ -24,11 +25,16 @@ enum
     ID_SAVE_FILE_AS = wxID_SAVEAS,
     ID_EXPORT_SETTLEMENT_PDF = wxID_HIGHEST + 1,
     ID_EXPORT_TRANSACTIONS_PDF = wxID_HIGHEST + 2,
+    ID_PDF_SUBTITLE = wxID_HIGHEST + 3,
     ID_EXIT = wxID_EXIT
 };
 
 namespace
 {
+    // 사용자 설정 (Windows: 레지스트리 HKCU\Software\MissionLedger, macOS: ~/Library/Preferences/MissionLedger Preferences)
+    const wxString kConfigAppName = wxS("MissionLedger");
+    const wxString kConfigPdfSubtitle = wxS("PDF/IncludeSubtitle");
+
     // 의미별 UI 글자색 (라이트/다크 두 벌)
     enum class E_MLUIColour
     {
@@ -616,6 +622,13 @@ void wxMLMainFrame::createMenuBar()
     fileMenu->AppendSeparator();
     fileMenu->Append(ID_EXPORT_SETTLEMENT_PDF, wxString::FromUTF8("결산 보고서 내보내기(&E)...\tCtrl+E"));
     fileMenu->Append(ID_EXPORT_TRANSACTIONS_PDF, wxString::FromUTF8("거래 내역서 내보내기(&T)...\tCtrl+T"));
+    fileMenu->AppendCheckItem(ID_PDF_SUBTITLE, wxString::FromUTF8("PDF에 파일 이름 부제 넣기"));
+    {
+        wxConfig config(kConfigAppName);
+        bool includeSubtitle = true;
+        config.Read(kConfigPdfSubtitle, &includeSubtitle, true);
+        fileMenu->Check(ID_PDF_SUBTITLE, includeSubtitle);
+    }
     fileMenu->AppendSeparator();
     fileMenu->Append(ID_EXIT, wxString::FromUTF8("종료(&X)\tAlt+F4"));
 
@@ -630,6 +643,7 @@ void wxMLMainFrame::createMenuBar()
     Bind(wxEVT_MENU, &wxMLMainFrame::OnSaveFileAs, this, ID_SAVE_FILE_AS);
     Bind(wxEVT_MENU, &wxMLMainFrame::OnExportSettlementPDF, this, ID_EXPORT_SETTLEMENT_PDF);
     Bind(wxEVT_MENU, &wxMLMainFrame::OnExportTransactionsPDF, this, ID_EXPORT_TRANSACTIONS_PDF);
+    Bind(wxEVT_MENU, &wxMLMainFrame::OnTogglePdfSubtitle, this, ID_PDF_SUBTITLE);
     Bind(wxEVT_MENU, &wxMLMainFrame::OnExit, this, ID_EXIT);
 }
 
@@ -757,6 +771,20 @@ void wxMLMainFrame::OnSaveFileAs(wxCommandEvent& event)
     }
 }
 
+void wxMLMainFrame::OnTogglePdfSubtitle(wxCommandEvent& event)
+{
+    // 메뉴 체크 상태가 기준. 다음 실행을 위해 기억만 해 둔다
+    wxConfig config(kConfigAppName);
+    config.Write(kConfigPdfSubtitle, event.IsChecked());
+}
+
+FMLPDFExportOptions wxMLMainFrame::getPdfExportOptions() const
+{
+    FMLPDFExportOptions options;
+    options.IncludeSubtitle = GetMenuBar()->IsChecked(ID_PDF_SUBTITLE);
+    return options;
+}
+
 void wxMLMainFrame::OnExportSettlementPDF(wxCommandEvent& event)
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
@@ -787,7 +815,7 @@ void wxMLMainFrame::OnExportSettlementPDF(wxCommandEvent& event)
         filePath += ".pdf";
     }
 
-    if (controller->ExportSettlementToPDF(filePath.ToUTF8().data()))
+    if (controller->ExportSettlementToPDF(filePath.ToUTF8().data(), getPdfExportOptions()))
     {
         wxMessageBox(wxString::FromUTF8("결산 보고서가 성공적으로 생성되었습니다."),
             wxString::FromUTF8("완료"), wxOK | wxICON_INFORMATION);
@@ -829,7 +857,7 @@ void wxMLMainFrame::OnExportTransactionsPDF(wxCommandEvent& event)
         filePath += ".pdf";
     }
 
-    if (controller->ExportTransactionListToPDF(filePath.ToUTF8().data()))
+    if (controller->ExportTransactionListToPDF(filePath.ToUTF8().data(), getPdfExportOptions()))
     {
         wxMessageBox(wxString::FromUTF8("거래 내역서가 성공적으로 생성되었습니다."),
             wxString::FromUTF8("완료"), wxOK | wxICON_INFORMATION);

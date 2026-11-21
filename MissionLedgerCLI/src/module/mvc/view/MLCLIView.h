@@ -3,6 +3,7 @@
 #include "interface/IMLModelObserver.h"
 #include "MLDefine.h"
 #include "MLCLIArgs.h"
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -65,15 +66,19 @@ private:
         std::vector<FMLCLIOptionSpec> Options;
         int (FMLCLIView::*Handler)(const FMLCLIArgs&);
         std::vector<std::string> Examples;
+        bool Writes;                 // 파일을 바꾸는 명령: --dry-run, 저장 전 백업
     };
     static const std::vector<FMLCLICommandSpec>& commandSpecs();
     static const FMLCLICommandSpec* findCommand(const std::string& name);
+    static std::vector<FMLCLIOptionSpec> optionsFor(const FMLCLICommandSpec& spec);  // + 공통 옵션
 
     // 도움말
     void printGeneralHelp(std::ostream& os) const;
     void printCommandHelp(std::ostream& os, const FMLCLICommandSpec& spec) const;
     static std::string usageLine(const FMLCLICommandSpec& spec);
-    int usageError(const FMLCLICommandSpec* spec, const std::string& message) const;
+    int usageError(const FMLCLICommandSpec* spec, const std::string& message) const;  // 반환 2
+    int fail(const std::string& message) const;                                       // 반환 1
+    int succeed(nlohmann::ordered_json body, const std::string& text) const;                  // 반환 0
 
     // 명령 처리 (반환: 0 성공, 1 실행 실패, 2 사용법 오류)
     int cmdHelp(const FMLCLIArgs& args);
@@ -94,7 +99,7 @@ private:
 
     // 명령 공통 헬퍼
     bool openFileForCommand(const std::string& filePath);
-    int saveForCommand();
+    int saveForCommand(const std::string& filePath);
     int applyTransactionOptions(const FMLCLIArgs& args, FMLTransactionData& data, bool isAdd, std::string& error);
     int applyBudgetOptions(const FMLCLIArgs& args, FMLBudgetData& data, std::string& error);
     int confirmDelete(const FMLCLIArgs& args, const std::string& what);
@@ -102,6 +107,9 @@ private:
     const FMLCLICommandSpec* CurrentCommand = nullptr;  // 사용법 오류 메시지용
     int LastAddedTransactionId = -1;
     int LastAddedBudgetId = -1;
+    bool JsonMode = false;        // --json
+    bool DryRun = false;          // --dry-run
+    std::string BackupPath;       // 이번 명령이 만든 백업 (없으면 빈 문자열)
 
     // 대화형 모드 - 명령어 처리
     void printHelp();

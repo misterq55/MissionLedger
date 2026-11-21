@@ -8,6 +8,8 @@
 #include "module/common/format/MLFormat.h"
 #include "module/common/currency/MLCurrency.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <charconv>
@@ -177,6 +179,50 @@ namespace
             opt("rate", "<환율>", "환율 (원/외화, 예: 1350.5)"),
         };
     }
+
+    // ===== JSON (--json) =====
+    // 키는 영어 camelCase, 유형은 income/expense, 금액은 원 단위 정수, 날짜는 YYYY-MM-DD 문자열 (CLI_DESIGN.md §3)
+
+    std::string typeKey(E_MLTransactionType type)
+    {
+        return type == E_MLTransactionType::Income ? "income" : "expense";
+    }
+
+    nlohmann::ordered_json transactionJson(const FMLTransactionData& data)
+    {
+        nlohmann::ordered_json exchange = nullptr;
+        if (data.UseExchangeRate)
+            exchange = { {"currency", data.Currency}, {"original", data.OriginalAmount}, {"rate", data.ExchangeRate} };
+        return {
+            {"id", data.TransactionId},
+            {"type", typeKey(data.Type)},
+            {"category", data.Category},
+            {"item", data.Item},
+            {"description", data.Description},
+            {"amount", data.Amount},
+            {"date", data.DateTime},
+            {"receipt", data.ReceiptNumber},
+            {"exchange", exchange},
+        };
+    }
+
+    nlohmann::ordered_json budgetJson(const FMLBudgetData& data)
+    {
+        return {
+            {"id", data.BudgetId},
+            {"type", typeKey(data.Type)},
+            {"category", data.Category},
+            {"item", data.Item},
+            {"amount", data.BudgetAmount},
+            {"notes", data.Notes},
+        };
+    }
+
+    // 한 줄 JSON. 잘못된 UTF-8이 있어도 예외 대신 대체 문자로
+    void printJson(const nlohmann::ordered_json& value)
+    {
+        std::cout << value.dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace) << std::endl;
+    }
 }
 
 // ===================== 명령 표 =====================
@@ -185,15 +231,17 @@ const std::vector<FMLCLIView::FMLCLICommandSpec>& FMLCLIView::commandSpecs()
 {
     static const std::vector<FMLCLICommandSpec> specs = [] {
         std::vector<FMLCLICommandSpec> list;
+        const auto noSubtitle = opt("no-subtitle", "", "제목 아래 .ml 파일 이름 부제를 넣지 않음");
 
+        // Name, Positionals, Min, Max, Summary, Options, Handler, Examples, Writes
         list.push_back({"help", "[명령]", 0, 2, "도움말 (명령을 주면 그 명령의 옵션과 예)",
-            {}, &FMLCLIView::cmdHelp, {"help add", "help budget update"}});
+            {}, &FMLCLIView::cmdHelp, {"help add", "help budget update"}, false});
 
         list.push_back({"new", "<파일>", 1, 1, "새 .ml 파일 만들기 (이미 있으면 거부)",
-            {}, &FMLCLIView::cmdNew, {"new \"2026 선교.ml\""}});
+            {}, &FMLCLIView::cmdNew, {"new \"2026 선교.ml\""}, false});
 
         list.push_back({"info", "<파일>", 1, 1, "요약: 거래/예산 건수, 합계, 기간, 카테고리",
-            {}, &FMLCLIView::cmdInfo, {"info data.ml"}});
+            {}, &FMLCLIView::cmdInfo, {"info data.ml", "info data.ml --json"}, false});
 
         list.push_back({"list", "<파일>", 1, 1, "거래 목록 (필터 가능)",
             {
@@ -203,30 +251,30 @@ const std::vector<FMLCLIView::FMLCLICommandSpec>& FMLCLIView::commandSpecs()
                 opt("to", "<YYYY-MM-DD>", "이 날짜까지"),
                 opt("search", "<글자>", "항목, 설명, 영수증 번호에 이 글자가 들어간 거래"),
             },
-            &FMLCLIView::cmdList, {"list data.ml", "list data.ml --type expense --from 2026-01-01 --to 2026-01-31"}});
+            &FMLCLIView::cmdList, {"list data.ml", "list data.ml --type expense --from 2026-01-01 --to 2026-01-31 --json"}, false});
 
         list.push_back({"show", "<파일>", 1, 1, "거래 하나의 모든 내용",
             { opt("id", "<ID>", "거래 ID (list에 나옴)", true) },
-            &FMLCLIView::cmdShow, {"show data.ml --id 3"}});
+            &FMLCLIView::cmdShow, {"show data.ml --id 3"}, false});
 
         list.push_back({"add", "<파일>", 1, 1, "거래 추가 (추가된 ID를 출력)",
             transactionFieldOptions(true), &FMLCLIView::cmdAdd,
             {"add data.ml --type expense --category 숙식 --item 식비 --amount 50000 --date 2026-01-13",
-             "add data.ml --type expense --category 교통 --currency PHP --original 5000 --rate 24.5"}});
+             "add data.ml --type expense --category 교통 --currency PHP --original 5000 --rate 24.5 --dry-run"}, true});
 
         {
             auto options = transactionFieldOptions(false);
             options.insert(options.begin(), opt("id", "<ID>", "수정할 거래 ID", true));
             list.push_back({"update", "<파일>", 1, 1, "거래 수정 (준 항목만 바꿈. 빈 값 \"\"이면 지움)",
-                options, &FMLCLIView::cmdUpdate, {"update data.ml --id 3 --amount 55000 --desc \"\""}});
+                options, &FMLCLIView::cmdUpdate, {"update data.ml --id 3 --amount 55000 --desc \"\""}, true});
         }
 
         list.push_back({"delete", "<파일>", 1, 1, "거래 삭제 (터미널에서는 확인, 그 밖에는 --yes 필요)",
-            { opt("id", "<ID>", "삭제할 거래 ID", true), opt("yes", "", "확인 없이 삭제") },
-            &FMLCLIView::cmdDelete, {"delete data.ml --id 3 --yes"}});
+            { opt("id", "<ID>", "삭제할 거래 ID", true) },
+            &FMLCLIView::cmdDelete, {"delete data.ml --id 3 --yes"}, true});
 
         list.push_back({"budget list", "<파일>", 1, 1, "예산 목록",
-            {}, &FMLCLIView::cmdBudgetList, {"budget list data.ml"}});
+            {}, &FMLCLIView::cmdBudgetList, {"budget list data.ml"}, false});
 
         list.push_back({"budget add", "<파일>", 1, 1, "예산 추가 (추가된 ID를 출력)",
             {
@@ -236,7 +284,7 @@ const std::vector<FMLCLIView::FMLCLICommandSpec>& FMLCLIView::commandSpecs()
                 opt("amount", "<원>", "예산 금액 (원, 정수)", true),
                 opt("notes", "<비고>", "비고"),
             },
-            &FMLCLIView::cmdBudgetAdd, {"budget add data.ml --type expense --category 숙식 --item 식비 --amount 700000"}});
+            &FMLCLIView::cmdBudgetAdd, {"budget add data.ml --type expense --category 숙식 --item 식비 --amount 700000"}, true});
 
         list.push_back({"budget update", "<파일>", 1, 1, "예산 수정 (준 항목만 바꿈)",
             {
@@ -247,22 +295,22 @@ const std::vector<FMLCLIView::FMLCLICommandSpec>& FMLCLIView::commandSpecs()
                 opt("amount", "<원>", "예산 금액"),
                 opt("notes", "<비고>", "비고"),
             },
-            &FMLCLIView::cmdBudgetUpdate, {"budget update data.ml --id 2 --amount 800000"}});
+            &FMLCLIView::cmdBudgetUpdate, {"budget update data.ml --id 2 --amount 800000"}, true});
 
         list.push_back({"budget delete", "<파일>", 1, 1, "예산 삭제 (터미널에서는 확인, 그 밖에는 --yes 필요)",
-            { opt("id", "<ID>", "삭제할 예산 ID", true), opt("yes", "", "확인 없이 삭제") },
-            &FMLCLIView::cmdBudgetDelete, {"budget delete data.ml --id 2 --yes"}});
+            { opt("id", "<ID>", "삭제할 예산 ID", true) },
+            &FMLCLIView::cmdBudgetDelete, {"budget delete data.ml --id 2 --yes"}, true});
 
         list.push_back({"export settlement", "<파일>", 1, 1, "결산 보고서 PDF",
-            { opt("out", "<PDF 경로>", "저장할 PDF (생략하면 .ml 옆에 <파일이름>-결산보고서.pdf)") },
-            &FMLCLIView::cmdExportSettlement, {"export settlement data.ml", "export settlement data.ml --out 결산.pdf"}});
+            { opt("out", "<PDF 경로>", "저장할 PDF (생략하면 .ml 옆에 <파일이름>-결산보고서.pdf)"), noSubtitle },
+            &FMLCLIView::cmdExportSettlement, {"export settlement data.ml", "export settlement data.ml --out 결산.pdf --no-subtitle"}, false});
 
         list.push_back({"export transactions", "<파일>", 1, 1, "거래 내역서 PDF",
-            { opt("out", "<PDF 경로>", "저장할 PDF (생략하면 .ml 옆에 <파일이름>-거래내역서.pdf)") },
-            &FMLCLIView::cmdExportTransactions, {"export transactions data.ml"}});
+            { opt("out", "<PDF 경로>", "저장할 PDF (생략하면 .ml 옆에 <파일이름>-거래내역서.pdf)"), noSubtitle },
+            &FMLCLIView::cmdExportTransactions, {"export transactions data.ml"}, false});
 
         list.push_back({"shell", "[파일]", 0, 1, "대화형 모드 (인수 없이 실행해도 같음)",
-            {}, &FMLCLIView::cmdShell, {"shell data.ml"}});
+            {}, &FMLCLIView::cmdShell, {"shell data.ml"}, false});
 
         return list;
     }();
@@ -276,14 +324,34 @@ const FMLCLIView::FMLCLICommandSpec* FMLCLIView::findCommand(const std::string& 
     return nullptr;
 }
 
+// 명령 고유 옵션 + 공통 옵션 (--json, --yes, 쓰기 명령은 --dry-run)
+std::vector<FMLCLIOptionSpec> FMLCLIView::optionsFor(const FMLCLICommandSpec& spec)
+{
+    std::vector<FMLCLIOptionSpec> options = spec.Options;
+    if (spec.Writes)
+        options.push_back(opt("dry-run", "", "실행 결과만 보여주고 저장하지 않음 (백업도 안 함)"));
+    options.push_back(opt("yes", "", "확인 질문 생략 (삭제)"));
+    options.push_back(opt("json", "", "결과와 오류를 JSON 한 줄로 출력"));
+    return options;
+}
+
 // ===================== 진입점 =====================
 
 int FMLCLIView::RunWithArgs(int argc, char* argv[])
 {
     SilentMode = true;
     CurrentCommand = nullptr;
+    DryRun = false;
+    BackupPath.clear();
 
     const std::vector<std::string> tokens(argv + 1, argv + argc);
+    // 명령을 찾기 전의 오류도 JSON으로 내도록 먼저 확인 ("--" 앞까지)
+    JsonMode = false;
+    for (const auto& token : tokens) {
+        if (token == "--") break;
+        if (token == "--json") JsonMode = true;
+    }
+
     if (tokens.empty()) {
         printGeneralHelp(std::cerr);
         return kExitUsage;
@@ -312,8 +380,9 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
             if (candidate.Name.rfind(tokens[0] + " ", 0) == 0)
                 subcommands.push_back(candidate.Name.substr(tokens[0].size() + 1));
         if (!subcommands.empty()) {
-            std::string message = (tokens.size() >= 2 ? "알 수 없는 하위 명령입니다: " + tokens[0] + " " + tokens[1]
-                                                      : tokens[0] + " 다음에 하위 명령이 필요합니다");
+            std::string message = (tokens.size() >= 2 && tokens[1].rfind("--", 0) != 0
+                                       ? "알 수 없는 하위 명령입니다: " + tokens[0] + " " + tokens[1]
+                                       : tokens[0] + " 다음에 하위 명령이 필요합니다");
             message += " (";
             for (size_t i = 0; i < subcommands.size(); ++i)
                 message += (i ? ", " : "") + subcommands[i];
@@ -327,9 +396,12 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
 
     FMLCLIArgs args;
     const std::vector<std::string> rest(tokens.begin() + consumed, tokens.end());
-    const std::string parseError = ParseCLIArgs(rest, spec->Options, args);
+    const std::string parseError = ParseCLIArgs(rest, optionsFor(*spec), args);
     if (!parseError.empty())
         return usageError(spec, parseError);
+
+    JsonMode = args.Has("json");
+    DryRun = args.Has("dry-run");
 
     if (args.Flags.count("help")) {
         printCommandHelp(std::cout, *spec);
@@ -349,20 +421,16 @@ int FMLCLIView::RunWithArgs(int argc, char* argv[])
     return (this->*(spec->Handler))(args);
 }
 
-// ===================== 도움말 =====================
+// ===================== 출력 =====================
 
 std::string FMLCLIView::usageLine(const FMLCLICommandSpec& spec)
 {
     std::string line = std::string(kProgram) + " " + spec.Name;
     if (!spec.Positionals.empty()) line += " " + spec.Positionals;
-    bool hasOptional = false;
-    for (const auto& option : spec.Options) {
+    for (const auto& option : spec.Options)
         if (option.Required)
             line += " --" + option.Name + (option.ValueName.empty() ? "" : " " + option.ValueName);
-        else
-            hasOptional = true;
-    }
-    if (hasOptional) line += " [옵션]";
+    line += " [옵션]";
     return line;
 }
 
@@ -376,6 +444,8 @@ void FMLCLIView::printGeneralHelp(std::ostream& os) const
         os << "  " << FMLFormat::FitColumn(left, 30) << spec.Summary << "\n";
     }
     os << "\n";
+    os << "공통 옵션: --json (결과를 JSON으로), --yes (확인 생략), --dry-run (쓰기 명령: 저장 안 함), --help\n";
+    os << "쓰기 명령(add, update, delete, budget add/update/delete)은 저장 전에 <파일>.bak 백업을 남깁니다\n";
     os << "명령별 옵션과 예: " << kProgram << " help <명령>  (또는 <명령> --help)\n";
     os << "대화형 모드: 인수 없이 실행하거나 " << kProgram << " shell <파일>\n";
     os << "종료 코드: 0 성공, 1 실행 실패 (파일/ID 없음, 저장 실패), 2 사용법 오류\n";
@@ -385,12 +455,10 @@ void FMLCLIView::printCommandHelp(std::ostream& os, const FMLCLICommandSpec& spe
 {
     os << "사용법: " << usageLine(spec) << "\n";
     os << "  " << spec.Summary << "\n";
-    if (!spec.Options.empty()) {
-        os << "\n옵션:\n";
-        for (const auto& option : spec.Options) {
-            const std::string left = "--" + option.Name + (option.ValueName.empty() ? "" : " " + option.ValueName);
-            os << "  " << FMLFormat::FitColumn(left, 26) << (option.Required ? "(필수) " : "") << option.Help << "\n";
-        }
+    os << "\n옵션:\n";
+    for (const auto& option : optionsFor(spec)) {
+        const std::string left = "--" + option.Name + (option.ValueName.empty() ? "" : " " + option.ValueName);
+        os << "  " << FMLFormat::FitColumn(left, 26) << (option.Required ? "(필수) " : "") << option.Help << "\n";
     }
     if (!spec.Examples.empty()) {
         os << "\n예:\n";
@@ -401,6 +469,11 @@ void FMLCLIView::printCommandHelp(std::ostream& os, const FMLCLICommandSpec& spe
 
 int FMLCLIView::usageError(const FMLCLICommandSpec* spec, const std::string& message) const
 {
+    if (JsonMode) {
+        printJson({ {"ok", false}, {"command", spec ? nlohmann::ordered_json(spec->Name) : nlohmann::ordered_json(nullptr)},
+                    {"error", { {"code", "usage"}, {"message", message} }} });
+        return kExitUsage;
+    }
     std::cerr << "오류: " << message << "\n";
     if (spec) {
         std::cerr << "사용법: " << usageLine(*spec) << "\n";
@@ -410,6 +483,39 @@ int FMLCLIView::usageError(const FMLCLICommandSpec* spec, const std::string& mes
     }
     std::cerr.flush();
     return kExitUsage;
+}
+
+int FMLCLIView::fail(const std::string& message) const
+{
+    if (JsonMode) {
+        printJson({ {"ok", false}, {"command", CurrentCommand ? nlohmann::ordered_json(CurrentCommand->Name) : nlohmann::ordered_json(nullptr)},
+                    {"error", { {"code", "failed"}, {"message", message} }} });
+    } else {
+        std::cerr << "오류: " << message << std::endl;
+    }
+    return kExitFail;
+}
+
+// 성공 결과: JSON이면 {"ok":true,"command":...,(쓰기면 dryRun, backup),...body}, 아니면 text
+int FMLCLIView::succeed(nlohmann::ordered_json body, const std::string& text) const
+{
+    if (JsonMode) {
+        nlohmann::ordered_json result = { {"ok", true}, {"command", CurrentCommand ? CurrentCommand->Name : std::string()} };
+        if (CurrentCommand && CurrentCommand->Writes) {
+            result["dryRun"] = DryRun;
+            result["backup"] = BackupPath.empty() ? nlohmann::ordered_json(nullptr) : nlohmann::ordered_json(BackupPath);
+        }
+        for (auto it = body.begin(); it != body.end(); ++it)
+            result[it.key()] = it.value();
+        printJson(result);
+        return kExitOk;
+    }
+    if (!text.empty()) {
+        std::cout << (DryRun ? "(미리 보기, 저장 안 함) " : "") << text << std::endl;
+        if (!BackupPath.empty())
+            std::cout << "(백업: " << BackupPath << ")" << std::endl;
+    }
+    return kExitOk;
 }
 
 int FMLCLIView::cmdHelp(const FMLCLIArgs& args)
@@ -433,17 +539,32 @@ bool FMLCLIView::openFileForCommand(const std::string& filePath)
 {
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller->OpenFile(filePath)) {
-        std::cerr << "오류: 파일을 열 수 없습니다: " << filePath << std::endl;
+        fail("파일을 열 수 없습니다: " + filePath);
         return false;
     }
     return true;
 }
 
-int FMLCLIView::saveForCommand()
+// 쓰기 명령의 저장: --dry-run이면 저장하지 않고, 아니면 <파일>.bak 백업 후 저장
+// 반환: 0 성공, 1 실패 (오류는 이미 출력)
+int FMLCLIView::saveForCommand(const std::string& filePath)
 {
+    if (DryRun) return kExitOk;
+
+    // 직전 상태 1개만: 다음 쓰기 때 덮어쓴다. 백업이 안 되면 저장하지 않는다
+    const std::filesystem::path source = std::filesystem::u8path(filePath);
+    const std::filesystem::path backup = std::filesystem::u8path(filePath + ".bak");
+    std::error_code ec;
+    std::filesystem::copy_file(source, backup, std::filesystem::copy_options::overwrite_existing, ec);
+    if (ec) {
+        fail("백업을 만들 수 없어 저장하지 않았습니다: " + backup.u8string() + " (" + ec.message() + ")");
+        return kExitFail;
+    }
+    BackupPath = backup.u8string();
+
     auto controller = FMLMVCHolder::GetInstance().GetController();
     if (!controller->SaveFile()) {
-        std::cerr << "오류: 파일 저장에 실패했습니다." << std::endl;
+        fail("파일 저장에 실패했습니다 (저장 전 상태: " + BackupPath + ")");
         return kExitFail;
     }
     return kExitOk;
@@ -549,11 +670,11 @@ int FMLCLIView::applyBudgetOptions(const FMLCLIArgs& args, FMLBudgetData& data, 
     return kExitOk;
 }
 
-// 삭제 확인. 반환: 0 진행, 1 사용자가 취소, 2 터미널이 아닌데 --yes 없음
+// 삭제 확인. 반환: 0 진행, 1 사용자가 취소, 2 확인할 수 없는데 --yes 없음
 int FMLCLIView::confirmDelete(const FMLCLIArgs& args, const std::string& what)
 {
-    if (args.Has("yes")) return kExitOk;
-    if (!stdinIsTerminal())
+    if (args.Has("yes") || DryRun) return kExitOk;
+    if (JsonMode || !stdinIsTerminal())
         return usageError(CurrentCommand, "삭제하려면 --yes가 필요합니다 (확인 질문을 할 수 없는 환경)");
 
     std::cout << what << "\n삭제할까요? [y/N] " << std::flush;
@@ -573,6 +694,7 @@ int FMLCLIView::cmdShell(const FMLCLIArgs& args)
         std::cout << "파일 열림: " << args.Positionals[0] << std::endl;
     }
     SilentMode = false;
+    JsonMode = false;
     Run();
     return kExitOk;
 }
@@ -583,20 +705,14 @@ int FMLCLIView::cmdNew(const FMLCLIArgs& args)
 
     // 이미 있는 파일에 만들면 저장(전체 삭제 후 다시 쓰기)이 기존 거래/예산을 모두 지우므로 거부
     std::error_code ec;
-    if (std::filesystem::exists(std::filesystem::u8path(filePath), ec)) {
-        std::cerr << "오류: 파일이 이미 있습니다: " << filePath << std::endl;
-        std::cerr << "기존 파일은 지우지 않습니다. 다른 이름을 쓰거나 기존 파일을 먼저 옮기세요." << std::endl;
-        return kExitFail;
-    }
+    if (std::filesystem::exists(std::filesystem::u8path(filePath), ec))
+        return fail("파일이 이미 있습니다: " + filePath + " (기존 파일은 지우지 않습니다. 다른 이름을 쓰거나 기존 파일을 먼저 옮기세요)");
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
     controller->NewFile();
-    if (!controller->SaveFileAs(filePath)) {
-        std::cerr << "오류: 파일을 만들 수 없습니다: " << filePath << std::endl;
-        return kExitFail;
-    }
-    std::cout << "새 파일 생성됨: " << filePath << std::endl;
-    return kExitOk;
+    if (!controller->SaveFileAs(filePath))
+        return fail("파일을 만들 수 없습니다: " + filePath);
+    return succeed({ {"file", filePath} }, "새 파일 생성됨: " + filePath);
 }
 
 int FMLCLIView::cmdInfo(const FMLCLIArgs& args)
@@ -620,9 +736,21 @@ int FMLCLIView::cmdInfo(const FMLCLIArgs& args)
             if (lastDate.empty() || t.DateTime > lastDate) lastDate = t.DateTime;
         }
     }
+    const int expenseCount = static_cast<int>(transactions.size()) - incomeCount;
     int64_t incomeBudget = 0, expenseBudget = 0;
     for (const auto& b : budgets)
         (b.Type == E_MLTransactionType::Income ? incomeBudget : expenseBudget) += b.BudgetAmount;
+
+    if (JsonMode) {
+        return succeed({
+            {"file", filePath},
+            {"transactions", { {"count", transactions.size()}, {"income", incomeCount}, {"expense", expenseCount} }},
+            {"summary", { {"income", summary.TotalIncome}, {"expense", summary.TotalExpense}, {"balance", summary.Balance} }},
+            {"period", firstDate.empty() ? nlohmann::ordered_json(nullptr) : nlohmann::ordered_json{ {"from", firstDate}, {"to", lastDate} }},
+            {"budgets", { {"count", budgets.size()}, {"income", incomeBudget}, {"expense", expenseBudget} }},
+            {"categories", { {"income", incomeCategories}, {"expense", expenseCategories} }},
+        }, "");
+    }
 
     auto join = [](const std::set<std::string>& names) {
         std::string text;
@@ -631,8 +759,7 @@ int FMLCLIView::cmdInfo(const FMLCLIArgs& args)
     };
 
     std::cout << "파일: " << filePath << "\n";
-    std::cout << "거래: " << transactions.size() << "건 (수입 " << incomeCount << "건, 지출 "
-              << (transactions.size() - incomeCount) << "건)\n";
+    std::cout << "거래: " << transactions.size() << "건 (수입 " << incomeCount << "건, 지출 " << expenseCount << "건)\n";
     std::cout << "합계: 수입 " << won(summary.TotalIncome) << ", 지출 " << won(summary.TotalExpense)
               << ", 잔액 " << won(summary.Balance) << "\n";
     std::cout << "기간: " << (firstDate.empty() ? "-" : firstDate + " ~ " + lastDate) << "\n";
@@ -672,8 +799,23 @@ int FMLCLIView::cmdList(const FMLCLIArgs& args)
 
     if (!openFileForCommand(args.Positionals[0])) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
-    DisplayTransactions(controller->GetFilteredTransactionData(criteria));
-    return kExitOk;
+    const auto transactions = controller->GetFilteredTransactionData(criteria);
+
+    if (!JsonMode) {
+        DisplayTransactions(transactions);
+        return kExitOk;
+    }
+    int64_t income = 0, expense = 0;
+    nlohmann::ordered_json items = nlohmann::ordered_json::array();
+    for (const auto& t : transactions) {
+        (t.Type == E_MLTransactionType::Income ? income : expense) += t.Amount;
+        items.push_back(transactionJson(t));
+    }
+    return succeed({
+        {"count", transactions.size()},
+        {"summary", { {"income", income}, {"expense", expense}, {"balance", income - expense} }},
+        {"transactions", items},
+    }, "");
 }
 
 int FMLCLIView::cmdShow(const FMLCLIArgs& args)
@@ -684,205 +826,202 @@ int FMLCLIView::cmdShow(const FMLCLIArgs& args)
 
     auto controller = FMLMVCHolder::GetInstance().GetController();
     const FMLTransactionData data = controller->GetTransactionData(id);
-    if (data.TransactionId < 0) {
-        std::cerr << "오류: ID " << id << "인 거래가 없습니다." << std::endl;
-        return kExitFail;
-    }
+    if (data.TransactionId < 0)
+        return fail("ID " + std::to_string(id) + "인 거래가 없습니다.");
+    if (JsonMode)
+        return succeed({ {"transaction", transactionJson(data)} }, "");
     DisplayTransaction(data);
     return kExitOk;
 }
 
 int FMLCLIView::cmdAdd(const FMLCLIArgs& args)
 {
+    const std::string& filePath = args.Positionals[0];
     FMLTransactionData data;
     std::string error;
     if (applyTransactionOptions(args, data, true, error) != kExitOk)
         return usageError(CurrentCommand, error);
 
-    if (!openFileForCommand(args.Positionals[0])) return kExitFail;
+    if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
 
     LastAddedTransactionId = -1;
-    if (!controller->AddTransaction(data) || LastAddedTransactionId < 0) {
-        std::cerr << "오류: 거래를 추가하지 못했습니다." << std::endl;
-        return kExitFail;
-    }
-    if (const int result = saveForCommand(); result != kExitOk) return result;
+    if (!controller->AddTransaction(data) || LastAddedTransactionId < 0)
+        return fail("거래를 추가하지 못했습니다.");
+    if (const int result = saveForCommand(filePath); result != kExitOk) return result;
 
-    std::cout << "추가됨: " << describeTransaction(controller->GetTransactionData(LastAddedTransactionId)) << std::endl;
-    return kExitOk;
+    const FMLTransactionData added = controller->GetTransactionData(LastAddedTransactionId);
+    return succeed({ {"transaction", transactionJson(added)} }, "추가됨: " + describeTransaction(added));
 }
 
 int FMLCLIView::cmdUpdate(const FMLCLIArgs& args)
 {
+    const std::string& filePath = args.Positionals[0];
     int id = 0;
     if (!parseId(*args.Get("id"), id)) return usageError(CurrentCommand, "잘못된 ID입니다: " + *args.Get("id"));
     if (args.Values.size() == 1)
         return usageError(CurrentCommand, "바꿀 항목이 없습니다 (예: --amount, --desc)");
 
-    if (!openFileForCommand(args.Positionals[0])) return kExitFail;
+    if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
 
     FMLTransactionData data = controller->GetTransactionData(id);
-    if (data.TransactionId < 0) {
-        std::cerr << "오류: ID " << id << "인 거래가 없습니다." << std::endl;
-        return kExitFail;
-    }
+    if (data.TransactionId < 0)
+        return fail("ID " + std::to_string(id) + "인 거래가 없습니다.");
 
     std::string error;
     if (applyTransactionOptions(args, data, false, error) != kExitOk)
         return usageError(CurrentCommand, error);
 
-    if (!controller->UpdateTransaction(data)) {
-        std::cerr << "오류: 거래를 수정하지 못했습니다." << std::endl;
-        return kExitFail;
-    }
-    if (const int result = saveForCommand(); result != kExitOk) return result;
+    if (!controller->UpdateTransaction(data))
+        return fail("거래를 수정하지 못했습니다.");
+    if (const int result = saveForCommand(filePath); result != kExitOk) return result;
 
-    std::cout << "수정됨: " << describeTransaction(controller->GetTransactionData(id)) << std::endl;
-    return kExitOk;
+    const FMLTransactionData updated = controller->GetTransactionData(id);
+    return succeed({ {"transaction", transactionJson(updated)} }, "수정됨: " + describeTransaction(updated));
 }
 
 int FMLCLIView::cmdDelete(const FMLCLIArgs& args)
 {
+    const std::string& filePath = args.Positionals[0];
     int id = 0;
     if (!parseId(*args.Get("id"), id)) return usageError(CurrentCommand, "잘못된 ID입니다: " + *args.Get("id"));
-    if (!openFileForCommand(args.Positionals[0])) return kExitFail;
+    if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
 
     const FMLTransactionData data = controller->GetTransactionData(id);
-    if (data.TransactionId < 0) {
-        std::cerr << "오류: ID " << id << "인 거래가 없습니다." << std::endl;
-        return kExitFail;
-    }
+    if (data.TransactionId < 0)
+        return fail("ID " + std::to_string(id) + "인 거래가 없습니다.");
     if (const int result = confirmDelete(args, describeTransaction(data)); result != kExitOk) return result;
 
-    if (!controller->DeleteTransaction(id)) {
-        std::cerr << "오류: 거래를 삭제하지 못했습니다." << std::endl;
-        return kExitFail;
-    }
-    if (const int result = saveForCommand(); result != kExitOk) return result;
+    if (!controller->DeleteTransaction(id))
+        return fail("거래를 삭제하지 못했습니다.");
+    if (const int result = saveForCommand(filePath); result != kExitOk) return result;
 
-    std::cout << "삭제됨: " << describeTransaction(data) << std::endl;
-    return kExitOk;
+    return succeed({ {"deleted", transactionJson(data)} }, "삭제됨: " + describeTransaction(data));
 }
 
 int FMLCLIView::cmdBudgetList(const FMLCLIArgs& args)
 {
     if (!openFileForCommand(args.Positionals[0])) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
-    DisplayBudgets(controller->GetAllBudgets());
-    return kExitOk;
+    const auto budgets = controller->GetAllBudgets();
+
+    if (!JsonMode) {
+        DisplayBudgets(budgets);
+        return kExitOk;
+    }
+    int64_t income = 0, expense = 0;
+    nlohmann::ordered_json items = nlohmann::ordered_json::array();
+    for (const auto& b : budgets) {
+        (b.Type == E_MLTransactionType::Income ? income : expense) += b.BudgetAmount;
+        items.push_back(budgetJson(b));
+    }
+    return succeed({
+        {"count", budgets.size()},
+        {"summary", { {"income", income}, {"expense", expense} }},
+        {"budgets", items},
+    }, "");
 }
 
 int FMLCLIView::cmdBudgetAdd(const FMLCLIArgs& args)
 {
+    const std::string& filePath = args.Positionals[0];
     FMLBudgetData data;
     std::string error;
     if (applyBudgetOptions(args, data, error) != kExitOk)
         return usageError(CurrentCommand, error);
     data.ActualAmount = 0;
 
-    if (!openFileForCommand(args.Positionals[0])) return kExitFail;
+    if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
 
     LastAddedBudgetId = -1;
-    if (!controller->AddBudget(data) || LastAddedBudgetId < 0) {
-        std::cerr << "오류: 예산을 추가하지 못했습니다." << std::endl;
-        return kExitFail;
-    }
-    if (const int result = saveForCommand(); result != kExitOk) return result;
+    if (!controller->AddBudget(data) || LastAddedBudgetId < 0)
+        return fail("예산을 추가하지 못했습니다.");
+    if (const int result = saveForCommand(filePath); result != kExitOk) return result;
 
-    std::cout << "추가됨: " << describeBudget(controller->GetBudget(LastAddedBudgetId)) << std::endl;
-    return kExitOk;
+    const FMLBudgetData added = controller->GetBudget(LastAddedBudgetId);
+    return succeed({ {"budget", budgetJson(added)} }, "추가됨: " + describeBudget(added));
 }
 
 int FMLCLIView::cmdBudgetUpdate(const FMLCLIArgs& args)
 {
+    const std::string& filePath = args.Positionals[0];
     int id = 0;
     if (!parseId(*args.Get("id"), id)) return usageError(CurrentCommand, "잘못된 ID입니다: " + *args.Get("id"));
     if (args.Values.size() == 1)
         return usageError(CurrentCommand, "바꿀 항목이 없습니다 (예: --amount, --notes)");
 
-    if (!openFileForCommand(args.Positionals[0])) return kExitFail;
+    if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
 
     FMLBudgetData data;
     bool found = false;
     for (const auto& budget : controller->GetAllBudgets())
         if (budget.BudgetId == id) { data = budget; found = true; break; }
-    if (!found) {
-        std::cerr << "오류: ID " << id << "인 예산이 없습니다." << std::endl;
-        return kExitFail;
-    }
+    if (!found)
+        return fail("ID " + std::to_string(id) + "인 예산이 없습니다.");
 
     std::string error;
     if (applyBudgetOptions(args, data, error) != kExitOk)
         return usageError(CurrentCommand, error);
 
-    if (!controller->UpdateBudget(data)) {
-        std::cerr << "오류: 예산을 수정하지 못했습니다." << std::endl;
-        return kExitFail;
-    }
-    if (const int result = saveForCommand(); result != kExitOk) return result;
+    if (!controller->UpdateBudget(data))
+        return fail("예산을 수정하지 못했습니다.");
+    if (const int result = saveForCommand(filePath); result != kExitOk) return result;
 
-    std::cout << "수정됨: " << describeBudget(controller->GetBudget(id)) << std::endl;
-    return kExitOk;
+    const FMLBudgetData updated = controller->GetBudget(id);
+    return succeed({ {"budget", budgetJson(updated)} }, "수정됨: " + describeBudget(updated));
 }
 
 int FMLCLIView::cmdBudgetDelete(const FMLCLIArgs& args)
 {
+    const std::string& filePath = args.Positionals[0];
     int id = 0;
     if (!parseId(*args.Get("id"), id)) return usageError(CurrentCommand, "잘못된 ID입니다: " + *args.Get("id"));
-    if (!openFileForCommand(args.Positionals[0])) return kExitFail;
+    if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
 
     FMLBudgetData data;
     bool found = false;
     for (const auto& budget : controller->GetAllBudgets())
         if (budget.BudgetId == id) { data = budget; found = true; break; }
-    if (!found) {
-        std::cerr << "오류: ID " << id << "인 예산이 없습니다." << std::endl;
-        return kExitFail;
-    }
+    if (!found)
+        return fail("ID " + std::to_string(id) + "인 예산이 없습니다.");
     if (const int result = confirmDelete(args, describeBudget(data)); result != kExitOk) return result;
 
-    if (!controller->DeleteBudget(id)) {
-        std::cerr << "오류: 예산을 삭제하지 못했습니다." << std::endl;
-        return kExitFail;
-    }
-    if (const int result = saveForCommand(); result != kExitOk) return result;
+    if (!controller->DeleteBudget(id))
+        return fail("예산을 삭제하지 못했습니다.");
+    if (const int result = saveForCommand(filePath); result != kExitOk) return result;
 
-    std::cout << "삭제됨: " << describeBudget(data) << std::endl;
-    return kExitOk;
+    return succeed({ {"deleted", budgetJson(data)} }, "삭제됨: " + describeBudget(data));
 }
 
 int FMLCLIView::cmdExportSettlement(const FMLCLIArgs& args)
 {
     const std::string& filePath = args.Positionals[0];
     const std::string outPath = args.Get("out") ? *args.Get("out") : defaultOutputPath(filePath, "-결산보고서.pdf");
+    FMLPDFExportOptions options;
+    options.IncludeSubtitle = !args.Has("no-subtitle");
 
     if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
-    if (!controller->ExportSettlementToPDF(outPath)) {
-        std::cerr << "오류: 결산 보고서를 만들지 못했습니다: " << outPath << std::endl;
-        return kExitFail;
-    }
-    std::cout << "결산 보고서 생성됨: " << outPath << std::endl;
-    return kExitOk;
+    if (!controller->ExportSettlementToPDF(outPath, options))
+        return fail("결산 보고서를 만들지 못했습니다: " + outPath);
+    return succeed({ {"output", outPath} }, "결산 보고서 생성됨: " + outPath);
 }
 
 int FMLCLIView::cmdExportTransactions(const FMLCLIArgs& args)
 {
     const std::string& filePath = args.Positionals[0];
     const std::string outPath = args.Get("out") ? *args.Get("out") : defaultOutputPath(filePath, "-거래내역서.pdf");
+    FMLPDFExportOptions options;
+    options.IncludeSubtitle = !args.Has("no-subtitle");
 
     if (!openFileForCommand(filePath)) return kExitFail;
     auto controller = FMLMVCHolder::GetInstance().GetController();
-    if (!controller->ExportTransactionListToPDF(outPath)) {
-        std::cerr << "오류: 거래 내역서를 만들지 못했습니다: " << outPath << std::endl;
-        return kExitFail;
-    }
-    std::cout << "거래 내역서 생성됨: " << outPath << std::endl;
-    return kExitOk;
+    if (!controller->ExportTransactionListToPDF(outPath, options))
+        return fail("거래 내역서를 만들지 못했습니다: " + outPath);
+    return succeed({ {"output", outPath} }, "거래 내역서 생성됨: " + outPath);
 }

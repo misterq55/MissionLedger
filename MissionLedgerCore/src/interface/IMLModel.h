@@ -9,6 +9,7 @@ struct FMLFilterCriteria;
 struct FMLTransactionSummary;
 struct FMLBudgetData;
 struct FMLBudgetSummary;
+struct FMLPDFExportOptions;
 class FMLTransaction;
 class IMLModelObserver;
 
@@ -51,8 +52,8 @@ public:
     virtual bool Save() = 0;
     virtual bool Load() = 0;
     virtual void ExportToExcel() = 0;
-    virtual bool ExportSettlementToPDF(const std::string& filePath) = 0;
-    virtual bool ExportTransactionListToPDF(const std::string& filePath) = 0;
+    virtual bool ExportSettlementToPDF(const std::string& filePath, const FMLPDFExportOptions& options) = 0;
+    virtual bool ExportTransactionListToPDF(const std::string& filePath, const FMLPDFExportOptions& options) = 0;
 
     // File Operations
     virtual bool OpenFile(const std::string& filePath) = 0;

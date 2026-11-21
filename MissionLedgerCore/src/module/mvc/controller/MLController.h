@@ -34,8 +34,8 @@ public:
     // Persistence
     virtual bool SaveData() override;
     virtual bool LoadData() override;
-    virtual bool ExportSettlementToPDF(const std::string& filePath) override;
-    virtual bool ExportTransactionListToPDF(const std::string& filePath) override;
+    virtual bool ExportSettlementToPDF(const std::string& filePath, const FMLPDFExportOptions& options) override;
+    virtual bool ExportTransactionListToPDF(const std::string& filePath, const FMLPDFExportOptions& options) override;
 
     // File operations
     virtual void NewFile() override;

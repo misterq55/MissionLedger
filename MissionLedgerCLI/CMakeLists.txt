@@ -9,6 +9,8 @@ add_executable(MissionLedgerCLI main_cli.cpp ${CLI_SOURCES})
 ml_set_target_defaults(MissionLedgerCLI)
 
 target_include_directories(MissionLedgerCLI PRIVATE src)
+# nlohmann/json (header only, third_party/nlohmann_json/VERSION.txt): --json output
+target_include_directories(MissionLedgerCLI SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/third_party/nlohmann_json/include")
 target_link_libraries(MissionLedgerCLI PRIVATE MissionLedgerCore)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${CLI_SOURCES})
