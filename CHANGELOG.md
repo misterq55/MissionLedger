@@ -8,6 +8,8 @@
 
 ## [미배포]
 
+## [1.1.0] - 2026-11-22
+
 ### 추가
 
 - macOS 지원 (macOS 11 이상, Apple Silicon과 Intel): `.dmg`를 열어 앱을 응용 프로그램 폴더로 끌어 설치합니다. `.ml` 파일 더블클릭으로 열기, 라이트/다크 모드를 지원합니다. 서명하지 않은 앱이라 처음 실행할 때 시스템 설정 > 개인정보 보호 및 보안 > "확인 없이 열기"가 필요합니다
@@ -89,5 +91,6 @@
   - Visual C++ 런타임이 없는 PC에서는 런타임 자동 설치
   - 관리자 권한(모든 사용자)으로 설치
 
-[미배포]: https://github.com/misterq55/MissionLedger/compare/v1.0.0...HEAD
+[미배포]: https://github.com/misterq55/MissionLedger/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/misterq55/MissionLedger/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/misterq55/MissionLedger/releases/tag/v1.0.0
