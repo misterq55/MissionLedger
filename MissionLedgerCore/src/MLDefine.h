@@ -83,8 +83,9 @@ struct FMLBudgetSummary {
 
 // 결산안 데이터
 struct FMLSettlmentData {
-    // 제목
+    // 제목과 부제 (부제: .ml 파일 이름, 비어 있으면 생략)
     std::string Title = "결산 보고서";
+    std::string Subtitle;
 
     // 예산 데이터 - 카테고리별 합계 (하위 호환용)
     std::map<std::string, int64_t> BudgetIncomeCategories;

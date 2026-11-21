@@ -67,6 +67,7 @@ public:
 
 private:
     void clearAllTransactions();
+    std::string getDocumentName() const;
     FMLTransactionSummary calculateTransactionSummary(const std::vector<FMLTransactionData>& transactionData) const;
 
     // 카테고리 캐싱

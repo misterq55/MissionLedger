@@ -170,24 +170,8 @@ bool FMLModel::ExportSettlementToPDF(const std::string& filePath)
     // 결산안 데이터
     FMLSettlmentData settlmentData;
 
-    // 현재 파일 경로에서 제목 추출
-    if (!CurrentFilePath.empty())
-    {
-        size_t lastSlash = CurrentFilePath.find_last_of("/\\");
-        std::string filename = (lastSlash != std::string::npos)
-            ? CurrentFilePath.substr(lastSlash + 1)
-            : CurrentFilePath;
-
-        size_t lastDot = filename.find_last_of(".");
-        if (lastDot != std::string::npos)
-        {
-            settlmentData.Title = filename.substr(0, lastDot);
-        }
-        else
-        {
-            settlmentData.Title = filename;
-        }
-    }
+    // 부제: 현재 .ml 파일 이름
+    settlmentData.Subtitle = getDocumentName();
 
     // 예산 데이터 집계
     for (const auto& budget : Budgets)
@@ -267,8 +251,23 @@ bool FMLModel::ExportTransactionListToPDF(const std::string& filePath)
     // 모든 거래 데이터 가져오기
     std::vector<FMLTransactionData> transactions = GetAllTransactionData();
 
-    // PDF 생성
-    return FMLPDFExporter::ExportTransactionList(transactions, filePath);
+    // PDF 생성 (부제: 현재 .ml 파일 이름)
+    return FMLPDFExporter::ExportTransactionList(transactions, getDocumentName(), filePath);
+}
+
+// 현재 파일 이름 (경로와 확장자 제외). 저장 안 한 새 파일이면 빈 문자열
+std::string FMLModel::getDocumentName() const
+{
+    if (CurrentFilePath.empty())
+        return "";
+
+    const size_t lastSlash = CurrentFilePath.find_last_of("/\\");
+    const std::string filename = (lastSlash != std::string::npos)
+        ? CurrentFilePath.substr(lastSlash + 1)
+        : CurrentFilePath;
+
+    const size_t lastDot = filename.find_last_of('.');
+    return (lastDot != std::string::npos) ? filename.substr(0, lastDot) : filename;
 }
 
 // File Operations

@@ -1,297 +1,307 @@
 #include "MLPDFExporter.h"
 #include "MLPDFRow.h"
 #include "MLPDFDocument.h"
-#include "PDFWriter/PageContentContext.h"
+#include "MLPDFLayout.h"
 #include "module/common/format/MLFormat.h"
-#include <sstream>
-#include <iomanip>
 #include <vector>
 #include <algorithm>
 #include <map>
 #include <set>
 
-// 파일 경로에서 확장자 없는 파일명 추출
-static std::string extractFilename(const std::string& filePath)
+using namespace MLPDFLayout;
+
+namespace
 {
-    size_t lastSlash = filePath.find_last_of("/\\");
-    std::string filename = (lastSlash != std::string::npos) ? filePath.substr(lastSlash + 1) : filePath;
-    size_t lastDot = filename.find_last_of('.');
-    if (lastDot != std::string::npos)
-        filename = filename.substr(0, lastDot);
-    return filename;
-}
+    // 카테고리 → 항목 → 거래
+    using FMLItemGroups = std::map<std::string, std::vector<FMLTransactionData>>;
+    using FMLCategoryGroups = std::map<std::string, FMLItemGroups>;
 
-// UTF-8 문자열을 지정된 너비에 맞게 여러 줄로 분할
-static std::vector<std::string> wrapText(const std::string& text, double maxWidth, double fontSize)
-{
-    std::vector<std::string> lines;
-    if (text.empty()) {
-        lines.push_back("");
-        return lines;
-    }
-
-    const double avgCharWidth = fontSize * 1.1;
-    const int maxCharsPerLine = static_cast<int>(maxWidth / avgCharWidth);
-
-    if (maxCharsPerLine <= 0) {
-        lines.push_back(text);
-        return lines;
-    }
-
-    std::string currentLine;
-    int charCount = 0;
-    size_t i = 0;
-
-    while (i < text.length()) {
-        unsigned char c = text[i];
-        int charBytes = 1;
-        if ((c & 0x80) == 0)         charBytes = 1;
-        else if ((c & 0xE0) == 0xC0) charBytes = 2;
-        else if ((c & 0xF0) == 0xE0) charBytes = 3;
-        else if ((c & 0xF8) == 0xF0) charBytes = 4;
-
-        std::string currentChar = text.substr(i, charBytes);
-
-        if (charCount >= maxCharsPerLine && !currentLine.empty()) {
-            lines.push_back(currentLine);
-            currentLine.clear();
-            charCount = 0;
-        }
-
-        currentLine += currentChar;
-        charCount++;
-        i += charBytes;
-    }
-
-    if (!currentLine.empty())
-        lines.push_back(currentLine);
-
-    return lines;
-}
-
-// 카테고리 그룹 그리기 (Category 셀 병합, 내부에 여러 Item 그룹 포함)
-static void drawCategoryGroup(
-    FMLPDFDocument& doc,
-    const std::string& category,
-    const std::map<std::string, std::vector<FMLTransactionData>>& itemGroups,
-    const double colWidths[6],
-    double fontSize,
-    double rowHeight,
-    double leftMargin,
-    double headerHeight,
-    const std::string headers[6])
-{
-    if (itemGroups.empty()) return;
-
-    auto* ctx = doc.GetContext();
-    double categoryStartY = doc.GetY();
-    double x = leftMargin;
-    double itemX = x + colWidths[0];
-
-    for (const auto& itemGroup : itemGroups)
+    std::string formatWon(int64_t amount)
     {
-        const auto& transactions = itemGroup.second;
+        return FMLFormat::FormatAmount(amount) + "원";
+    }
 
-        std::vector<std::string> itemLines = wrapText(itemGroup.first, colWidths[1] - 6, fontSize);
+    // 2열 표 한 행: 항목 | 금액 (둘 다 굵게)
+    void drawLabelAmountRow(FMLPDFDocument& doc, const std::string& label, const std::string& amount, double labelRatio)
+    {
+        doc.EnsureSpace(RowHeight);
+        doc.DrawRow(FMLPDFRow(RowHeight)
+            .AddCell(label, TableWidth * labelRatio)
+            .AddCell(amount, TableWidth * (1.0 - labelRatio), E_MLPDFAlign::Right),
+            MarginX, FontTable, true);
+    }
 
-        std::vector<double> transactionHeights;
-        for (const auto& transaction : transactions) {
-            std::vector<std::string> descLines = wrapText(transaction.Description, colWidths[2] - 6, fontSize);
-            size_t lineCount = descLines.size();
-            if (lineCount == 0) lineCount = 1;
-            transactionHeights.push_back(rowHeight * lineCount);
+    // 섹션 제목 + 그 아래 최소 내용(firstBlockHeight)이 한 페이지에 오도록 한 뒤 제목 출력
+    void drawSection(FMLPDFDocument& doc, const std::string& title, double fontSize, double firstBlockHeight)
+    {
+        doc.EnsureSpace(fontSize + SectionTitleGap + firstBlockHeight);
+        doc.DrawSectionTitle(title, fontSize);
+    }
+
+    // ===================== 결산 보고서 =====================
+
+    struct FMLCompareRow {
+        std::string Category;
+        int64_t Budget;
+        int64_t Actual;
+    };
+
+    // 예산 vs 실적 비교 표 (헤더, 카테고리 행, 합계 행)
+    void drawCompareTable(FMLPDFDocument& doc, const std::string& title, const std::vector<FMLCompareRow>& rows, int64_t totalBudget, int64_t totalActual)
+    {
+        const double w0 = TableWidth * SettlementCompareRatio[0];
+        const double w1 = TableWidth * SettlementCompareRatio[1];
+        const double w2 = TableWidth * SettlementCompareRatio[2];
+
+        drawSection(doc, title, FontSection, HeaderHeight + RowHeight);
+        doc.DrawRow(FMLPDFRow(HeaderHeight, true)
+            .AddCell("카테고리", w0)
+            .AddCell("예산", w1, E_MLPDFAlign::Right)
+            .AddCell("실적", w2, E_MLPDFAlign::Right),
+            MarginX, FontTable, true);
+
+        for (const auto& row : rows) {
+            doc.EnsureSpace(RowHeight);
+            doc.DrawRow(FMLPDFRow(RowHeight)
+                .AddCell(row.Category, w0)
+                .AddCell(formatWon(row.Budget), w1, E_MLPDFAlign::Right)
+                .AddCell(formatWon(row.Actual), w2, E_MLPDFAlign::Right),
+                MarginX, FontTable);
         }
 
-        // 항목 텍스트 최소 높이 확보 (첫 번째 거래에 추가)
-        double itemTextHeight = itemLines.size() * rowHeight;
-        double totalTxHeight = 0;
-        for (auto h : transactionHeights) totalTxHeight += h;
-        if (totalTxHeight < itemTextHeight && !transactionHeights.empty())
-            transactionHeights[0] += itemTextHeight - totalTxHeight;
+        doc.EnsureSpace(HeaderHeight);
+        doc.DrawRow(FMLPDFRow(HeaderHeight, true)
+            .AddCell("합계", w0)
+            .AddCell(formatWon(totalBudget), w1, E_MLPDFAlign::Right)
+            .AddCell(formatWon(totalActual), w2, E_MLPDFAlign::Right),
+            MarginX, FontTable, true);
+    }
 
-        // 항목 셀 세그먼트 추적
-        double itemSegmentStartY = doc.GetY();
-        bool itemTextDrawn = false;
+    // 두 맵의 카테고리를 합쳐 비교 행 목록으로
+    std::vector<FMLCompareRow> buildCompareRows(const std::map<std::string, int64_t>& budget, const std::map<std::string, int64_t>& actual)
+    {
+        std::set<std::string> categories;
+        for (const auto& entry : budget) categories.insert(entry.first);
+        for (const auto& entry : actual) categories.insert(entry.first);
 
-        // 나머지 열 - 거래 단위로 페이지 분기 처리
-        double contentStartX = itemX + colWidths[1];
-        double currentY = doc.GetY();
+        std::vector<FMLCompareRow> rows;
+        for (const auto& category : categories) {
+            const auto budgetIt = budget.find(category);
+            const auto actualIt = actual.find(category);
+            rows.push_back({
+                category,
+                budgetIt != budget.end() ? budgetIt->second : 0,
+                actualIt != actual.end() ? actualIt->second : 0 });
+        }
+        return rows;
+    }
 
-        auto finishSegments = [&]() {
-            // 항목 병합 셀 세그먼트 완성
-            double segHeight = itemSegmentStartY - currentY;
-            if (segHeight > 0) {
-                ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-                ctx->re(itemX, currentY, colWidths[1], segHeight);
-                ctx->S(); ctx->Q();
+    // 카테고리 → 항목 → 금액을 카테고리 합계로
+    std::map<std::string, int64_t> sumByCategory(const std::map<std::string, std::map<std::string, int64_t>>& items)
+    {
+        std::map<std::string, int64_t> totals;
+        for (const auto& category : items) {
+            int64_t total = 0;
+            for (const auto& item : category.second) total += item.second;
+            totals[category.first] = total;
+        }
+        return totals;
+    }
 
-                // 항목 텍스트는 첫 번째 세그먼트에만 출력
-                if (!itemTextDrawn) {
-                    double textY = itemSegmentStartY - 2 - fontSize;
-                    for (const auto& line : itemLines) {
-                        ctx->BT(); ctx->k(0, 0, 0, 1);
-                        ctx->Tf(doc.GetFontRegular(), fontSize);
-                        ctx->Tm(1, 0, 0, 1, itemX + 3, textY);
-                        ctx->Tj(line); ctx->ET();
-                        textY -= fontSize + 3;
-                    }
-                    itemTextDrawn = true;
-                }
+    // ===================== 거래 내역서 =====================
+
+    // 카테고리별 합계 표: [카테고리 이름들 | 총계] / [금액들 | 총액]. 열이 많으면 여러 줄로 나눔
+    void drawCategoryTotals(FMLPDFDocument& doc, const std::string& title, const std::map<std::string, int64_t>& totals, int64_t grandTotal, const std::string& totalLabel)
+    {
+        if (totals.empty()) return;
+
+        const std::vector<std::pair<std::string, int64_t>> list(totals.begin(), totals.end());
+        const size_t count = list.size();
+        const size_t maxCols = std::max<size_t>(2, static_cast<size_t>(TableWidth / CategoryMinColWidth));
+        const size_t perRow = maxCols - 1;   // 마지막 열은 총계/소계
+        const double colWidth = (count < perRow) ? TableWidth / (count + 1) : TableWidth / maxCols;
+
+        drawSection(doc, title, FontSubSection, RowHeight * 2);
+
+        for (size_t start = 0; start < count; ) {
+            const size_t end = std::min(start + perRow, count);
+            const bool isLast = (end == count);
+
+            FMLPDFRow names(RowHeight, true);
+            FMLPDFRow amounts(RowHeight);
+            int64_t chunkTotal = 0;
+            for (size_t i = start; i < end; i++) {
+                names.AddCell(list[i].first, colWidth);
+                amounts.AddCell(FMLFormat::FormatAmount(list[i].second), colWidth, E_MLPDFAlign::Right);
+                chunkTotal += list[i].second;
             }
+            names.AddCell(isLast ? totalLabel : "소계", colWidth, E_MLPDFAlign::Left, true);
+            amounts.AddCell(FMLFormat::FormatAmount(isLast ? grandTotal : chunkTotal), colWidth, E_MLPDFAlign::Right, true);
 
-            // 카테고리 병합 셀 세그먼트 완성
-            double categoryHeight = categoryStartY - currentY;
-            if (categoryHeight > 0) {
-                ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-                ctx->re(x, currentY, colWidths[0], categoryHeight);
-                ctx->S(); ctx->Q();
-                ctx->BT(); ctx->k(0, 0, 0, 1);
-                ctx->Tf(doc.GetFontRegular(), fontSize);
-                double textY = currentY + categoryHeight / 2 - fontSize / 2 + 2;
-                ctx->Tm(1, 0, 0, 1, x + 3, textY);
-                ctx->Tj(category); ctx->ET();
-            }
+            doc.EnsureSpace(RowHeight * 2);
+            doc.DrawRow(names, MarginX, FontTable);
+            doc.DrawRow(amounts, MarginX, FontTable);
+
+            if (!isLast) doc.MoveDown(ChunkGap);
+            start = end;
+        }
+    }
+
+    void drawTransactionHeader(FMLPDFDocument& doc, const std::string headers[6])
+    {
+        FMLPDFRow row(HeaderHeight, true);
+        for (int i = 0; i < 6; i++)
+            row.AddCell(headers[i], TransactionCols[i], i == 3 ? E_MLPDFAlign::Right : E_MLPDFAlign::Left);
+        doc.DrawRow(row, MarginX, FontTable, true);
+    }
+
+    // 거래 한 행에 그릴 내용 (높이 계산을 위해 미리 준비)
+    struct FMLTransactionRowLayout {
+        std::vector<std::string> Description;
+        std::vector<FMLPDFTextLine> Amount;   // 금액 + (외화면) 작은 환율 정보
+        std::string Date;
+        std::string Receipt;
+        double Height;
+    };
+
+    FMLTransactionRowLayout layoutTransaction(const FMLPDFDocument& doc, const FMLTransactionData& transaction)
+    {
+        FMLTransactionRowLayout row;
+        row.Description = doc.WrapText(transaction.Description, TransactionCols[2] - CellPadX * 2, false, FontTable);
+
+        row.Amount.push_back({formatWon(transaction.Amount), FontTable, false, InkText});
+        if (transaction.UseExchangeRate && transaction.Currency != "KRW") {
+            // 외화 금액: 소수 둘째 자리까지 (센트), 환율: 넷째 자리까지
+            row.Amount.push_back({
+                "(" + transaction.Currency + " " + FMLFormat::FormatDecimal(transaction.OriginalAmount, 2)
+                    + " @ " + FMLFormat::FormatDecimal(transaction.ExchangeRate, 4) + ")",
+                FontNote, false, InkNote });
+        }
+
+        row.Date = transaction.DateTime.substr(0, 10);
+        row.Receipt = transaction.ReceiptNumber;
+
+        double amountHeight = 0.0;
+        for (const auto& line : row.Amount) amountHeight += line.Size;
+        amountHeight += (row.Amount.size() - 1) * LineGap;
+
+        const double contentHeight = std::max(FMLPDFDocument::LinesHeight(row.Description.size(), FontTable), amountHeight);
+        row.Height = std::max(RowHeight, contentHeight + CellPadY * 2);
+        return row;
+    }
+
+    // 카테고리 그룹 (카테고리 셀과 항목 셀은 병합, 페이지가 넘어가면 나눠 그리고 헤더 반복)
+    void drawCategoryGroup(FMLPDFDocument& doc, const std::string& category, const FMLItemGroups& itemGroups, const std::string headers[6])
+    {
+        if (itemGroups.empty()) return;
+
+        const double* cols = TransactionCols;
+        const double xCategory = MarginX;
+        const double xItem     = xCategory + cols[0];
+        const double xDesc     = xItem + cols[1];
+        const double xAmount   = xDesc + cols[2];
+        const double xDate     = xAmount + cols[3];
+        const double xReceipt  = xDate + cols[4];
+
+        const std::vector<std::string> categoryLines = doc.WrapText(category, cols[0] - CellPadX * 2, false, FontTable);
+
+        // 병합 셀 한 조각 (위쪽 top ~ 현재 Y) 그리기
+        auto drawMergedCell = [&](double x, double width, double top, const std::vector<std::string>& lines) {
+            const double bottom = doc.GetY();
+            const double height = top - bottom;
+            if (height <= 0) return;
+            doc.StrokeRect(x, bottom, width, height);
+            doc.DrawCellText(lines, x, bottom, width, height, E_MLPDFAlign::Left, false, FontTable);
         };
 
-        for (size_t i = 0; i < transactions.size(); i++)
-        {
-            double txHeight = transactionHeights[i];
+        // 1) 행 높이 미리 계산: 항목 이름이 그 거래 행들보다 길면 항목의 마지막 행을,
+        //    카테고리 이름이 카테고리 전체보다 길면 카테고리의 마지막 행을 늘린다
+        struct FMLItemLayout {
+            std::vector<std::string> Lines;
+            std::vector<FMLTransactionRowLayout> Rows;
+        };
+        std::vector<FMLItemLayout> items;
+        double categoryRowsHeight = 0.0;
 
-            // 거래 단위 페이지 분기 체크
-            if (currentY - txHeight < 30)
-            {
-                finishSegments();
+        for (const auto& itemGroup : itemGroups) {
+            FMLItemLayout item;
+            item.Lines = doc.WrapText(itemGroup.first, cols[1] - CellPadX * 2, false, FontTable);
 
-                doc.NewPage();
-                ctx = doc.GetContext();
-                { FMLPDFRow r(headerHeight, true); for (int j = 0; j < 6; j++) r.AddCell(headers[j], colWidths[j], j == 3 ? E_MLPDFAlign::Right : E_MLPDFAlign::Left); doc.DrawRow(r, leftMargin, 9, true); }
-                doc.SetY(doc.GetY() + headerHeight); // 헤더 하단(= 콘텐츠 시작점)으로 복귀
-
-                categoryStartY    = doc.GetY();
-                itemSegmentStartY = doc.GetY();
-                currentY          = doc.GetY();
+            double rowsHeight = 0.0;
+            for (const auto& transaction : itemGroup.second) {
+                item.Rows.push_back(layoutTransaction(doc, transaction));
+                rowsHeight += item.Rows.back().Height;
             }
 
-            const auto& transaction = transactions[i];
-            double rowY = currentY - txHeight;
-
-            // 내용 셀
-            ctx->q();
-            ctx->w(0.5);
-            ctx->k(0, 0, 0, 1);
-            ctx->re(contentStartX, rowY, colWidths[2], txHeight);
-            ctx->S();
-            ctx->Q();
-
-            std::vector<std::string> descLines = wrapText(transaction.Description, colWidths[2] - 6, fontSize);
-            double totalDescVisualHeight = fontSize * descLines.size() + 3 * (descLines.size() - 1);
-            double descTopPadding = (txHeight - totalDescVisualHeight) / 2;
-            if (descTopPadding < 2) descTopPadding = 2;
-            double textY = rowY + txHeight - descTopPadding - fontSize;
-            for (const auto& line : descLines) {
-                ctx->BT();
-                ctx->k(0, 0, 0, 1);
-                ctx->Tf(doc.GetFontRegular(), fontSize);
-                ctx->Tm(1, 0, 0, 1, contentStartX + 3, textY);
-                ctx->Tj(line);
-                ctx->ET();
-                textY -= fontSize + 3;
+            const double itemHeight = FMLPDFDocument::LinesHeight(item.Lines.size(), FontTable) + CellPadY * 2;
+            if (rowsHeight < itemHeight && !item.Rows.empty()) {
+                item.Rows.back().Height += itemHeight - rowsHeight;
+                rowsHeight = itemHeight;
             }
 
-            // 금액 셀 (오른쪽 정렬, 환율 정보 포함)
-            double amountX = contentStartX + colWidths[2];
-            ctx->q();
-            ctx->w(0.5);
-            ctx->k(0, 0, 0, 1);
-            ctx->re(amountX, rowY, colWidths[3], txHeight);
-            ctx->S();
-            ctx->Q();
-
-            std::string amountStr = FMLFormat::FormatAmount(transaction.Amount) + "원";
-            if (transaction.UseExchangeRate && transaction.Currency != "KRW") {
-                // Original amount: up to 2 decimals (cents), rate: up to 4 decimals
-                amountStr += " (" + transaction.Currency + " "
-                    + FMLFormat::FormatDecimal(transaction.OriginalAmount, 2)
-                    + " @ " + FMLFormat::FormatDecimal(transaction.ExchangeRate, 4) + ")";
-            }
-
-            double estimatedWidth = amountStr.length() * fontSize * 0.465;
-            ctx->BT();
-            ctx->k(0, 0, 0, 1);
-            ctx->Tf(doc.GetFontRegular(), fontSize);
-            ctx->Tm(1, 0, 0, 1, amountX + colWidths[3] - estimatedWidth - 6, rowY + (txHeight - fontSize) / 2 + 2);
-            ctx->Tj(amountStr);
-            ctx->ET();
-
-            // 날짜 셀
-            double dateX = amountX + colWidths[3];
-            ctx->q();
-            ctx->w(0.5);
-            ctx->k(0, 0, 0, 1);
-            ctx->re(dateX, rowY, colWidths[4], txHeight);
-            ctx->S();
-            ctx->Q();
-
-            std::string dateOnly = transaction.DateTime.substr(0, 10);
-            ctx->BT();
-            ctx->k(0, 0, 0, 1);
-            ctx->Tf(doc.GetFontRegular(), fontSize);
-            ctx->Tm(1, 0, 0, 1, dateX + 3, rowY + (txHeight - fontSize) / 2 + 2);
-            ctx->Tj(dateOnly);
-            ctx->ET();
-
-            // 영수증번호 셀
-            double receiptX = dateX + colWidths[4];
-            ctx->q();
-            ctx->w(0.5);
-            ctx->k(0, 0, 0, 1);
-            ctx->re(receiptX, rowY, colWidths[5], txHeight);
-            ctx->S();
-            ctx->Q();
-
-            ctx->BT();
-            ctx->k(0, 0, 0, 1);
-            ctx->Tf(doc.GetFontRegular(), fontSize);
-            ctx->Tm(1, 0, 0, 1, receiptX + 3, rowY + (txHeight - fontSize) / 2 + 2);
-            ctx->Tj(transaction.ReceiptNumber);
-            ctx->ET();
-
-            currentY = rowY;
+            categoryRowsHeight += rowsHeight;
+            items.push_back(std::move(item));
         }
 
-        doc.SetY(currentY);
+        const double categoryHeight = FMLPDFDocument::LinesHeight(categoryLines.size(), FontTable) + CellPadY * 2;
+        if (categoryRowsHeight < categoryHeight && !items.back().Rows.empty())
+            items.back().Rows.back().Height += categoryHeight - categoryRowsHeight;
 
-        // 항목 그룹 마지막 세그먼트 완성 (항목 셀만, 카테고리는 전체 반복 후 한 번)
-        double segHeight = itemSegmentStartY - currentY;
-        if (segHeight > 0) {
-            ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-            ctx->re(itemX, currentY, colWidths[1], segHeight);
-            ctx->S(); ctx->Q();
+        // 2) 그리기
+        double categoryTop = doc.GetY();
 
-            if (!itemTextDrawn) {
-                double textY = itemSegmentStartY - 2 - fontSize;
-                for (const auto& line : itemLines) {
-                    ctx->BT(); ctx->k(0, 0, 0, 1);
-                    ctx->Tf(doc.GetFontRegular(), fontSize);
-                    ctx->Tm(1, 0, 0, 1, itemX + 3, textY);
-                    ctx->Tj(line); ctx->ET();
-                    textY -= fontSize + 3;
+        for (const auto& item : items) {
+            const std::vector<std::string>& itemLines = item.Lines;
+            const std::vector<FMLTransactionRowLayout>& rows = item.Rows;
+
+            double itemTop = doc.GetY();
+
+            for (const auto& row : rows) {
+                // 페이지 넘김: 지금까지의 병합 셀 조각을 닫고, 새 페이지에 헤더 반복
+                if (doc.GetY() - row.Height < MarginBottom) {
+                    drawMergedCell(xItem, cols[1], itemTop, itemLines);
+                    drawMergedCell(xCategory, cols[0], categoryTop, categoryLines);
+                    doc.NewPage();
+                    drawTransactionHeader(doc, headers);
+                    categoryTop = itemTop = doc.GetY();
                 }
+
+                const double bottom = doc.GetY() - row.Height;
+                doc.StrokeRect(xDesc, bottom, cols[2], row.Height);
+                doc.StrokeRect(xAmount, bottom, cols[3], row.Height);
+                doc.StrokeRect(xDate, bottom, cols[4], row.Height);
+                doc.StrokeRect(xReceipt, bottom, cols[5], row.Height);
+
+                doc.DrawCellText(row.Description, xDesc, bottom, cols[2], row.Height, E_MLPDFAlign::Left, false, FontTable);
+                doc.DrawCellText(row.Amount, xAmount, bottom, cols[3], row.Height, E_MLPDFAlign::Right);
+                doc.DrawCellText({row.Date}, xDate, bottom, cols[4], row.Height, E_MLPDFAlign::Left, false, FontTable);
+                doc.DrawCellText({row.Receipt}, xReceipt, bottom, cols[5], row.Height, E_MLPDFAlign::Left, false, FontTable);
+
+                doc.MoveDown(row.Height);
             }
+
+            drawMergedCell(xItem, cols[1], itemTop, itemLines);
         }
+
+        drawMergedCell(xCategory, cols[0], categoryTop, categoryLines);
     }
 
-    // 마지막 페이지의 카테고리 셀 완성
-    double categoryHeight = categoryStartY - doc.GetY();
-    if (categoryHeight > 0) {
-        ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-        ctx->re(x, doc.GetY(), colWidths[0], categoryHeight);
-        ctx->S(); ctx->Q();
-        ctx->BT(); ctx->k(0, 0, 0, 1);
-        ctx->Tf(doc.GetFontRegular(), fontSize);
-        double textY = doc.GetY() + categoryHeight / 2 - fontSize / 2 + 2;
-        ctx->Tm(1, 0, 0, 1, x + 3, textY);
-        ctx->Tj(category); ctx->ET();
+    // 수입 또는 지출 거래 표 전체
+    void drawTransactionSection(FMLPDFDocument& doc, const std::string& title, const std::string& amountHeader, const std::vector<FMLTransactionData>& transactions)
+    {
+        if (transactions.empty()) return;
+
+        const std::string headers[6] = {"구분", "항목", "내용", amountHeader, "년월일", "영수증번호"};
+
+        FMLCategoryGroups groups;
+        for (const auto& transaction : transactions)
+            groups[transaction.Category][transaction.Item].push_back(transaction);
+
+        drawSection(doc, title, FontSection, HeaderHeight + RowHeight);
+        drawTransactionHeader(doc, headers);
+
+        for (const auto& group : groups)
+            drawCategoryGroup(doc, group.first, group.second, headers);
     }
 }
 
@@ -304,154 +314,50 @@ bool FMLPDFExporter::ExportSettlement(
         FMLPDFDocument doc;
         if (!doc.Open(filePath)) return false;
 
-        auto* ctx       = doc.GetContext();
-        auto* fontBold  = doc.GetFontBold();
+        doc.DrawTitle(data.Title, data.Subtitle);
 
-        const double leftMargin     = 50.0;
-        const double tableWidth     = 495.0;
-        const double rowHeight      = 20.0;
-        const double headerHeight   = 25.0;
-        const double sectionSpacing = 15.0;
+        // === 1. 요약: 예산 ===
+        drawLabelAmountRow(doc, "총 수입 (예산)", formatWon(data.TotalIncome), SettlementLabelRatio);
+        drawLabelAmountRow(doc, "총 지출 (예산)", formatWon(data.TotalExpense), SettlementLabelRatio);
+        doc.MoveDown(TableGap);
 
-        // === 제목 (중앙 정렬 + 자동 크기 조절) ===
-        double titleFontSize = 20.0;
-
-        size_t charCount = 0;
-        for (size_t i = 0; i < data.Title.length(); ) {
-            unsigned char c = static_cast<unsigned char>(data.Title[i]);
-            if      (c < 0x80) { i += 1; charCount++; }
-            else if (c < 0xE0) { i += 2; charCount++; }
-            else if (c < 0xF0) { i += 3; charCount++; }
-            else               { i += 4; charCount++; }
-        }
-
-        double titleWidth = charCount * titleFontSize * 0.7;
-        const double maxTitleWidth = doc.GetPageWidth() - 100.0;
-        if (titleWidth > maxTitleWidth) {
-            titleFontSize = titleFontSize * maxTitleWidth / titleWidth;
-            titleWidth = charCount * titleFontSize * 0.7;
-        }
-
-        const double titleX = (doc.GetPageWidth() - titleWidth) / 2.0;
-        ctx->BT();
-        ctx->k(0, 0, 0, 1);
-        ctx->Tf(fontBold, titleFontSize);
-        ctx->Tm(1, 0, 0, 1, titleX, doc.GetY());
-        ctx->Tj(data.Title);
-        ctx->ET();
-        doc.MoveDown(40.0);
-
-        // === 1. 요약 - 총 수입 / 총 지출 (예산) ===
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 수입 (예산)", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalIncome) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 지출 (예산)", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalExpense) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.MoveDown(sectionSpacing);
-
-        // === 1. 요약 - 총 실수입 / 총 실지출 / 잔액 (실적) ===
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 실수입", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalActualIncome) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("총 실지출", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalActualExpense) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(rowHeight).AddCell("잔액", tableWidth * 0.6).AddCell(FMLFormat::FormatAmount(data.TotalBalance) + "원", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.MoveDown(sectionSpacing);
+        // === 1. 요약: 실적 ===
+        drawLabelAmountRow(doc, "총 실수입", formatWon(data.TotalActualIncome), SettlementLabelRatio);
+        drawLabelAmountRow(doc, "총 실지출", formatWon(data.TotalActualExpense), SettlementLabelRatio);
+        drawLabelAmountRow(doc, "잔액", formatWon(data.TotalBalance), SettlementLabelRatio);
+        doc.MoveDown(SectionGap);
 
         // === 2. 환율 정보 ===
         if (!data.ExchangeRates.empty()) {
-            doc.CheckPageBreak();
-            ctx->BT();
-            ctx->Tf(fontBold, 14);
-            ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-            ctx->Tj("환율 정보");
-            ctx->ET();
-            doc.MoveDown(30.0);
+            const double w0 = TableWidth * SettlementLabelRatio;
+            const double w1 = TableWidth - w0;
 
-            doc.CheckPageBreak();
-            doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("통화", tableWidth * 0.6).AddCell("평균 환율", tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 11, true);
+            drawSection(doc, "환율 정보", FontSection, HeaderHeight + RowHeight);
+            doc.DrawRow(FMLPDFRow(HeaderHeight, true)
+                .AddCell("통화", w0)
+                .AddCell("평균 환율", w1, E_MLPDFAlign::Right),
+                MarginX, FontTable, true);
 
             for (const auto& rate : data.ExchangeRates) {
-                doc.CheckPageBreak();
-                const std::string rateStr = FMLFormat::FormatDecimal(rate.second, 2, 2) + "원";
-                doc.DrawRow(FMLPDFRow(rowHeight).AddCell(rate.first, tableWidth * 0.6).AddCell(rateStr, tableWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10);
+                doc.EnsureSpace(RowHeight);
+                doc.DrawRow(FMLPDFRow(RowHeight)
+                    .AddCell(rate.first, w0)
+                    .AddCell(FMLFormat::FormatDecimal(rate.second, 2, 2) + "원", w1, E_MLPDFAlign::Right),
+                    MarginX, FontTable);
             }
-            doc.MoveDown(sectionSpacing);
+            doc.MoveDown(SectionGap);
         }
 
         // === 3. 수입 비교 (예산 vs 실적) ===
-        doc.CheckPageBreak();
-        ctx->BT();
-        ctx->Tf(fontBold, 14);
-        ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-        ctx->Tj("수입 비교");
-        ctx->ET();
-        doc.MoveDown(30.0);
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("카테고리", tableWidth * 0.5).AddCell("예산", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell("실적", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 11, true);
-
-        std::set<std::string> incomeCategories;
-        for (const auto& cat : data.BudgetIncomeCategories) incomeCategories.insert(cat.first);
-        for (const auto& cat : data.ActualIncomeCategories)  incomeCategories.insert(cat.first);
-
-        for (const auto& category : incomeCategories) {
-            doc.CheckPageBreak();
-            int64_t budgetAmount = 0, actualAmount = 0;
-            auto budgetIt = data.BudgetIncomeCategories.find(category);
-            if (budgetIt != data.BudgetIncomeCategories.end()) budgetAmount = budgetIt->second;
-            auto actualIt = data.ActualIncomeCategories.find(category);
-            if (actualIt != data.ActualIncomeCategories.end()) actualAmount = actualIt->second;
-            doc.DrawRow(FMLPDFRow(rowHeight).AddCell(category, tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(budgetAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(actualAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 10);
-        }
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("합계", tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(data.TotalIncome) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(data.TotalActualIncome) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 9, true);
-        doc.MoveDown(sectionSpacing);
+        drawCompareTable(doc, "수입 비교",
+            buildCompareRows(data.BudgetIncomeCategories, data.ActualIncomeCategories),
+            data.TotalIncome, data.TotalActualIncome);
+        doc.MoveDown(SectionGap);
 
         // === 4. 지출 비교 (예산 vs 실적) ===
-        doc.CheckPageBreak();
-        ctx->BT();
-        ctx->Tf(fontBold, 14);
-        ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-        ctx->Tj("지출 비교");
-        ctx->ET();
-        doc.MoveDown(30.0);
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("카테고리", tableWidth * 0.5).AddCell("예산", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell("실적", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 11, true);
-
-        std::map<std::string, int64_t> budgetExpenseCategories;
-        std::map<std::string, int64_t> actualExpenseCategories;
-        for (const auto& category : data.BudgetExpenseItems) {
-            int64_t total = 0;
-            for (const auto& item : category.second) total += item.second;
-            budgetExpenseCategories[category.first] = total;
-        }
-        for (const auto& category : data.ActualExpenseItems) {
-            int64_t total = 0;
-            for (const auto& item : category.second) total += item.second;
-            actualExpenseCategories[category.first] = total;
-        }
-
-        std::set<std::string> allExpenseCategories;
-        for (const auto& cat : budgetExpenseCategories) allExpenseCategories.insert(cat.first);
-        for (const auto& cat : actualExpenseCategories)  allExpenseCategories.insert(cat.first);
-
-        for (const auto& category : allExpenseCategories) {
-            doc.CheckPageBreak();
-            int64_t budgetAmount = 0, actualAmount = 0;
-            auto budgetIt = budgetExpenseCategories.find(category);
-            if (budgetIt != budgetExpenseCategories.end()) budgetAmount = budgetIt->second;
-            auto actualIt = actualExpenseCategories.find(category);
-            if (actualIt != actualExpenseCategories.end()) actualAmount = actualIt->second;
-            doc.DrawRow(FMLPDFRow(rowHeight).AddCell(category, tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(budgetAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(actualAmount) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 10);
-        }
-
-        doc.CheckPageBreak();
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("합계", tableWidth * 0.5).AddCell(FMLFormat::FormatAmount(data.TotalExpense) + "원", tableWidth * 0.25, E_MLPDFAlign::Right).AddCell(FMLFormat::FormatAmount(data.TotalActualExpense) + "원", tableWidth * 0.25, E_MLPDFAlign::Right), leftMargin, 9, true);
+        drawCompareTable(doc, "지출 비교",
+            buildCompareRows(sumByCategory(data.BudgetExpenseItems), sumByCategory(data.ActualExpenseItems)),
+            data.TotalExpense, data.TotalActualExpense);
 
         doc.Close();
         return true;
@@ -464,260 +370,53 @@ bool FMLPDFExporter::ExportSettlement(
 // 거래 내역서 PDF 생성 (개별 거래 내역 표시)
 bool FMLPDFExporter::ExportTransactionList(
     const std::vector<FMLTransactionData>& transactions,
+    const std::string& subtitle,
     const std::string& filePath)
 {
     try {
         FMLPDFDocument doc;
         if (!doc.Open(filePath)) return false;
 
-        auto* ctx      = doc.GetContext();
-        auto* fontBold = doc.GetFontBold();
-
-        std::string filename = extractFilename(filePath);
-
-        const double leftMargin     = 30.0;
-        const double rowHeight      = 18.0;
-        const double headerHeight   = 22.0;
-        const double sectionSpacing = 20.0;
-
-        const double colWidths[6] = {50, 60, 170, 135, 52, 58};
-        double tableWidth = 0;
-        for (int i = 0; i < 6; i++) tableWidth += colWidths[i];
-
-        // === 제목 (파일명) ===
-        ctx->BT();
-        ctx->k(0, 0, 0, 1);
-        ctx->Tf(fontBold, 18);
-        ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-        ctx->Tj(filename);
-        ctx->ET();
-        doc.MoveDown(25.0);
-
-        // === 합계 요약 섹션 ===
-        int64_t totalIncome = 0;
-        int64_t totalExpense = 0;
-
         std::vector<FMLTransactionData> incomeList;
         std::vector<FMLTransactionData> expenseList;
+        int64_t totalIncome = 0;
+        int64_t totalExpense = 0;
+        std::map<std::string, int64_t> incomeCategoryTotals;
+        std::map<std::string, int64_t> expenseCategoryTotals;
 
         for (const auto& transaction : transactions) {
             if (transaction.Type == E_MLTransactionType::Income) {
                 incomeList.push_back(transaction);
                 totalIncome += transaction.Amount;
+                incomeCategoryTotals[transaction.Category] += transaction.Amount;
             } else if (transaction.Type == E_MLTransactionType::Expense) {
                 expenseList.push_back(transaction);
                 totalExpense += transaction.Amount;
+                expenseCategoryTotals[transaction.Category] += transaction.Amount;
             }
         }
 
-        int64_t balance = totalIncome - totalExpense;
+        doc.DrawTitle("거래 내역서", subtitle);
 
-        ctx->BT();
-        ctx->Tf(fontBold, 14);
-        ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-        ctx->Tj("합계");
-        ctx->ET();
-        doc.MoveDown(30.0);
-
-        const double summaryWidth = 300.0;
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("총 수입", summaryWidth * 0.6).AddCell(FMLFormat::FormatAmount(totalIncome) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("총 지출", summaryWidth * 0.6).AddCell(FMLFormat::FormatAmount(totalExpense) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.DrawRow(FMLPDFRow(headerHeight, true).AddCell("남은 금액", summaryWidth * 0.6).AddCell(FMLFormat::FormatAmount(balance) + "원", summaryWidth * 0.4, E_MLPDFAlign::Right), leftMargin, 10, true);
-        doc.MoveDown(sectionSpacing);
+        // === 합계 ===
+        drawSection(doc, "합계", FontSection, RowHeight * 3);
+        drawLabelAmountRow(doc, "총 수입", formatWon(totalIncome), SummaryLabelRatio);
+        drawLabelAmountRow(doc, "총 지출", formatWon(totalExpense), SummaryLabelRatio);
+        drawLabelAmountRow(doc, "남은 금액", formatWon(totalIncome - totalExpense), SummaryLabelRatio);
+        doc.MoveDown(SectionGap);
 
         // === 카테고리별 합계 ===
-        std::map<std::string, int64_t> incomeCategoryTotals;
-        std::map<std::string, int64_t> expenseCategoryTotals;
-        for (const auto& t : incomeList)  incomeCategoryTotals[t.Category]  += t.Amount;
-        for (const auto& t : expenseList) expenseCategoryTotals[t.Category] += t.Amount;
+        drawCategoryTotals(doc, "수입 카테고리별", incomeCategoryTotals, totalIncome, "총 수입");
+        if (!incomeCategoryTotals.empty() && !expenseCategoryTotals.empty())
+            doc.MoveDown(TableGap);
+        drawCategoryTotals(doc, "지출 카테고리별", expenseCategoryTotals, totalExpense, "총 지출");
+        doc.MoveDown(SectionGap);
 
-        // 수입 카테고리 합계 표
-        if (!incomeCategoryTotals.empty()) {
-            ctx->BT();
-            ctx->Tf(fontBold, 11);
-            ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-            ctx->Tj("수입 카테고리별");
-            ctx->ET();
-            doc.MoveDown(18.0);
-
-            const double catAvailWidth = 595.0 - leftMargin - 30.0;
-            const double minCatColWidth = 60.0;
-            const double categoryRowHeight = 16.0;
-
-            std::vector<std::pair<std::string, int64_t>> incomeCatList(incomeCategoryTotals.begin(), incomeCategoryTotals.end());
-            const size_t incomeTotalCats = incomeCatList.size();
-            const int incomeMaxTotalCols = std::max(2, (int)(catAvailWidth / minCatColWidth));
-            const int incomeMaxCatsPerRow = incomeMaxTotalCols - 1;
-            const double incomeColWidth = ((int)incomeTotalCats < incomeMaxCatsPerRow)
-                ? catAvailWidth / (incomeTotalCats + 1)
-                : catAvailWidth / incomeMaxTotalCols;
-
-            for (size_t rowStart = 0; rowStart < incomeTotalCats; ) {
-                const size_t rowEnd = std::min(rowStart + (size_t)incomeMaxCatsPerRow, incomeTotalCats);
-                const bool isLastRow = (rowEnd == incomeTotalCats);
-
-                double currentX = leftMargin;
-                for (size_t i = rowStart; i < rowEnd; i++) {
-                    ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1); ctx->k(0, 0, 0, 0.1);
-                    ctx->re(currentX, doc.GetY(), incomeColWidth, categoryRowHeight);
-                    ctx->B(); ctx->Q();
-                    ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(doc.GetFontRegular(), 8);
-                    ctx->Tm(1, 0, 0, 1, currentX + 3, doc.GetY() + 4);
-                    ctx->Tj(incomeCatList[i].first); ctx->ET();
-                    currentX += incomeColWidth;
-                }
-                ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1); ctx->k(0, 0, 0, 0.1);
-                ctx->re(currentX, doc.GetY(), incomeColWidth, categoryRowHeight);
-                ctx->B(); ctx->Q();
-                ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(fontBold, 8);
-                ctx->Tm(1, 0, 0, 1, currentX + 3, doc.GetY() + 4);
-                ctx->Tj(isLastRow ? "총 수입" : "소계"); ctx->ET();
-                doc.MoveDown(categoryRowHeight);
-
-                currentX = leftMargin;
-                int64_t incomeRowTotal = 0;
-                for (size_t i = rowStart; i < rowEnd; i++) {
-                    incomeRowTotal += incomeCatList[i].second;
-                    ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-                    ctx->re(currentX, doc.GetY(), incomeColWidth, categoryRowHeight);
-                    ctx->S(); ctx->Q();
-                    std::string amountStr = FMLFormat::FormatAmount(incomeCatList[i].second);
-                    double estimatedWidth = amountStr.length() * 8 * 0.45;
-                    ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(doc.GetFontRegular(), 8);
-                    ctx->Tm(1, 0, 0, 1, currentX + incomeColWidth - estimatedWidth - 8, doc.GetY() + 4);
-                    ctx->Tj(amountStr); ctx->ET();
-                    currentX += incomeColWidth;
-                }
-                int64_t incomeDisplayTotal = isLastRow ? totalIncome : incomeRowTotal;
-                ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-                ctx->re(currentX, doc.GetY(), incomeColWidth, categoryRowHeight);
-                ctx->S(); ctx->Q();
-                std::string totalStr = FMLFormat::FormatAmount(incomeDisplayTotal);
-                double estimatedWidth = totalStr.length() * 8 * 0.45;
-                ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(fontBold, 8);
-                ctx->Tm(1, 0, 0, 1, currentX + incomeColWidth - estimatedWidth - 8, doc.GetY() + 4);
-                ctx->Tj(totalStr); ctx->ET();
-                doc.MoveDown(categoryRowHeight + (isLastRow ? 10 : 3));
-
-                rowStart = rowEnd;
-            }
-        }
-
-        // 지출 카테고리 합계 표
-        if (!expenseCategoryTotals.empty()) {
-            ctx->BT();
-            ctx->Tf(fontBold, 11);
-            ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-            ctx->Tj("지출 카테고리별");
-            ctx->ET();
-            doc.MoveDown(18.0);
-
-            const double catAvailWidth = 595.0 - leftMargin - 30.0;
-            const double minCatColWidth = 60.0;
-            const double categoryRowHeight = 16.0;
-
-            std::vector<std::pair<std::string, int64_t>> expenseCatList(expenseCategoryTotals.begin(), expenseCategoryTotals.end());
-            const size_t expenseTotalCats = expenseCatList.size();
-            const int expenseMaxTotalCols = std::max(2, (int)(catAvailWidth / minCatColWidth));
-            const int expenseMaxCatsPerRow = expenseMaxTotalCols - 1;
-            const double expenseColWidth = ((int)expenseTotalCats < expenseMaxCatsPerRow)
-                ? catAvailWidth / (expenseTotalCats + 1)
-                : catAvailWidth / expenseMaxTotalCols;
-
-            for (size_t rowStart = 0; rowStart < expenseTotalCats; ) {
-                const size_t rowEnd = std::min(rowStart + (size_t)expenseMaxCatsPerRow, expenseTotalCats);
-                const bool isLastRow = (rowEnd == expenseTotalCats);
-
-                double currentX = leftMargin;
-                for (size_t i = rowStart; i < rowEnd; i++) {
-                    ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1); ctx->k(0, 0, 0, 0.1);
-                    ctx->re(currentX, doc.GetY(), expenseColWidth, categoryRowHeight);
-                    ctx->B(); ctx->Q();
-                    ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(doc.GetFontRegular(), 8);
-                    ctx->Tm(1, 0, 0, 1, currentX + 3, doc.GetY() + 4);
-                    ctx->Tj(expenseCatList[i].first); ctx->ET();
-                    currentX += expenseColWidth;
-                }
-                ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1); ctx->k(0, 0, 0, 0.1);
-                ctx->re(currentX, doc.GetY(), expenseColWidth, categoryRowHeight);
-                ctx->B(); ctx->Q();
-                ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(fontBold, 8);
-                ctx->Tm(1, 0, 0, 1, currentX + 3, doc.GetY() + 4);
-                ctx->Tj(isLastRow ? "총 지출" : "소계"); ctx->ET();
-                doc.MoveDown(categoryRowHeight);
-
-                currentX = leftMargin;
-                int64_t expenseRowTotal = 0;
-                for (size_t i = rowStart; i < rowEnd; i++) {
-                    expenseRowTotal += expenseCatList[i].second;
-                    ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-                    ctx->re(currentX, doc.GetY(), expenseColWidth, categoryRowHeight);
-                    ctx->S(); ctx->Q();
-                    std::string amountStr = FMLFormat::FormatAmount(expenseCatList[i].second);
-                    double estimatedWidth = amountStr.length() * 8 * 0.45;
-                    ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(doc.GetFontRegular(), 8);
-                    ctx->Tm(1, 0, 0, 1, currentX + expenseColWidth - estimatedWidth - 8, doc.GetY() + 4);
-                    ctx->Tj(amountStr); ctx->ET();
-                    currentX += expenseColWidth;
-                }
-                int64_t expenseDisplayTotal = isLastRow ? totalExpense : expenseRowTotal;
-                ctx->q(); ctx->w(0.5); ctx->k(0, 0, 0, 1);
-                ctx->re(currentX, doc.GetY(), expenseColWidth, categoryRowHeight);
-                ctx->S(); ctx->Q();
-                std::string totalStr = FMLFormat::FormatAmount(expenseDisplayTotal);
-                double estimatedWidth = totalStr.length() * 8 * 0.45;
-                ctx->BT(); ctx->k(0, 0, 0, 1); ctx->Tf(fontBold, 8);
-                ctx->Tm(1, 0, 0, 1, currentX + expenseColWidth - estimatedWidth - 8, doc.GetY() + 4);
-                ctx->Tj(totalStr); ctx->ET();
-                doc.MoveDown(categoryRowHeight + (isLastRow ? sectionSpacing : 3));
-
-                rowStart = rowEnd;
-            }
-        }
-
-        // === 수입 섹션 ===
-        if (!incomeList.empty()) {
-            ctx->BT();
-            ctx->Tf(fontBold, 14);
-            ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-            ctx->Tj("수입");
-            ctx->ET();
-            doc.MoveDown(25.0);
-
-            const std::string headers[6] = {"구분", "항목", "내용", "수입금액", "년월일", "영수증번호"};
-            { FMLPDFRow r(headerHeight, true); for (int i = 0; i < 6; i++) r.AddCell(headers[i], colWidths[i], i == 3 ? E_MLPDFAlign::Right : E_MLPDFAlign::Left); doc.DrawRow(r, leftMargin, 9, true); }
-            doc.SetY(doc.GetY() + headerHeight); // 헤더 하단(= 콘텐츠 시작점)으로 복귀
-
-            std::map<std::string, std::map<std::string, std::vector<FMLTransactionData>>> incomeCategories;
-            for (const auto& transaction : incomeList)
-                incomeCategories[transaction.Category][transaction.Item].push_back(transaction);
-
-            for (const auto& categoryPair : incomeCategories)
-                drawCategoryGroup(doc, categoryPair.first, categoryPair.second, colWidths, 8, rowHeight, leftMargin, headerHeight, headers);
-
-            doc.MoveDown(sectionSpacing);
-        }
-
-        // === 지출 섹션 ===
-        if (!expenseList.empty()) {
-            ctx->BT();
-            ctx->Tf(fontBold, 14);
-            ctx->Tm(1, 0, 0, 1, leftMargin, doc.GetY());
-            ctx->Tj("지출");
-            ctx->ET();
-            doc.MoveDown(25.0);
-
-            const std::string headers[6] = {"구분", "항목", "내용", "지출금액", "년월일", "영수증번호"};
-            { FMLPDFRow r(headerHeight, true); for (int i = 0; i < 6; i++) r.AddCell(headers[i], colWidths[i], i == 3 ? E_MLPDFAlign::Right : E_MLPDFAlign::Left); doc.DrawRow(r, leftMargin, 9, true); }
-            doc.SetY(doc.GetY() + headerHeight); // 헤더 하단(= 콘텐츠 시작점)으로 복귀
-
-            std::map<std::string, std::map<std::string, std::vector<FMLTransactionData>>> expenseCategories;
-            for (const auto& transaction : expenseList)
-                expenseCategories[transaction.Category][transaction.Item].push_back(transaction);
-
-            for (const auto& categoryPair : expenseCategories)
-                drawCategoryGroup(doc, categoryPair.first, categoryPair.second, colWidths, 8, rowHeight, leftMargin, headerHeight, headers);
-        }
+        // === 수입 / 지출 거래 ===
+        drawTransactionSection(doc, "수입", "수입금액", incomeList);
+        if (!incomeList.empty() && !expenseList.empty())
+            doc.MoveDown(SectionGap);
+        drawTransactionSection(doc, "지출", "지출금액", expenseList);
 
         doc.Close();
         return true;
