@@ -127,6 +127,14 @@
 - 따옴표로 띄어쓰기 있는 인수 (`open "2026 필리핀.ml"`)
 - 입력이 끝나면(EOF, 파이프) 종료 (지금처럼 무한 루프 없이)
 
+구현 (2026-11-22, 4단계):
+- 인수 모드와 대화형이 `dispatch()` 하나를 거쳐 같은 명령 함수를 부른다. 값 검사 함수는 `MLCLIUtil.h`에 두고 두 모드가 함께 쓴다. 대화형 코드는 `MLCLIViewShell.cpp`
+- 대화형 전용 명령: `open`, `new <파일>`(만들고 엶), `close`, `help`, `exit`/`quit`. `--json`은 받지 않음 (사람용)
+- 옵션 없이 `add`/`budget add`/`update`/`budget update`를 입력하면 모든 항목을 묻고(수정은 Enter = 그대로, `-` = 지움), 미리 보기(`--dry-run`과 같은 출력) 뒤 "저장할까요? [Y/n]". 옵션을 일부 주면 빠진 필수 항목(유형, 카테고리, 금액)만 묻고 확인 없이 저장
+- `show`/`delete`/`budget delete`에서 `--id`를 빼면 ID를 묻는다. 삭제는 대화형에서 항상 확인 (`--yes`면 생략). `export`에서 `--out`을 빼면 경로를 묻는다 (Enter = 기본 경로)
+- 질문 중 `취소` = 그 명령 취소 (저장 안 함). 잘못된 값은 이유를 보여주고 다시 묻는다
+- 질문으로 안 되는 것 (옵션으로만): 수정에서 원화 ↔ 외화 전환과 통화 코드 변경 (`update --id N --currency KRW --amount ...`)
+
 예:
 
 ```
@@ -186,7 +194,7 @@
 | 1 | `new`가 기존 파일 데이터를 지우는 문제 수정 + 스모크 테스트 | ✅ 2026-11-21 |
 | 2 | 문법 통일(§3), 거래 `show`/`update`/`delete`, `info`, `list` 필터, 값 규칙, 종료 코드, 도움말 한 벌, 스모크 테스트 보강 (`cli_edit_cycle`, `cli_usage_error`) | ✅ 2026-11-21 (대화형은 아직 옛 명령) |
 | 3 | `--json`, `--yes`, `--dry-run`, `--no-subtitle`(GUI 부제 토글과 같은 옵션 구조체), 백업. 스모크 테스트 `cli_json_list`, `cli_json_error`, `cli_dry_run`, `cli_backup` | ✅ 2026-11-21 |
-| 4 | 대화형 다시 만들기 (§5) | 📋 |
+| 4 | 대화형 다시 만들기 (§5) | ✅ 2026-11-22 (`MLCLIViewShell.cpp`, 스모크 테스트 `cli_shell_add`, `cli_shell_cancel`) |
 | 5 | `mledger` 이름, 설치 파일 포함, PATH (§2). **7단계 이후에** (AI가 GUI 옆에서 쓰기 시작하기 전에 충돌 감지가 있어야 함) | 📋 |
 | 6 | `CLI.md`, 사용자 `ReadMe.txt` (§7) | 📋 |
 | 7 | GUI 외부 변경 감지 + 다시 불러오기, `busy_timeout`, 원자적 저장/읽기 (§6) | ✅ 2026-11-22 (Windows 확인, macOS는 손 확인) |
