@@ -8,6 +8,8 @@
 #include <sstream>
 #include <limits>
 #include <cstring>
+#include <filesystem>
+#include <system_error>
 
 namespace
 {
@@ -444,6 +446,18 @@ int FMLCLIView::cmdOpen(const std::string& filePath)
 
 int FMLCLIView::cmdNew(const std::string& filePath)
 {
+    // 이미 있는 파일에 만들면 저장(전체 삭제 후 다시 쓰기)이 기존 거래/예산을 모두 지우므로 거부
+    if (!filePath.empty())
+    {
+        std::error_code ec;
+        if (std::filesystem::exists(std::filesystem::u8path(filePath), ec))
+        {
+            std::cerr << "오류: 파일이 이미 있습니다: " << filePath << std::endl;
+            std::cerr << "기존 파일은 지우지 않습니다. 다른 이름을 쓰거나 기존 파일을 먼저 옮기세요." << std::endl;
+            return 1;
+        }
+    }
+
     auto controller = FMLMVCHolder::GetInstance().GetController();
     controller->NewFile();
 

@@ -7,7 +7,8 @@
 # then reports the test as skipped (SKIP_REGULAR_EXPRESSION in tests/CMakeLists.txt), not passed.
 #
 # Each case runs the CLI once and fails unless
-#   - the exit code is 0 (missing_file: non-zero, and no file is created),
+#   - the exit code is 0 (missing_file: non-zero, and no file is created;
+#     new_existing: non-zero, and the existing file is unchanged),
 #   - every expected line appears in the output (totals from tests/fixtures/README.md),
 #   - the PDF (export cases) exists, is not empty and starts with "%PDF".
 # PDF contents/layout are not checked: this only tells whether the build still works.
@@ -40,6 +41,15 @@ elseif(CASE STREQUAL "missing_file")
     set(missing "${OUT_DIR}/does_not_exist.ml")
     file(REMOVE "${missing}")
     set(args list "${missing}")
+    set(expected "")
+    set(expect_fail TRUE)
+elseif(CASE STREQUAL "new_existing")
+    # "new" on an existing file must fail and leave the file untouched (it used to wipe all data)
+    set(existing "${OUT_DIR}/new_existing.ml")
+    file(MAKE_DIRECTORY "${OUT_DIR}")
+    file(COPY_FILE "${FIXTURE}" "${existing}")
+    file(SHA256 "${existing}" existing_hash)
+    set(args new "${existing}")
     set(expected "")
     set(expect_fail TRUE)
 else()
@@ -82,8 +92,14 @@ if(expect_fail)
     if(rc EQUAL 0)
         list(APPEND errors "exit code 0 (expected an error)")
     endif()
-    if(EXISTS "${missing}")
+    if(missing AND EXISTS "${missing}")
         list(APPEND errors "file was created: ${missing}")
+    endif()
+    if(existing)
+        file(SHA256 "${existing}" after_hash)
+        if(NOT after_hash STREQUAL existing_hash)
+            list(APPEND errors "existing file was changed: ${existing}")
+        endif()
     endif()
 elseif(NOT rc EQUAL 0)
     list(APPEND errors "exit code ${rc} (expected 0)")
