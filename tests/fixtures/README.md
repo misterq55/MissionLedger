@@ -28,11 +28,13 @@ Defined in [`tests/CMakeLists.txt`](../CMakeLists.txt), run by [`tests/cli_smoke
 |---|---|---|
 | `cli_list_totals` | `list sample.ml` | exit 0; output has 10 transactions and the totals above |
 | `cli_budget_totals` | `budget list sample.ml` | exit 0; output has income budget 5,000,000원, expense budget 4,800,000원 |
-| `cli_export_settlement` | `export-settlement sample.ml <out>` | exit 0; the PDF exists, is not empty, starts with `%PDF` and embeds the bundled fonts `NotoSansKR-Regular` and `NotoSansKR-Bold` |
-| `cli_export_transactions` | `export-transactions sample.ml <out>` | same |
+| `cli_export_settlement` | `export settlement sample.ml --out <out>` | exit 0; the PDF exists, is not empty, starts with `%PDF` and embeds the bundled fonts `NotoSansKR-Regular` and `NotoSansKR-Bold` |
+| `cli_export_transactions` | `export transactions sample.ml --out <out>` | same |
 | `cli_missing_file` | `list <path that does not exist>` | exit code is not 0 and no file is created there |
 | `cli_new_existing` | `new <copy of sample.ml>` | exit code is not 0 and the existing file is unchanged (SHA-256) |
-| `cli_*_x86_64` (macOS only) | the six above, run as `arch -x86_64 MissionLedgerCLI ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
+| `cli_edit_cycle` | on a copy: `add` → `update` → `show` → `delete --yes`, then `list` | each step exits 0 and prints its result line (new ID 10, updated amount, description); the final totals are the fixture's again |
+| `cli_usage_error` | `add <copy> ... --amount 12abc` | exit code exactly 2 (usage error) and the file is unchanged |
+| `cli_*_x86_64` (macOS only) | the eight above, run as `arch -x86_64 MissionLedgerCLI ...` | the same; tests the Intel half of the Universal build through Rosetta 2. Reported as **skipped** (not passed) on a Mac without Rosetta. Output in `out/<Config>/x86_64/` |
 
 PDFs go to `build/<windows|macos>/tests/out/<Config>/`. Apart from the embedded font names, PDF contents and layout are not checked. The expected values live in `cli_smoke.cmake`: update them there and in this file if `sample.ml` is regenerated with different data.
 

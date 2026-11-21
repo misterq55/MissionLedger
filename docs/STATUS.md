@@ -23,8 +23,8 @@ Add new completed items here (newest details also go to CHANGELOG.md `[미배포
   - CLI support (budget list/add/update/delete)
   - Transaction.BudgetId and ActualAmount fields reserved for future use
 - ✅ PDF export (PDF-Writer, Malgun Gothic embedded) — user-facing details in [CHANGELOG.md](CHANGELOG.md)
-  - Settlement report (`Ctrl+E`, CLI `export-settlement <in.ml> <out.pdf>`): budget vs actual per category, built from `FMLSettlmentData`
-  - Transaction list (`Ctrl+T`, CLI `export-transactions <in.ml> [out.pdf]`): Category → Item → Transaction with merged cells, wrapping, inline exchange rates, subtotals
+  - Settlement report (`Ctrl+E`, CLI `export settlement <file.ml> [--out <pdf>]`): budget vs actual per category, built from `FMLSettlmentData`
+  - Transaction list (`Ctrl+T`, CLI `export transactions <file.ml> [--out <pdf>]`): Category → Item → Transaction with merged cells, wrapping, inline exchange rates, subtotals
   - Structure: `FMLPDFDocument` → `FMLPDFRow` → cell; `DrawRow()` advances Y and splits merged cells across page breaks
 - ✅ Windows Installer (Inno Setup) — [docs/INSTALLER.md](docs/INSTALLER.md)
   - `.ml` file association, Start menu/desktop shortcuts, uninstall cleanup

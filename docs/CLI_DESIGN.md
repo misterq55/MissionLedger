@@ -1,6 +1,6 @@
 # CLI 설계안 (`mledger`)
 
-작성 2026-11-21. 상태: **설계안 (승인된 방향, 아직 구현 전)**. 구현하면서 이 문서를 갱신한다.
+작성 2026-11-21. 상태: **1~2단계 구현됨 (2026-11-21)**, 나머지는 설계안. 구현하면서 이 문서를 갱신한다.
 
 ## 0. 목적과 원칙
 
@@ -10,7 +10,7 @@
 - **인수 모드는 묻지 않는다**: 빠진 값이 있으면 오류 (AI, 스크립트가 멈추지 않게). **대화형은 빠진 값을 차례대로 묻는다**
 - **데이터를 조용히 잃지 않는다**: 덮어쓰기 전 확인, 백업, GUI와의 충돌 감지
 
-## 1. 현재 상태 (2026-11-21 코드 확인)
+## 1. 재작업 전 상태 (2026-11-21 코드 확인, 2단계에서 대부분 바뀜)
 
 `MissionLedgerCLI/src/module/mvc/view/MLCLIView.cpp`, `MissionLedgerCLI/main_cli.cpp`
 
@@ -45,6 +45,8 @@
 
 ## 3. 명령 체계
 
+**구현 (2단계, 2026-11-21)**: `MissionLedgerCLI/src/module/mvc/view/MLCLIViewCommands.cpp`의 `commandSpecs()` 표 하나에 명령, 위치 인수, 옵션, 처리 함수, 예를 적고 파싱(`MLCLIArgs`), 필수 옵션 검사, 도움말(`help`, `help <명령>`, `<명령> --help`)이 모두 이 표를 쓴다. 실행 파일 이름은 아직 `MissionLedgerCLI` (도움말의 이름은 `kProgram` 한곳). 아래 표에서 구현과 다른 점: `--item` 필터는 없음(`--search`가 항목/설명/영수증 번호를 찾음), `--no-subtitle`과 공통 옵션 `--json`/`--dry-run`/`--version`은 3단계. `--yes`는 `delete`, `budget delete`에만 있음. 외화 거래의 `--amount`는 생략 가능하고, 주면 계산값과 1원 이내여야 함 (옛 스크립트 호환: 옛 `add`는 `--amount`가 필수였고 외화 옵션이 있으면 계산값으로 덮어씀)
+
 **문법**: `mledger <명령> [하위명령] <파일.ml> [옵션]`. 파일은 항상 명령 바로 뒤의 위치 인수 (`--file` 없앰)
 
 | 명령 | 내용 | 현재 대응 |
@@ -65,7 +67,7 @@
 | `mledger export transactions <파일> [--out 경로] [--no-subtitle]` | 거래 내역서 PDF. 생략 시 `<파일이름>-거래내역서.pdf` | `export-transactions` |
 | `mledger` 또는 `mledger shell [파일]` | 대화형 (§5) | 인수 없이 / `open` |
 
-(출력 파일 이름의 기본값은 구현 때 확정)
+(출력 파일 이름 기본값: `.ml`과 같은 폴더, 위 이름으로 확정)
 
 ### 공통 옵션
 
@@ -153,11 +155,11 @@
 | # | 내용 | 상태 |
 |---|---|---|
 | 1 | `new`가 기존 파일 데이터를 지우는 문제 수정 + 스모크 테스트 | ✅ 2026-11-21 |
-| 2 | 문법 통일(§3), 거래 `show`/`update`/`delete`, `info`, `list` 필터, 값 규칙, 종료 코드, 도움말 한 벌, 스모크 테스트 보강 | 📋 |
+| 2 | 문법 통일(§3), 거래 `show`/`update`/`delete`, `info`, `list` 필터, 값 규칙, 종료 코드, 도움말 한 벌, 스모크 테스트 보강 (`cli_edit_cycle`, `cli_usage_error`) | ✅ 2026-11-21 (대화형은 아직 옛 명령) |
 | 3 | `--json`, `--yes`, `--dry-run`, `--no-subtitle`(GUI 부제 토글과 같은 옵션 구조체), 백업 | 📋 |
 | 4 | 대화형 다시 만들기 (§5) | 📋 |
 | 5 | `mledger` 이름, 설치 파일 포함, PATH (§2). **7단계 이후에** (AI가 GUI 옆에서 쓰기 시작하기 전에 충돌 감지가 있어야 함) | 📋 |
 | 6 | `CLI.md`, 사용자 `ReadMe.txt` (§7) | 📋 |
 | 7 | GUI 외부 변경 감지 + 다시 불러오기, `busy_timeout` (§6) | 📋 |
 | 8 | 잠금 표시 (§6, 선택) | 📋 |
-| 9 | (나중) MCP 서버: Claude Desktop 등에 도구로 직접 연결. CLI를 감싸는 얇은 층 | 💡 |
+| 9 | (나중) AI 연결. (a) Agent Skill: `CLI.md`를 `SKILL.md`로 묶은 폴더 (Claude Code, Claude Desktop). 가장 가벼움, 6단계와 함께 가능. (b) MCP 서버: `mledger mcp` 하위 명령으로 CLI 안에 stdio JSON-RPC 서버를 넣음 (선교팀 PC에 Python/Node가 없어도 됨, 도구 하나 = 명령 하나의 `--json` 결과, JSON 라이브러리는 `third_party/`). Claude Desktop은 Desktop Extension(`.mcpb`)으로 한 번에 연결, Claude Code는 `claude mcp add mledger -- mledger mcp`. 공식 SDK는 Python/TypeScript 등이며 C++ 공식 SDK는 없는 것으로 앎 (2026-11-21 기준 기억, 만들 때 최신 문서 확인) | 💡 |

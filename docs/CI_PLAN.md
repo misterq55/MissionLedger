@@ -292,7 +292,7 @@ A macOS app cannot be run directly on Windows: it is a Mach-O binary, and Apple'
 | Check | Command on macOS | How to review on Windows |
 |---|---|---|
 | Architecture | `lipo -archs .../MacOS/MissionLedger` | Log (`arm64 x86_64`) |
-| CLI behavior | `MissionLedgerCLI export-settlement sample.ml out.pdf` | **Download the PDF artifact and compare it side by side with the Windows build's PDF** |
+| CLI behavior | `MissionLedgerCLI export settlement sample.ml --out out.pdf` | **Download the PDF artifact and compare it side by side with the Windows build's PDF** |
 | Missing dependencies | Use `otool -L` to look for external paths such as `/opt/homebrew` | Fail the build if any remain |
 | Signature (once signing is set up) | `codesign --verify --deep --strict` | Log |
 | Notarization / Gatekeeper (once signing is set up) | `spctl -a -vv MissionLedger.app` | Log (`accepted`) |

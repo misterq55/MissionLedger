@@ -170,7 +170,7 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Optimized spacing (30pt subtitle gaps) and alignment (10pt right margin for amounts)
     - ✅ Exchange rate information display with average rates
     - ✅ GUI menu: File → Export Settlement PDF (Ctrl+E)
-    - ✅ CLI command: export-settlement <input.ml> <output.pdf>
+    - ✅ CLI command: export settlement <file.ml> [--out <output.pdf>]
 
     **Transaction List PDF Export** ✅ COMPLETED (2026-02-13)
     - ✅ Individual transaction listing with hierarchical grouping (Category → Item → Transactions)
@@ -184,7 +184,7 @@ The project follows a phased approach for implementation, prioritizing core func
     - ✅ Category-wise subtotals with formatted table layout
     - ✅ Auto-suggested filename from .ml file (GUI) or optional output path (CLI)
     - ✅ GUI menu: File → Export Transaction List PDF (Ctrl+T)
-    - ✅ CLI command: export-transactions <input.ml> [output.pdf]
+    - ✅ CLI command: export transactions <file.ml> [--out <output.pdf>]
 
 18. **.ml File Registration** ⏳ PENDING
     - ⏳ Installer creation (Inno Setup / NSIS)
