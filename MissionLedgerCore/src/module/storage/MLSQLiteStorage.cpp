@@ -474,7 +474,9 @@ std::string FMLSQLiteStorage::GetChangeToken()
     const auto time = std::filesystem::last_write_time(path, ec);
     if (ec) return std::to_string(dataVersion) + "|missing";
 
-    return std::to_string(dataVersion) + "|" + std::to_string(time.time_since_epoch().count()) + "|" + std::to_string(size);
+    // count()의 타입은 표준 라이브러리마다 다름 (MSVC: long long, macOS libc++: __int128). 같은 OS 안에서 비교만 하므로 long long으로
+    const long long ticks = static_cast<long long>(time.time_since_epoch().count());
+    return std::to_string(dataVersion) + "|" + std::to_string(ticks) + "|" + std::to_string(static_cast<unsigned long long>(size));
 }
 
 bool FMLSQLiteStorage::DeleteAllBudgets()
